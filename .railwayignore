@@ -1,0 +1,12 @@
+node_modules
+.git
+.cursor
+*.log
+.env
+.env.production
+frontend/dist
+backend/dist
+**/.vite
+**/tsbuildinfo
+*.docx
+index.html
