@@ -14,6 +14,10 @@
     "seed:reset": "npm run seed:reset -w backend",
     "smoke-test": "bash scripts/smoke-test.sh",
     "smoke-test:ps1": "powershell -File scripts/smoke-test.ps1",
-    "vk-checklist:ps1": "powershell -File scripts/vk-checklist.ps1"
+    "vk-checklist:ps1": "powershell -File scripts/vk-checklist.ps1",
+    "build:frontend:prod": "powershell -File deploy/build-frontend.ps1",
+    "package:vk": "powershell -File deploy/package-vk-frontend.ps1",
+    "deploy:backend": "powershell -File deploy/deploy-backend-railway.ps1",
+    "verify:prod": "powershell -File deploy/verify-production.ps1"
   }
 }
