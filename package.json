@@ -1,0 +1,19 @@
+{
+  "name": "nfo-forum",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build:backend": "npm run build -w backend",
+    "build:frontend": "npm run build -w frontend",
+    "seed:dedupe": "npm run seed:dedupe -w backend",
+    "seed:reset": "npm run seed:reset -w backend",
+    "smoke-test": "bash scripts/smoke-test.sh",
+    "smoke-test:ps1": "powershell -File scripts/smoke-test.ps1",
+    "vk-checklist:ps1": "powershell -File scripts/vk-checklist.ps1"
+  }
+}

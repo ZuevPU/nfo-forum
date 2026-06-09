@@ -1,0 +1,80 @@
+:root,
+.vkui--vkBase--light {
+  --nfo-primary: #3b4ec0;
+  --nfo-accent: #3bbfa0;
+  --nfo-green: #0f6e56;
+  --nfo-green-light: #1a9070;
+  --nfo-bg: #f2f3f9;
+  --vkui--color_background_accent_themed: #3b4ec0;
+  --vkui--color_text_accent_themed: #ffffff;
+  --vkui--color_icon_accent_themed: #ffffff;
+  --vkui--color_stroke_accent_themed: #3b4ec0;
+}
+
+.nfo-gradient-header {
+  background: linear-gradient(135deg, var(--nfo-primary) 0%, #4f5ed4 50%, #6b5ecf 100%);
+  color: #fff;
+  padding: 16px;
+}
+
+.nfo-gradient-green {
+  background: linear-gradient(135deg, var(--nfo-green) 0%, var(--nfo-green-light) 100%);
+  color: #fff;
+}
+
+.nfo-bg {
+  background: var(--nfo-bg);
+}
+
+.nfo-track-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.nfo-track-option {
+  padding: 10px 8px;
+  border: 1px solid #d0d4ff;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.nfo-track-option--selected {
+  background: var(--nfo-primary);
+  border-color: var(--nfo-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.nfo-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nfo-accent);
+  animation: nfo-pulse 1.5s infinite;
+}
+
+@keyframes nfo-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.nfo-day-tab {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.nfo-day-tab--active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-weight: 700;
+}

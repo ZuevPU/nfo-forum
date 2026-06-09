@@ -1,0 +1,3 @@
+-- Baseline schema reference. Production DB is managed via ../000.sql and Supabase.
+-- Generate new migrations: npm run db:generate -w backend
+-- Apply with drizzle-kit or run 000.sql on fresh databases.

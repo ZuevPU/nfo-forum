@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: nfo-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SKIP_VK_SIGN
+        value: false
+      - key: DATABASE_URL
+        sync: false
+      - key: VK_APP_SECRET
+        sync: false
+      - key: VK_GROUP_TOKEN
+        sync: false
+      - key: VK_GROUP_ID
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: FRONTEND_ORIGIN
+        value: https://vk.com
