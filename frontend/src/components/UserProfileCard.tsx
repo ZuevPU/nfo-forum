@@ -10,25 +10,25 @@ export function UserProfileCard({ user, trackRank }: Props) {
   const initials = `${user.firstName[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase();
 
   return (
-    <Div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-      <Avatar size={40} gradientColor="green">
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'rgba(255,255,255,0.14)', padding: '10px 12px', borderRadius: 12 }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--nfo-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
         {initials}
-      </Avatar>
+      </div>
       <div style={{ flex: 1 }}>
-        <Headline level="2" weight="2">
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
           {user.firstName} {user.lastName ?? ''}
-        </Headline>
+        </div>
         {user.track && (
-          <Footnote style={{ color: 'var(--vkui--color_text_accent)' }}>{user.track}</Footnote>
+          <div style={{ fontSize: 9, fontWeight: 700, background: 'rgba(59,191,160,0.28)', border: '1px solid rgba(59,191,160,0.5)', color: 'var(--nfo-accent)', borderRadius: 5, padding: '2px 8px', marginTop: 4, display: 'inline-block' }}>
+            {user.track}
+          </div>
         )}
       </div>
       <div style={{ textAlign: 'right' }}>
-        <Headline level="2" weight="2" style={{ color: 'var(--vkui--color_text_accent)' }}>
-          {user.points}
-        </Headline>
-        <Footnote>баллов</Footnote>
-        {trackRank ? <Footnote>{trackRank} место в треке</Footnote> : null}
+        <div style={{ background: 'var(--nfo-accent)', borderRadius: 8, padding: '4px 10px', fontSize: 10, fontWeight: 700, color: '#fff', display: 'inline-block' }}>
+          {user.points} б.
+        </div>
       </div>
-    </Div>
+    </div>
   );
 }

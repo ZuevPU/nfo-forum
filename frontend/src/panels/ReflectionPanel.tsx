@@ -17,11 +17,21 @@ import {
 import { PanelLayout } from '../components/PanelLayout';
 
 const NFO_FACTORS = [
-  'общение с коллегами',
-  'новые знания',
-  'практические упражнения',
-  'атмосфера форума',
-  'рефлексия',
+  'Работа в направлении',
+  'Общие образовательные блоки',
+  'Выступления спикеров',
+  'Практические занятия',
+  'Работа в группе',
+  'Общение с участниками',
+  'Общение с модераторами',
+  'Личные размышления',
+  'Вопросы и рефлексия',
+  'Атмосфера программы',
+  'Внеформальное общение',
+  'Истории других участников',
+  'Задания программы',
+  'Культурная программа',
+  'Другое',
 ];
 
 export function ReflectionPanel() {
@@ -45,9 +55,15 @@ export function ReflectionPanel() {
   }, []);
 
   const toggleFactor = (f: string) => {
-    setSelectedFactors((prev) =>
-      prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f],
-    );
+    setSelectedFactors((prev) => {
+      if (prev.includes(f)) {
+        return prev.filter((x) => x !== f);
+      }
+      if (prev.length >= 3) {
+        return prev;
+      }
+      return [...prev, f];
+    });
   };
 
   const handleNfoSubmit = async () => {
@@ -92,17 +108,20 @@ export function ReflectionPanel() {
       {eveningQuestions.length > 0 && (
         <Group header="Вечерние вопросы (19:30)">
           {eveningQuestions.map((q) => (
-            <Div key={q.id}>
-              <SimpleCell multiline>{q.text}</SimpleCell>
-              <Div>
-                <Textarea
+            <Div key={q.id} style={{ padding: '8px 16px' }}>
+              <div className="nfo-card" style={{ margin: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12, lineHeight: 1.4 }}>{q.text}</div>
+                <textarea
+                  className="nfo-input"
+                  rows={3}
+                  placeholder="Ваш ответ..."
                   value={eveningAnswers[q.id] ?? ''}
                   onChange={(e) => setEveningAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
                 />
-                <Button size="m" stretched style={{ marginTop: 8 }} onClick={() => void handleEveningSubmit(q)}>
+                <Button size="m" stretched style={{ marginTop: 12 }} onClick={() => void handleEveningSubmit(q)}>
                   Ответить
                 </Button>
-              </Div>
+              </div>
             </Div>
           ))}
         </Group>

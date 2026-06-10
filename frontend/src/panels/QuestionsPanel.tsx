@@ -41,26 +41,29 @@ export function QuestionsPanel() {
     <PanelLayout id="questions" title="Вопросы" subtitle="Вопросы трека" loading={loading} error={error}>
       <Group>
         {questions.map((q) => (
-          <Div key={q.id} style={{ padding: '8px 0' }}>
-            <SimpleCell
-              disabled={q.isLocked || q.isAnswered}
-              subtitle={q.isLocked ? q.unlockLabel ?? 'Заблокировано' : q.isAnswered ? 'Ответ отправлен' : `${q.points} баллов`}
-              multiline
-            >
-              {q.isLocked ? '🔒 ' : q.isAnswered ? '✅ ' : ''}{q.text}
-            </SimpleCell>
-            {!q.isLocked && !q.isAnswered && (
-              <Div>
-                <Textarea
-                  value={answers[q.id] ?? ''}
-                  onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  placeholder="Твой ответ..."
-                />
-                <Button size="m" stretched style={{ marginTop: 8 }} onClick={() => void handleSubmit(q)}>
-                  Отправить
-                </Button>
-              </Div>
-            )}
+          <Div key={q.id} style={{ padding: '8px 16px' }}>
+            <div className="nfo-card" style={{ opacity: q.isLocked ? 0.6 : 1, margin: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 6 }}>
+                {q.isLocked ? q.unlockLabel ?? 'Заблокировано' : q.isAnswered ? 'Ответ отправлен' : `${q.points} баллов`}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12, lineHeight: 1.4 }}>
+                {q.isLocked ? '🔒 ' : q.isAnswered ? '✅ ' : ''}{q.text}
+              </div>
+              {!q.isLocked && !q.isAnswered && (
+                <div>
+                  <textarea
+                    className="nfo-input"
+                    rows={3}
+                    placeholder="Твой ответ..."
+                    value={answers[q.id] ?? ''}
+                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                  />
+                  <Button size="m" stretched style={{ marginTop: 12 }} onClick={() => void handleSubmit(q)}>
+                    Отправить
+                  </Button>
+                </div>
+              )}
+            </div>
           </Div>
         ))}
       </Group>

@@ -9,6 +9,11 @@
   --vkui--color_text_accent_themed: #ffffff;
   --vkui--color_icon_accent_themed: #ffffff;
   --vkui--color_stroke_accent_themed: #3b4ec0;
+  --vkui--color_background_content: #f2f3f9;
+}
+
+body {
+  background: var(--nfo-bg);
 }
 
 .nfo-gradient-header {
@@ -24,6 +29,46 @@
 
 .nfo-bg {
   background: var(--nfo-bg);
+}
+
+.nfo-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.nfo-input {
+  background: #fff;
+  border: 1px solid #d0d4ff;
+  border-radius: 9px;
+  padding: 8px 11px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.nfo-tag {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 2px 8px;
+  display: inline-block;
+  font-weight: 600;
+}
+
+.nfo-tag--gen {
+  background: #e2f8f3;
+  color: #0f6e56;
+}
+
+.nfo-tag--trk {
+  background: #e8eaff;
+  color: #3b4ec0;
+}
+
+.nfo-tag--now {
+  background: var(--nfo-accent);
+  color: #fff;
 }
 
 .nfo-track-grid {

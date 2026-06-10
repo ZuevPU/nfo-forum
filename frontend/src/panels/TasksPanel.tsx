@@ -95,11 +95,22 @@ export function TasksPanel() {
         <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="l" /></Div>
       ) : selectedTask ? (
         <Group>
-          <SimpleCell subtitle={selectedTask.description} multiline>{selectedTask.title}</SimpleCell>
-          <FormItem top="Твой ответ">
-            <Textarea value={answer} onChange={(e) => setAnswer(e.target.value)} />
-          </FormItem>
-          <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Div style={{ padding: '12px 16px' }}>
+            <div className="nfo-card" style={{ margin: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTask.title}</div>
+              <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>{selectedTask.description}</div>
+            </div>
+          </Div>
+          <Div style={{ padding: '0 16px 12px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Твой ответ</div>
+            <textarea
+              className="nfo-input"
+              rows={3}
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+            />
+          </Div>
+          <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '0 16px 12px' }}>
             <Button size="m" mode="secondary" loading={uploading} onClick={() => void handleUploadPhoto()}>
               📷 Добавить фото
             </Button>
@@ -114,17 +125,22 @@ export function TasksPanel() {
         </Group>
       ) : (
         <Group>
+          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
           {tasks.map((t) => (
-            <SimpleCell
-              key={t.id}
-              subtitle={t.description}
-              after={statusBadge(t.status)}
-              onClick={() => t.status !== 'approved' && setSelectedTask(t)}
-              multiline
-            >
-              {t.title} · {t.points} б.
-            </SimpleCell>
+            <div key={t.id} className="nfo-card" style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }} onClick={() => t.status !== 'approved' && setSelectedTask(t)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nfo-primary)' }}>{t.points} б.</div>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                {t.description}
+              </div>
+              <div style={{ marginTop: 8 }}>
+                {statusBadge(t.status)}
+              </div>
+            </div>
           ))}
+          </Div>
         </Group>
       )}
     </Panel>

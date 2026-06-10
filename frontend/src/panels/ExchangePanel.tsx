@@ -61,10 +61,17 @@ export function ExchangePanel() {
   return (
     <PanelLayout id="exchange" title="Обмен опытом" subtitle="Задай вопрос — участники ответят">
       <Group>
-        <FormItem top="Твой вопрос">
-          <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Напиши вопрос..." />
-        </FormItem>
-        <Div>
+        <Div style={{ padding: '12px 16px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Твой вопрос</div>
+          <textarea 
+            className="nfo-input" 
+            rows={3} 
+            value={text} 
+            onChange={(e) => setText(e.target.value)} 
+            placeholder="Напиши вопрос..." 
+          />
+        </Div>
+        <Div style={{ paddingTop: 0 }}>
           <SegmentedControl
             value={scope}
             onChange={(v) => setScope(v as 'all' | 'track')}
@@ -82,17 +89,14 @@ export function ExchangePanel() {
       </Group>
       {incoming.length > 0 && (
         <Group header="Входящие вопросы">
+          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
           {incoming.map((q) => (
-            <SimpleCell
-              key={q.assignmentId}
-              subtitle="Ждёт твоего ответа"
-              multiline
-              onClick={() => navigate(`/exchange/incoming/${q.assignmentId}`)}
-              indicator={<span>›</span>}
-            >
-              {q.text}
-            </SimpleCell>
+            <div key={q.assignmentId} className="nfo-card" style={{ margin: 0, borderLeft: '3px solid var(--nfo-accent)' }} onClick={() => navigate(`/exchange/incoming/${q.assignmentId}`)}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-accent)', textTransform: 'uppercase', marginBottom: 4 }}>Ждёт твоего ответа</div>
+              <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{q.text}</div>
+            </div>
           ))}
+          </Div>
         </Group>
       )}
       {loading ? (
@@ -101,17 +105,14 @@ export function ExchangePanel() {
         <Placeholder>{error}</Placeholder>
       ) : (
         <Group header="Лента вопросов">
+          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
           {feed.map((item) => (
-            <SimpleCell
-              key={item.id}
-              subtitle={`${item.answerCount} ответов · ${item.scopeLabel}`}
-              multiline
-              onClick={() => navigate(`/exchange/${item.id}`)}
-              indicator={<span>›</span>}
-            >
-              {item.text}
-            </SimpleCell>
+            <div key={item.id} className="nfo-card" style={{ margin: 0 }} onClick={() => navigate(`/exchange/${item.id}`)}>
+              <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{item.text}</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>{item.answerCount} ответов · {item.scopeLabel}</div>
+            </div>
           ))}
+          </Div>
         </Group>
       )}
     </PanelLayout>

@@ -87,11 +87,14 @@ export function DiagnosticsPanel() {
       <Panel id="diagnostics">
         <PanelHeader>{activeBlock.title}</PanelHeader>
         <Group>
+          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
           {activeBlock.questions.map((q) => (
-            <SimpleCell key={q.id} onClick={() => setActiveQuestion(q)} indicator="›">
-              {q.text}
-            </SimpleCell>
+            <div key={q.id} className="nfo-card" style={{ margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => setActiveQuestion(q)}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>{q.text}</div>
+              <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+            </div>
           ))}
+          </Div>
         </Group>
         <Div>
           <Button size="m" mode="secondary" onClick={() => setActiveBlock(null)}>К блокам</Button>
@@ -109,14 +112,19 @@ export function DiagnosticsPanel() {
       error={error}
     >
       <Group>
+        <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
         {blocks.map((b) => (
-          <SimpleCell key={b.id} onClick={() => setActiveBlock(b)} indicator="›" multiline>
-            {b.title}
-            <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>
-              {b.questions.length} вопросов
+          <div key={b.id} className="nfo-card" style={{ margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => setActiveBlock(b)}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{b.title}</div>
+              <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>
+                {b.questions.length} вопросов
+              </div>
             </div>
-          </SimpleCell>
+            <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+          </div>
         ))}
+        </Div>
       </Group>
     </PanelLayout>
   );

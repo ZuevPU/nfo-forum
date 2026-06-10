@@ -80,31 +80,31 @@ export function ExchangeDetailPanel() {
             </Group>
           )}
           <Group header={`Ответы (${detail.answers.length})`}>
+            <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
             {detail.answers.length === 0 ? (
               <Placeholder>Пока нет ответов — будь первым!</Placeholder>
             ) : (
               detail.answers.map((a) => (
-                <SimpleCell
-                  key={a.id}
-                  subtitle={new Date(a.createdAt).toLocaleString('ru-RU')}
-                  multiline
-                >
-                  {a.answerText}
-                </SimpleCell>
+                <div key={a.id} className="nfo-card" style={{ margin: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{a.answerText}</div>
+                  <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>{new Date(a.createdAt).toLocaleString('ru-RU')}</div>
+                </div>
               ))
             )}
+            </Div>
           </Group>
           {!detail.question.isMine && (
             <Group>
-              <FormItem top="Твой ответ">
-                <Textarea
+              <Div style={{ padding: '0 16px 12px' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Твой ответ</div>
+                <textarea
+                  className="nfo-input"
+                  rows={3}
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder="Поделись опытом..."
                 />
-              </FormItem>
-              <Div>
-                <Button size="l" stretched loading={submitting} onClick={() => void handleAnswer()}>
+                <Button size="l" stretched loading={submitting} onClick={() => void handleAnswer()} style={{ marginTop: 12 }}>
                   Отправить ответ
                 </Button>
               </Div>

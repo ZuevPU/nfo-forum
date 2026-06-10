@@ -18,18 +18,36 @@ import {
 import { PanelLayout } from '../components/PanelLayout';
 
 const ENERGY_LEVELS = [
-  { level: 1, emoji: '😴', label: 'пусто' },
-  { level: 2, emoji: '😕', label: 'низко' },
-  { level: 3, emoji: '😊', label: 'нормально' },
-  { level: 4, emoji: '😄', label: 'бодро' },
-  { level: 5, emoji: '🚀', label: 'заряжен' },
+  { level: 0, label: 'еле держусь' },
+  { level: 1, label: '' },
+  { level: 2, label: '' },
+  { level: 3, label: '' },
+  { level: 4, label: '' },
+  { level: 5, label: 'нормально' },
+  { level: 6, label: '' },
+  { level: 7, label: '' },
+  { level: 8, label: '' },
+  { level: 9, label: '' },
+  { level: 10, label: 'заряжен' },
 ];
 
-const EMOTIONS = ['любопытство', 'открытость', 'тревога', 'усталость', 'радость'];
+const EMOTIONS = [
+  'тревога',
+  'растерянность',
+  'скука',
+  'раздражение',
+  'усталость',
+  'спокойствие',
+  'интерес',
+  'вовлечённость',
+  'воодушевление',
+  'радость',
+  'гордость',
+];
 
 export function StateCheckinPanel() {
-  const [energy, setEnergy] = useState(3);
-  const [emotion, setEmotion] = useState('открытость');
+  const [energy, setEnergy] = useState(5);
+  const [emotion, setEmotion] = useState('спокойствие');
   const [comment, setComment] = useState('');
   const [history, setHistory] = useState<Checkin[]>([]);
   const [botReaction, setBotReaction] = useState<string | null>(null);
@@ -60,22 +78,23 @@ export function StateCheckinPanel() {
 
   return (
     <PanelLayout id="checkin" title="Как ты сейчас?" subtitle="30 секунд">
-      <Group header="Энергия">
-        <Div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <Group header="Энергия (0-10)">
+        <Div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto' }}>
           {ENERGY_LEVELS.map((e) => (
             <div
               key={e.level}
               onClick={() => setEnergy(e.level)}
               style={{
                 textAlign: 'center',
-                padding: 8,
+                padding: '8px 4px',
                 borderRadius: 10,
                 background: energy === e.level ? 'var(--vkui--color_background_secondary_alpha)' : undefined,
                 cursor: 'pointer',
+                minWidth: 28,
               }}
             >
-              <div style={{ fontSize: 24 }}>{e.emoji}</div>
-              <div style={{ fontSize: 10 }}>{e.label}</div>
+              <div style={{ fontSize: 16, fontWeight: energy === e.level ? 'bold' : 'normal' }}>{e.level}</div>
+              {e.label && <div style={{ fontSize: 9, marginTop: 4 }}>{e.label}</div>}
             </div>
           ))}
         </Div>
@@ -95,9 +114,16 @@ export function StateCheckinPanel() {
         </Div>
       </Group>
       <Group>
-        <FormItem top="Комментарий (необязательно)">
-          <Textarea value={comment} onChange={(e) => setComment(e.target.value)} />
-        </FormItem>
+        <Div style={{ padding: '12px 16px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Комментарий (необязательно)</div>
+          <textarea 
+            className="nfo-input"
+            rows={3}
+            placeholder="Моё состояние вызвано тем, что..." 
+            value={comment} 
+            onChange={(e) => setComment(e.target.value)} 
+          />
+        </Div>
         <Div>
           <Button size="l" stretched loading={loading} onClick={() => void handleSubmit()}>
             Отправить чек-ин
@@ -117,7 +143,7 @@ export function StateCheckinPanel() {
         <Group header="История">
           {history.map((c) => (
             <SimpleCell key={c.id} subtitle={new Date(c.createdAt).toLocaleString('ru-RU')}>
-              {c.emotion} · энергия {c.energyLevel}/5
+              {c.emotion} · энергия {c.energyLevel}/10
             </SimpleCell>
           ))}
         </Group>

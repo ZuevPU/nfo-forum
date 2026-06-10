@@ -54,7 +54,12 @@ export function ExchangeIncomingPanel() {
         <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="l" /></Div>
       ) : question ? (
         <Group>
-          <SimpleCell multiline subtitle="Ждёт твоего ответа">{question.text}</SimpleCell>
+          <Div style={{ padding: '12px 16px' }}>
+            <div className="nfo-card" style={{ margin: 0, borderLeft: '3px solid var(--nfo-accent)' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-accent)', textTransform: 'uppercase', marginBottom: 6 }}>Ждёт твоего ответа</div>
+              <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{question.text}</div>
+            </div>
+          </Div>
           <FormItem top="Твой ответ">
             <Textarea value={answer} onChange={(e) => setAnswer(e.target.value)} />
           </FormItem>

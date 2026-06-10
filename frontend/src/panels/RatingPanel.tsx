@@ -52,20 +52,20 @@ export function RatingPanel() {
         </Div>
       </Group>
       <Group>
+        <Div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '0 16px 12px' }}>
         {data?.list.map((entry) => (
-          <SimpleCell
-            key={entry.id}
-            before={
-              <Avatar size={32} gradientColor={entry.isMe ? 'blue' : 'orange'}>
-                {entry.firstName[0]}
-              </Avatar>
-            }
-            after={<span style={{ fontWeight: 700, color: 'var(--vkui--color_text_accent)' }}>{entry.points}</span>}
-            style={entry.isMe ? { border: '1.5px solid var(--vkui--color_stroke_accent)' } : undefined}
-          >
-            {entry.position}. {entry.firstName} {entry.lastName ?? ''}
-          </SimpleCell>
+          <div key={entry.id} className="nfo-card" style={{ margin: 0, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 12, border: entry.isMe ? '1.5px solid var(--nfo-primary)' : undefined }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nfo-primary)', minWidth: 16 }}>{entry.position}.</div>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: entry.isMe ? 'var(--nfo-primary)' : '#e8eaff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: entry.isMe ? '#fff' : 'var(--nfo-primary)' }}>
+              {entry.firstName[0]}
+            </div>
+            <div style={{ flex: 1, fontSize: 12, fontWeight: entry.isMe ? 700 : 500, color: entry.isMe ? 'var(--nfo-primary)' : 'inherit' }}>
+              {entry.firstName} {entry.lastName ?? ''}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nfo-primary)' }}>{entry.points}</div>
+          </div>
         ))}
+        </Div>
       </Group>
     </PanelLayout>
   );
