@@ -5,12 +5,13 @@ import { eq, inArray } from 'drizzle-orm';
 
 interface PushPayload {
   text: string;
+  image?: string;
   targetType: 'all' | 'track' | 'user';
   targetTracks?: string[];
   targetUserId?: number;
 }
 
-async function sendVkMessage(vkUserIds: number[], message: string): Promise<void> {
+async function sendVkMessage(vkUserIds: number[], message: string, image?: string): Promise<void> {
   if (!env.VK_GROUP_TOKEN) {
     console.warn(
       `[push] VK_GROUP_TOKEN not set (group ${env.VK_GROUP_ID || 'n/a'}), skipping`,
@@ -19,9 +20,11 @@ async function sendVkMessage(vkUserIds: number[], message: string): Promise<void
   }
 
   const userIds = vkUserIds.join(',');
+  const finalMessage = image ? `${message}\n\n${image}` : message;
+  
   const params = new URLSearchParams({
     user_ids: userIds,
-    message,
+    message: finalMessage,
     random_id: String(Math.floor(Math.random() * 1e9)),
     access_token: env.VK_GROUP_TOKEN,
     v: '5.199',
@@ -59,11 +62,12 @@ export async function sendPush(payload: PushPayload): Promise<{ sent: number }> 
   const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
 
   if (vkIds.length > 0) {
-    await sendVkMessage(vkIds, payload.text);
+    await sendVkMessage(vkIds, payload.text, payload.image);
   }
 
   await db.insert(broadcasts).values({
     text: payload.text,
+    image: payload.image ?? null,
     targetType: payload.targetType,
     targetTracks: payload.targetTracks ?? null,
     targetUserId: payload.targetUserId ?? null,

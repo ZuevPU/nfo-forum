@@ -41,6 +41,7 @@ import {
 import { PanelTitle } from '../components/PanelTitle';
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
+import { uploadFiles } from '../lib/vk-bridge';
 
 type Tab = 'events' | 'tasks' | 'exchange' | 'submissions' | 'reflection' | 'push';
 
@@ -74,8 +75,24 @@ export function AdminPanel() {
   const [newReflectionType, setNewReflectionType] = useState('evening');
 
   const [pushText, setPushText] = useState('');
+  const [pushImage, setPushImage] = useState<string | null>(null);
+  const [pushUploading, setPushUploading] = useState(false);
   const [pushTarget, setPushTarget] = useState<'all' | 'track' | 'user'>('all');
   const [pushTrack, setPushTrack] = useState<string>(TRACKS[0]);
+
+  const handleUploadPushImage = async () => {
+    setPushUploading(true);
+    try {
+      const urls = await uploadFiles(1);
+      if (urls.length > 0) {
+        setPushImage(urls[0]);
+      }
+    } catch (e) {
+      console.error('Upload failed:', e);
+    } finally {
+      setPushUploading(false);
+    }
+  };
 
   const load = () => {
     setLoading(true);
@@ -359,6 +376,25 @@ export function AdminPanel() {
           <FormItem top="Текст сообщения">
             <Textarea value={pushText} onChange={(e) => setPushText(e.target.value)} />
           </FormItem>
+          <FormItem top="Изображение (необязательно)">
+            {pushImage ? (
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <img src={pushImage} alt="Превью" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8 }} />
+                <Button 
+                  mode="tertiary" 
+                  size="s" 
+                  style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: 'white' }}
+                  onClick={() => setPushImage(null)}
+                >
+                  ✕
+                </Button>
+              </div>
+            ) : (
+              <Button mode="secondary" loading={pushUploading} onClick={() => void handleUploadPushImage()}>
+                📷 Прикрепить фото
+              </Button>
+            )}
+          </FormItem>
           <FormItem top="Аудитория">
             <NativeSelect value={pushTarget} onChange={(e) => setPushTarget(e.target.value as 'all' | 'track' | 'user')}>
               <option value="all">Все</option>
@@ -378,9 +414,10 @@ export function AdminPanel() {
               stretched
               onClick={() => void sendAdminPush({
                 text: pushText,
+                image: pushImage || undefined,
                 target_type: pushTarget,
                 target_tracks: pushTarget === 'track' ? [pushTrack] : undefined,
-              }).then(() => setPushText(''))}
+              }).then(() => { setPushText(''); setPushImage(null); })}
             >
               Отправить
             </Button>

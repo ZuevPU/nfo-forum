@@ -68,6 +68,7 @@ export function deleteReflectionQuestion(id: number) {
 
 export function sendAdminPush(payload: {
   text: string;
+  image?: string;
   target_type: 'all' | 'track' | 'user';
   target_tracks?: string[];
   target_user_id?: number;
