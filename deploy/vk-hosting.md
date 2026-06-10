@@ -22,7 +22,8 @@ npm run dev:backend
 npm run dev:frontend
 
 # 3 — HTTPS-туннель (первый раз — OAuth как у deploy)
-npm run tunnel:frontend
+npm run tunnel:vk
+# Если Vite на другом порту: npm run tunnel:vk -- -Port 5174
 ```
 
 Tunnel выведет HTTPS-URL и может автоматически обновить **«Размещение»** в [dev.vk.com](https://dev.vk.com/ru/mini-apps/settings). Если нет — вставьте URL вручную в mobile / web / mvk.

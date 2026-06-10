@@ -9,6 +9,7 @@
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "tunnel:frontend": "npm run tunnel -w frontend",
+    "tunnel:vk": "powershell -File deploy/run-vk-tunnel.ps1",
     "build:backend": "npm run build -w backend",
     "build:frontend": "npm run build -w frontend",
     "seed:dedupe": "npm run seed:dedupe -w backend",
