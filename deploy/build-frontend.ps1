@@ -1,6 +1,6 @@
 # Production frontend build for VK Hosting
 param(
-  [string]$ApiUrl = "https://nfo-forum-api.fly.dev"
+  [string]$ApiUrl = "https://nfo-backend-production.up.railway.app"
 )
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)

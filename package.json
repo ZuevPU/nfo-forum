@@ -10,6 +10,8 @@
     "dev:frontend": "npm run dev -w frontend",
     "tunnel:frontend": "npm run tunnel -w frontend",
     "tunnel:vk": "powershell -File deploy/run-vk-tunnel.ps1",
+    "tunnel:local": "powershell -File deploy/run-local-tunnel.ps1",
+    "tunnel:diagnose": "node deploy/diagnose-vk-tunnel.mjs",
     "build:backend": "npm run build -w backend",
     "build:frontend": "npm run build -w frontend",
     "seed:dedupe": "npm run seed:dedupe -w backend",

@@ -6,3 +6,4 @@ dist/
 .DS_Store
 .cursor/
 frontend-dist.zip
+frontend/dist.zip

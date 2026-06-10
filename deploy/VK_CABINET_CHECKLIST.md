@@ -43,8 +43,17 @@
 3. VK DevTools → Network: запросы к `nfo-backend-production.up.railway.app` без CORS-ошибок
 4. Backend: `curl https://nfo-backend-production.up.railway.app/api/health`
 
-## 5. Локальная отладка (VK Tunnel)
+## 5. Локальная отладка
 
-См. [vk-hosting.md](./vk-hosting.md) — `npm run dev:frontend` + `npm run tunnel:frontend`.
+**VK Tunnel** (`npm run tunnel:vk`) часто даёт `Access denied` — сервис VK отключён. Используйте **Cloudflare**:
 
-Подробнее: [VK_SETUP.md](./VK_SETUP.md), [vk-hosting.md](./vk-hosting.md)
+```powershell
+npm run dev:frontend
+npm run tunnel:local
+```
+
+Вставьте `https://....trycloudflare.com` в «Размещение» → https://vk.com/app54627015
+
+Диагностика VK Tunnel: `npm run tunnel:diagnose`
+
+Подробнее: [vk-hosting.md](./vk-hosting.md)

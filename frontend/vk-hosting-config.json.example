@@ -1,0 +1,14 @@
+{
+  "_comment": "update_prod/update_dev переопределяются скриптом deploy-vk-curl.mjs по MINI_APPS_ENVIRONMENT (dev=без prod, production=оба)",
+  "static_path": "dist",
+  "app_id": 54627015,
+  "bundleFile": "./dist.zip",
+  "update_prod": 1,
+  "update_dev": 1,
+  "noprompt": true,
+  "endpoints": {
+    "mobile": "index.html",
+    "web": "index.html",
+    "mvk": "index.html"
+  }
+}

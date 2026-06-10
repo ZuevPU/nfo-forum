@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       host: true,
+      allowedHosts: ['.trycloudflare.com', '.vk-apps.com'],
     },
   };
 });

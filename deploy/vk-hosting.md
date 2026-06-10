@@ -8,29 +8,31 @@
 
 **Кабинет VK:** [VK_CABINET_CHECKLIST.md](./VK_CABINET_CHECKLIST.md)
 
-## Локальная разработка через VK Tunnel
+## Локальная разработка (tunnel)
 
-По [статье VK на Habr](https://habr.com/ru/companies/vk/articles/778258/) — быстрый способ открыть app54627015 **до** деплоя на Hosting.
+**VK Tunnel (`@vkontakte/vk-tunnel`) с октября 2025 часто возвращает `Access denied` (error 15)** — сервис отключён на стороне VK. Проверка: `npm run tunnel:diagnose`.
 
-### Запуск (3 терминала)
+### Рекомендуется: Cloudflare Quick Tunnel
 
 ```powershell
-# 1 — API (можно Railway в .env, backend локально не обязателен)
-npm run dev:backend
-
-# 2 — frontend на :5173
+# Терминал 1 — frontend
 npm run dev:frontend
 
-# 3 — HTTPS-туннель (первый раз — OAuth как у deploy)
-npm run tunnel:vk
-# Если Vite на другом порту: npm run tunnel:vk -- -Port 5174
+# Терминал 2 — HTTPS URL для «Размещение»
+npm run tunnel:local
+# Если Vite на другом порту: npm run tunnel:local -- -Port 5174
 ```
 
-Tunnel выведет HTTPS-URL и может автоматически обновить **«Размещение»** в [dev.vk.com](https://dev.vk.com/ru/mini-apps/settings). Если нет — вставьте URL вручную в mobile / web / mvk.
+Скопируйте `https://....trycloudflare.com` в [dev.vk.com → Размещение](https://dev.vk.com/ru/mini-apps/settings) (mobile / web / mvk) или **Режим разработки**.
 
-Конфиг: [`frontend/vk-tunnel-config.json`](../frontend/vk-tunnel-config.json) (`app_id: 54627015`).
+### VK Tunnel (если снова заработает)
 
-Проверка: https://vk.com/app54627015 (под админом). Включите **Eruda** в настройках приложения для консоли на телефоне.
+```powershell
+npm run dev:frontend
+npm run tunnel:vk -- -ResetAuth
+```
+
+OAuth: **сначала** подтвердите вход в браузере, **потом** нажмите Enter в терминале.
 
 ## Команды деплоя
 

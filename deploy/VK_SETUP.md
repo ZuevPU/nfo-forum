@@ -1,12 +1,24 @@
 # VK Mini App production settings checklist
 
-After uploading `frontend-dist.zip` to [VK Mini Apps](https://vk.com/apps?act=manage):
+Deploy frontend with `npm run deploy:vk` (see [vk-hosting.md](./vk-hosting.md)).
 
-1. **URL приложения** — URL VK Hosting после загрузки архива
+| Команда | Когда | Код подтверждения |
+|---------|-------|-------------------|
+| `npm run deploy:vk` / `deploy:vk:dev` | Первый деплой, тест | Не нужен |
+| `npm run deploy:vk:prod` | Публикация для пользователей | Нужен (или выключить debug в dev.vk.com) |
+| `$env:VK_DEPLOY_CONFIRM_CODE="..."` | Код пришёл в «Администрация» | — |
+
+After deploy to VK Hosting:
+
+1. **Размещение** — URL из вывода деплоя (mobile/web/mvk), не Railway и не `vk.com/app54627015`
 2. **Подпись launch params** — включить
-3. **Секретный ключ** — тот же `VK_APP_SECRET`, что на backend (Fly/Railway)
+3. **Секретный ключ** — тот же `VK_APP_SECRET`, что на backend (Railway)
 4. **Права** — доступ к сообщениям, загрузка файлов (`VKWebAppUploadFiles`)
-5. **Backend API** — `https://nfo-backend-production.up.railway.app` (или ваш Fly URL)
+5. **Backend API** — `https://nfo-backend-production.up.railway.app`
+
+**Debug-режим:** если в dev.vk.com включён debug, production-деплой требует код от «Администрация». Для первого успешного деплоя используйте `npm run deploy:vk:dev`.
+
+**Чеклист кабинета VK:** [VK_CABINET_CHECKLIST.md](./VK_CABINET_CHECKLIST.md)
 
 Backend env (production):
 

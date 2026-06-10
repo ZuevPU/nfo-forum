@@ -40,12 +40,18 @@ docker run -p 3001:3001 --env-file .env nfo-backend
 
 ## 2. Frontend (VK Hosting)
 
-```bash
-# В корне репозитория
-VITE_API_URL=https://your-backend.example.com npm run build:frontend
+```powershell
+# Первый деплой / тест (без кода подтверждения)
+npm run deploy:vk:dev
+
+# Production (может потребоваться код от «Администрация»)
+$env:VK_DEPLOY_CONFIRM_CODE="ВАШ_КОД"   # если нужен
+npm run deploy:vk:prod
 ```
 
-Загрузите содержимое `frontend/dist` в [VK Mini Apps](https://vk.com/apps?act=manage).
+После успеха скопируйте URL из вывода в раздел **«Размещение»** в [dev.vk.com](https://dev.vk.com/ru/mini-apps/settings) (mobile, web, mvk).
+
+Проверка: https://vk.com/app54627015
 
 Подробнее: [vk-hosting.md](./vk-hosting.md)
 
