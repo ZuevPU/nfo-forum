@@ -15,12 +15,28 @@ import { stateRouter } from './routes/state.js';
 import { tasksRouter } from './routes/tasks.js';
 import { adminRouter } from './routes/admin.js';
 
+const VK_HOSTING_ORIGIN = /^https:\/\/[\w-]+\.vk-apps\.com$/;
+
+function isAllowedCorsOrigin(origin: string | undefined): boolean {
+  if (!origin) return true;
+  if (origin === env.FRONTEND_ORIGIN) return true;
+  if (origin === 'http://localhost:5173') return true;
+  if (origin === 'https://vk.com' || origin === 'https://m.vk.com') return true;
+  return VK_HOSTING_ORIGIN.test(origin);
+}
+
 export function createApp() {
   const app = express();
 
   app.use(
     cors({
-      origin: env.FRONTEND_ORIGIN,
+      origin(origin, callback) {
+        if (isAllowedCorsOrigin(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error(`CORS blocked for origin: ${origin}`));
+      },
       credentials: true,
     }),
   );

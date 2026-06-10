@@ -2,10 +2,14 @@
   "name": "frontend",
   "private": true,
   "type": "module",
+  "homepage": ".",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "vk-miniapps-deploy",
+    "tunnel": "vk-tunnel --insecure=1 --http-protocol=https --ws-protocol=wss --host=0.0.0.0 --port=5173"
   },
   "dependencies": {
     "@vkontakte/icons": "^2.170.0",
@@ -19,6 +23,8 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vkontakte/vk-miniapps-deploy": "^1.0.2",
+    "@vkontakte/vk-tunnel": "^0.2.4",
     "typescript": "^5.8.2",
     "vite": "^6.2.2"
   }

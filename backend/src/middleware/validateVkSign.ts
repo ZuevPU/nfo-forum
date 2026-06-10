@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config/env.js';
+import type { VkSignedRequest } from './vkLaunchParams.js';
 
 const EXEMPT_PATHS = ['/api/health', '/api/auth/login', '/api/auth/register'];
 
@@ -8,7 +9,7 @@ function buildSignString(params: Record<string, string>): string {
   return Object.keys(params)
     .filter((key) => key.startsWith('vk_'))
     .sort()
-    .map((key) => `${key}=${params[key]}`)
+    .map((key) => `${key}=${encodeURIComponent(params[key])}`)
     .join('&');
 }
 
@@ -71,5 +72,6 @@ export function validateVkSign(req: Request, res: Response, next: NextFunction) 
     return;
   }
 
+  (req as VkSignedRequest).vkLaunchParams = vkParams;
   next();
 }

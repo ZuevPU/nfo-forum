@@ -8,6 +8,7 @@
   "scripts": {
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
+    "tunnel:frontend": "npm run tunnel -w frontend",
     "build:backend": "npm run build -w backend",
     "build:frontend": "npm run build -w frontend",
     "seed:dedupe": "npm run seed:dedupe -w backend",
@@ -17,6 +18,10 @@
     "vk-checklist:ps1": "powershell -File scripts/vk-checklist.ps1",
     "build:frontend:prod": "powershell -File deploy/build-frontend.ps1",
     "package:vk": "powershell -File deploy/package-vk-frontend.ps1",
+    "deploy:vk": "powershell -File deploy/deploy-vk-hosting.ps1 -Environment dev",
+    "deploy:vk:dev": "powershell -File deploy/deploy-vk-hosting.ps1 -Environment dev",
+    "deploy:vk:prod": "powershell -File deploy/deploy-vk-hosting.ps1 -Environment production",
+    "deploy:vk:curl": "node deploy/deploy-vk-curl.mjs",
     "deploy:backend": "powershell -File deploy/deploy-backend-railway.ps1",
     "verify:prod": "powershell -File deploy/verify-production.ps1"
   }
