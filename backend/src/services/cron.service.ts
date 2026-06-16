@@ -129,7 +129,7 @@ async function runScheduledBroadcasts(): Promise<number> {
   for (const b of pending) {
     if (!b.scheduledAt) continue;
 
-    const sentCount = await deliverPush({
+    const { sent: sentCount } = await deliverPush({
       text: b.text,
       image: b.image ?? undefined,
       targetType: b.targetType as 'all' | 'track' | 'user',

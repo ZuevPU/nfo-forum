@@ -8,7 +8,7 @@ import {
   Textarea,
   Text,
 } from '@vkontakte/vkui';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   fetchDiagnosticBlocks,
   fetchDiagnosticProgress,
@@ -20,10 +20,12 @@ import {
 } from '../api/diagnostics';
 import { PanelLayout } from '../components/PanelLayout';
 import { useAuthContext } from '../contexts/AuthContext';
-import { Icon28DoneOutline, Icon24ChevronRight } from '@vkontakte/icons';
+import { useLayout } from '../contexts/LayoutContext';
+import { Icon28DoneOutline } from '@vkontakte/icons';
 
 export function DiagnosticsPanel() {
   const { user } = useAuthContext();
+  const { setTabbarHidden } = useLayout();
   const [data, setData] = useState<DiagnosticData | null>(null);
   const [answers, setAnswers] = useState<DiagnosticAnswer[]>([]);
   
@@ -35,6 +37,12 @@ export function DiagnosticsPanel() {
 
   const [expandedDetails, setExpandedDetails] = useState<number | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const nextFooterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setTabbarHidden(activeSkillId !== null);
+    return () => setTabbarHidden(false);
+  }, [activeSkillId, setTabbarHidden]);
 
   useEffect(() => {
     if (!user?.track) {
@@ -113,6 +121,10 @@ export function DiagnosticsPanel() {
     } catch (e) {
       console.error(e);
     }
+
+    requestAnimationFrame(() => {
+      nextFooterRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   };
 
   const handleNext = async () => {
@@ -314,7 +326,7 @@ export function DiagnosticsPanel() {
           </Div>
         </Group>
         
-        <Div style={{ display: 'flex', gap: 12 }}>
+        <div className="nfo-diag-footer" ref={nextFooterRef}>
           {currentSkillIndex > 0 && (
             <Button size="l" mode="secondary" onClick={() => setActiveSkillId(data.skills[currentSkillIndex - 1].id)}>
               Назад
@@ -329,7 +341,7 @@ export function DiagnosticsPanel() {
           >
             {currentSkillIndex === data.skills.length - 1 ? 'Завершить' : 'Далее'}
           </Button>
-        </Div>
+        </div>
       </Panel>
     );
   }
@@ -383,7 +395,7 @@ export function DiagnosticsPanel() {
                   </div>
                 </div>
               </div>
-              <Icon24ChevronRight fill="var(--vkui--color_icon_tertiary)" />
+              <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
             </div>
           );
         })}

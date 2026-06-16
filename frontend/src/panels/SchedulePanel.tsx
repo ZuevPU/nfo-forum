@@ -101,12 +101,16 @@ export function SchedulePanel() {
             {events.map((ev) => {
               const isNow = isEventNowMoscow(ev.startTime, ev.endTime);
               return (
-                <div key={ev.id} className="nfo-card" style={{ borderLeft: isNow ? '3px solid var(--nfo-accent)' : undefined, borderRadius: isNow ? '0 12px 12px 0' : 12, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: isNow ? 'var(--nfo-green)' : 'var(--nfo-primary)', minWidth: 36 }}>
+                <div
+                  key={ev.id}
+                  className={`nfo-card nfo-ev${isNow ? ' nfo-ev-now' : ''}`}
+                  style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}
+                >
+                  <div className="nfo-ev-time" style={{ fontSize: 12, fontWeight: 700, color: isNow ? undefined : 'var(--nfo-primary)', minWidth: 36 }}>
                     {formatEventTimeMoscow(ev.startTime)}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: isNow ? 'var(--nfo-green)' : 'inherit', lineHeight: 1.3 }}>{ev.title}</div>
+                    <div className="nfo-ev-title" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>{ev.title}</div>
                     {ev.place && <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{ev.place}</div>}
                     <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                       {isNow && <span className="nfo-tag nfo-tag--now">СЕЙЧАС</span>}

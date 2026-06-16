@@ -9,7 +9,6 @@ import {
   ModalRoot,
   ModalPage,
   ModalPageHeader,
-  PanelHeaderButton,
   FormItem,
   Textarea,
   Button,
@@ -18,7 +17,6 @@ import {
   SimpleCell,
   PullToRefresh,
 } from '@vkontakte/vkui';
-import { Icon24Dismiss } from '@vkontakte/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchHome, submitFeedback, type HomeData } from '../api/home';
@@ -26,6 +24,8 @@ import { updateNotifications, updateNotificationPrefs } from '../api/auth';
 import type { NotificationPrefs } from '../types/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { GradientHeader } from '../components/GradientHeader';
+import { ModalDismissButton } from '../components/ModalDismissButton';
+import { ParticipantJourney } from '../components/ParticipantJourney';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -160,7 +160,7 @@ export function HomePanel() {
         id="feedback"
         header={
           <ModalPageHeader
-            before={<PanelHeaderButton onClick={() => setActiveModal(null)}><Icon24Dismiss /></PanelHeaderButton>}
+            before={<ModalDismissButton onClick={() => setActiveModal(null)} />}
           >
             Связь с организаторами
           </ModalPageHeader>
@@ -183,7 +183,7 @@ export function HomePanel() {
         id="info"
         header={
           <ModalPageHeader
-            before={<PanelHeaderButton onClick={() => setActiveModal(null)}><Icon24Dismiss /></PanelHeaderButton>}
+            before={<ModalDismissButton onClick={() => setActiveModal(null)} />}
           >
             О боте
           </ModalPageHeader>
@@ -203,11 +203,10 @@ export function HomePanel() {
           <Spacing size={16} />
           
           <SimpleCell
-            Component="label"
             after={
-              <Switch 
-                checked={notificationsEnabled} 
-                onChange={(e) => void handleToggleNotifications(e)} 
+              <Switch
+                checked={notificationsEnabled}
+                onChange={(e) => void handleToggleNotifications(e)}
                 disabled={notificationsLoading}
               />
             }
@@ -225,7 +224,6 @@ export function HomePanel() {
           ] as const).map(([key, label]) => (
             <SimpleCell
               key={key}
-              Component="label"
               after={
                 <Switch
                   checked={notificationPrefs[key]}
@@ -281,10 +279,10 @@ export function HomePanel() {
         </Group>
       )}
 
-      <Group header="Активности">
-        <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
+      <Group header={<div className="nfo-sec-title">Активности</div>}>
+        <Div style={{ padding: '12px 16px' }}>
           {data?.upcomingBlock && (
-            <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/schedule')}>
+            <div className="nfo-hcard" onClick={() => navigate('/schedule')}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📅</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Что далее</div>
@@ -296,7 +294,7 @@ export function HomePanel() {
             </div>
           )}
 
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/questions')}>
+          <div className="nfo-hcard" onClick={() => navigate('/questions')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🌙</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активные вопросы</div>
@@ -306,7 +304,7 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/tasks')}>
+          <div className="nfo-hcard" onClick={() => navigate('/tasks')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>⭐</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активные задания</div>
@@ -316,16 +314,10 @@ export function HomePanel() {
           </div>
           
           <div
-            className="nfo-card"
-            style={{
-              margin: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              ...(data?.stats.exchangeActiveCycle
-                ? { border: '2px solid var(--nfo-primary)', boxShadow: '0 0 0 1px rgba(79, 62, 192, 0.15)' }
-                : {}),
-            }}
+            className="nfo-hcard"
+            style={data?.stats.exchangeActiveCycle
+              ? { border: '2px solid var(--nfo-primary)', boxShadow: '0 0 0 1px rgba(79, 62, 192, 0.15)' }
+              : undefined}
             onClick={() => navigate('/exchange')}
           >
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>💡</div>
@@ -346,7 +338,7 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/reflection-level')}>
+          <div className="nfo-hcard" onClick={() => navigate('/reflection-level')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>💭</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Уровень рефлексии</div>
@@ -358,7 +350,7 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/nfo-day')}>
+          <div className="nfo-hcard" onClick={() => navigate('/nfo-day')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🌅</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Каким было НФО сегодня?</div>
@@ -367,7 +359,7 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/checkin')}>
+          <div className="nfo-hcard" onClick={() => navigate('/checkin')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>😊</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Как ты сейчас?</div>
@@ -377,18 +369,7 @@ export function HomePanel() {
           </div>
 
           {data?.diagnostics.available && (
-            <div
-              className="nfo-card"
-              style={{
-                margin: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                background: 'linear-gradient(135deg, #4f3ec0, #7b5ecf)',
-                color: '#fff',
-              }}
-              onClick={() => navigate('/diagnostics')}
-            >
+            <div className="nfo-hcard" style={{ background: 'linear-gradient(135deg, #4f3ec0, #7b5ecf)', color: '#fff' }} onClick={() => navigate('/diagnostics')}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎯</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Самодиагностика тренера</div>
@@ -408,7 +389,7 @@ export function HomePanel() {
           )}
 
           {user.role === 'admin' && (
-            <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/admin')}>
+            <div className="nfo-hcard" onClick={() => navigate('/admin')}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>⚙️</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Админка</div>
@@ -420,7 +401,11 @@ export function HomePanel() {
         </Div>
       </Group>
 
-      <Group header="Прогресс">
+      <Group header={<div className="nfo-sec-title">Путь участника</div>}>
+        <ParticipantJourney />
+      </Group>
+
+      <Group header={<div className="nfo-sec-title">Прогресс</div>}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 12px 12px' }}>
           <div className="nfo-card" style={{ margin: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ fontSize: 20 }}>🏆</div>
@@ -460,7 +445,7 @@ export function HomePanel() {
       </Group>
 
       <Group>
-        <Div style={{ padding: '0 16px 16px', display: 'flex', gap: 8 }}>
+        <div className="nfo-home-footer-btns">
           <Button mode="secondary" stretched onClick={() => setActiveModal('feedback')}>
             Связь с организаторами
           </Button>
@@ -470,7 +455,7 @@ export function HomePanel() {
           <Button mode="secondary" stretched onClick={() => setActiveModal('info')}>
             О боте
           </Button>
-        </Div>
+        </div>
       </Group>
       </PullToRefresh>
     </Panel>

@@ -1,6 +1,6 @@
 # Set GitHub Actions secrets for cron (requires: gh auth login)
 param(
-  [string]$ApiUrl = "https://nfo-backend-production.up.railway.app"
+  [string]$ApiUrl = "https://zuevpu-nfo-forum-d400.twc1.net"
 )
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
@@ -15,10 +15,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $cron = $null
-if (Test-Path ".env.production") {
-  $cron = Get-Content ".env.production" | Where-Object { $_ -match '^\s*CRON_SECRET=' } | ForEach-Object { ($_ -replace '^\s*CRON_SECRET=', '').Trim() } | Select-Object -First 1
+foreach ($envFile in @(".env.production", "backend\.env")) {
+  if (-not (Test-Path $envFile)) { continue }
+  $cron = Get-Content $envFile | Where-Object { $_ -match '^\s*CRON_SECRET=' } | ForEach-Object { ($_ -replace '^\s*CRON_SECRET=', '').Trim() } | Select-Object -First 1
+  if ($cron) { break }
 }
-if (-not $cron) { throw "CRON_SECRET missing in .env.production" }
+if (-not $cron) { throw "CRON_SECRET missing in .env.production or backend/.env" }
 
 gh secret set API_URL --body $ApiUrl
 gh secret set CRON_SECRET --body $cron

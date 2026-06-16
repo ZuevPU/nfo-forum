@@ -61,7 +61,7 @@ npm run deploy:vk:prod
 
 | Secret | Пример |
 |--------|--------|
-| `API_URL` | `https://your-backend.example.com` |
+| `API_URL` | `https://zuevpu-nfo-forum-d400.twc1.net` (Timeweb backend) |
 | `CRON_SECRET` | тот же, что на backend |
 
 Workflow [`.github/workflows/cron.yml`](../.github/workflows/cron.yml) вызывает 6 jobs по расписанию MSK.

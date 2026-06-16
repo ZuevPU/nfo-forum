@@ -28,19 +28,24 @@ type UserRow = {
   track: string | null;
 };
 
-async function sendVkMessage(vkUserIds: number[], message: string, image?: string): Promise<void> {
+type VkApiError = { error_code?: number; error_msg?: string };
+
+async function sendVkMessage(
+  vkUserIds: number[],
+  message: string,
+  image?: string,
+): Promise<VkApiError | null> {
   if (!env.VK_GROUP_TOKEN) {
-    console.warn(
-      `[push] VK_GROUP_TOKEN not set (group ${env.VK_GROUP_ID || 'n/a'}), skipping`,
-    );
-    return;
+    const err = { error_code: 0, error_msg: 'VK_GROUP_TOKEN not set' };
+    console.warn(`[push] ${err.error_msg} (group ${env.VK_GROUP_ID || 'n/a'}), skipping`);
+    return err;
   }
 
-  const userIds = vkUserIds.join(',');
+  const peerIds = vkUserIds.join(',');
   const finalMessage = image ? `${message}\n\n${image}` : message;
 
   const params = new URLSearchParams({
-    user_ids: userIds,
+    peer_ids: peerIds,
     message: finalMessage,
     random_id: String(Math.floor(Math.random() * 1e9)),
     access_token: env.VK_GROUP_TOKEN,
@@ -51,10 +56,18 @@ async function sendVkMessage(vkUserIds: number[], message: string, image?: strin
     method: 'POST',
   });
 
-  const data = (await response.json()) as { error?: unknown };
+  const data = (await response.json()) as { error?: VkApiError; response?: number };
   if (data.error) {
-    console.error('[push] VK API error:', data.error);
+    console.error(
+      `[push] VK API error for ${vkUserIds.length} user(s):`,
+      data.error.error_code,
+      data.error.error_msg,
+    );
+    return data.error;
   }
+
+  console.info(`[push] messages.send ok for ${vkUserIds.length} user(s), message_id=${data.response ?? 'n/a'}`);
+  return null;
 }
 
 function filterByCategory(rows: UserRow[], category?: NotificationCategory): UserRow[] {
@@ -94,18 +107,23 @@ async function resolveTargetUsers(payload: PushPayload): Promise<UserRow[]> {
   return filterByCategory(rows as UserRow[], payload.category);
 }
 
-export async function deliverPush(payload: PushPayload): Promise<number> {
+export async function deliverPush(
+  payload: PushPayload,
+): Promise<{ sent: number; vkError?: VkApiError | null }> {
   const targetUsers = await resolveTargetUsers(payload);
   const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
-  if (vkIds.length > 0) {
-    await sendVkMessage(vkIds, payload.text, payload.image);
+  if (vkIds.length === 0) {
+    console.info('[push] No eligible recipients for target', payload.targetType);
+    return { sent: 0 };
   }
-  return vkIds.length;
+
+  const vkError = await sendVkMessage(vkIds, payload.text, payload.image);
+  return { sent: vkError ? 0 : vkIds.length, vkError };
 }
 
 export async function sendPush(
   payload: PushPayload,
-): Promise<{ sent: number; scheduled?: boolean }> {
+): Promise<{ sent: number; scheduled?: boolean; vkError?: VkApiError | null }> {
   if (!payload.skipBroadcastLog) {
     await db.insert(broadcasts).values({
       text: payload.text,
@@ -122,8 +140,8 @@ export async function sendPush(
     return { sent: 0, scheduled: true };
   }
 
-  const sent = await deliverPush(payload);
-  return { sent };
+  const { sent, vkError } = await deliverPush(payload);
+  return { sent, vkError };
 }
 
 export async function notifyUsersForTrack(

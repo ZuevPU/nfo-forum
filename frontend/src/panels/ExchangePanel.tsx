@@ -1,13 +1,12 @@
 import {
-  Button,
   Div,
   Group,
+  Panel,
   Placeholder,
-  SegmentedControl,
   Spinner,
   PullToRefresh,
 } from '@vkontakte/vkui';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   createExchangeQuestion,
@@ -16,7 +15,22 @@ import {
   type ExchangeFeedItem,
   type IncomingQuestion,
 } from '../api/exchange';
-import { PanelLayout } from '../components/PanelLayout';
+import { ExchangeIncomingCard } from '../components/ExchangeIncomingCard';
+
+function getExchangeSubtitle(incomingCount: number): string {
+  const hour = Number(
+    new Intl.DateTimeFormat('ru-RU', { hour: 'numeric', hour12: false, timeZone: 'Europe/Moscow' }).format(new Date()),
+  );
+  if (hour >= 13 && hour < 14) {
+    return 'Обед — время для обмена опытом';
+  }
+  if (incomingCount > 0) {
+    const n = incomingCount;
+    const word = n === 1 ? 'вопрос ждёт' : n < 5 ? 'вопроса ждут' : 'вопросов ждут';
+    return `${n} ${word} твоего ответа`;
+  }
+  return 'Задай вопрос — участники ответят';
+}
 
 export function ExchangePanel() {
   const navigate = useNavigate();
@@ -57,75 +71,127 @@ export function ExchangePanel() {
     }
   };
 
+  const firstIncoming = incoming[0] ?? null;
+  const restIncoming = incoming.slice(1);
+  const subtitle = useMemo(() => getExchangeSubtitle(incoming.length), [incoming.length]);
+
   return (
-    <PanelLayout id="exchange" title="Обмен опытом" subtitle="Задай вопрос — участники ответят">
+    <Panel id="exchange">
+      <div className="nfo-ex-hdr">
+        <div className="t">Обмен опытом 💡</div>
+        <div className="s">{subtitle}</div>
+      </div>
+
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
-        <Group>
-        <Div style={{ padding: '12px 16px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Твой вопрос</div>
-          <textarea 
-            className="nfo-input" 
-            rows={3} 
-            value={text} 
-            onChange={(e) => setText(e.target.value)} 
-            placeholder="Напиши вопрос..." 
-          />
-        </Div>
-        <Div style={{ paddingTop: 0 }}>
-          <SegmentedControl
-            value={scope}
-            onChange={(v) => setScope(v as 'all' | 'track')}
-            options={[
-              { label: 'Всем участникам', value: 'all' },
-              { label: 'Только моему треку', value: 'track' },
-            ]}
-          />
-        </Div>
-        <Div>
-          <Button size="l" stretched loading={submitting} onClick={() => void handleSubmit()}>
-            Отправить вопрос
-          </Button>
-        </Div>
-      </Group>
-      {incoming.length > 0 && (
-        <Group header="Входящие вопросы">
-          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
-          {incoming.map((q) => (
-            <div key={q.assignmentId} className="nfo-card" style={{ margin: 0, borderLeft: '3px solid var(--nfo-accent)' }} onClick={() => navigate(`/exchange/incoming/${q.assignmentId}`)}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-accent)', textTransform: 'uppercase', marginBottom: 4 }}>Ждёт твоего ответа</div>
-              <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{q.text}</div>
-            </div>
-          ))}
-          </Div>
-        </Group>
-      )}
-      {loading ? (
-        <Div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner size="l" /></Div>
-      ) : error ? (
-        <Placeholder>{error}</Placeholder>
-      ) : (
-        <Group header="Лента вопросов">
-          <Div style={{ padding: '0 16px 12px' }}>
-            <SegmentedControl
-              value={feedScope}
-              onChange={(v) => setFeedScope(v as 'all' | 'track')}
-              options={[
-                { label: 'Все треки', value: 'all' },
-                { label: 'Мой трек', value: 'track' },
-              ]}
-            />
-          </Div>
-          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
-          {feed.map((item) => (
-            <div key={item.id} className="nfo-card" style={{ margin: 0 }} onClick={() => navigate(`/exchange/${item.id}`)}>
-              <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{item.text}</div>
-              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>{item.answerCount} ответов · {item.scopeLabel}</div>
-            </div>
-          ))}
-          </Div>
-        </Group>
-      )}
+        <div className="nfo-bg">
+          {firstIncoming && (
+            <Group>
+              <ExchangeIncomingCard question={firstIncoming} onDone={load} />
+            </Group>
+          )}
+
+          <Group>
+            <Div style={{ padding: '12px 16px' }}>
+              <div className="nfo-ex-card">
+                <div className="nfo-ex-lbl">Твой вопрос</div>
+                <textarea
+                  className="nfo-input"
+                  rows={3}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Напиши вопрос..."
+                />
+                <div className="nfo-scope-btns" style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className={`nfo-scope-btn${scope === 'all' ? ' active' : ''}`}
+                    onClick={() => setScope('all')}
+                  >
+                    Всем участникам
+                  </button>
+                  <button
+                    type="button"
+                    className={`nfo-scope-btn${scope === 'track' ? ' active' : ''}`}
+                    onClick={() => setScope('track')}
+                  >
+                    Моему треку
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="nfo-ex-send"
+                  disabled={submitting || !text.trim()}
+                  onClick={() => void handleSubmit()}
+                >
+                  {submitting ? 'Отправка…' : 'Отправить вопрос'}
+                </button>
+              </div>
+            </Div>
+          </Group>
+
+          {restIncoming.length > 0 && (
+            <Group header={<div className="nfo-sec-title">Ещё ждут ответа</div>}>
+              <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
+                {restIncoming.map((q) => (
+                  <div
+                    key={q.assignmentId}
+                    className="nfo-ex-notify"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/exchange/incoming/${q.assignmentId}`)}
+                  >
+                    <div className="nfo-ex-notify-lbl">Ждёт твоего ответа</div>
+                    <div className="nfo-ex-notify-q">{q.text}</div>
+                  </div>
+                ))}
+              </Div>
+            </Group>
+          )}
+
+          {loading ? (
+            <Div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
+              <Spinner size="l" />
+            </Div>
+          ) : error ? (
+            <Placeholder>{error}</Placeholder>
+          ) : (
+            <Group header={<div className="nfo-sec-title">Лента вопросов</div>}>
+              <Div style={{ padding: '0 16px 12px' }}>
+                <div className="nfo-scope-btns">
+                  <button
+                    type="button"
+                    className={`nfo-scope-btn${feedScope === 'all' ? ' active' : ''}`}
+                    onClick={() => setFeedScope('all')}
+                  >
+                    Все треки
+                  </button>
+                  <button
+                    type="button"
+                    className={`nfo-scope-btn${feedScope === 'track' ? ' active' : ''}`}
+                    onClick={() => setFeedScope('track')}
+                  >
+                    Мой трек
+                  </button>
+                </div>
+              </Div>
+              <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
+                {feed.map((item) => (
+                  <div
+                    key={item.id}
+                    className="nfo-ex-card"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/exchange/${item.id}`)}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{item.text}</div>
+                    <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>
+                      {item.answerCount} ответов · {item.scopeLabel}
+                    </div>
+                  </div>
+                ))}
+              </Div>
+            </Group>
+          )}
+        </div>
       </PullToRefresh>
-    </PanelLayout>
+    </Panel>
   );
 }

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Tabbar } from '../components/Tabbar';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useLayout } from '../contexts/LayoutContext';
 import { AdminPanel } from '../panels/AdminPanel';
 import { DiagnosticsPanel } from '../panels/DiagnosticsPanel';
 import { ExchangeDetailPanel } from '../panels/ExchangeDetailPanel';
@@ -42,8 +43,9 @@ function HashRedirect() {
 
 export function AppRouter() {
   const { status } = useAuthContext();
+  const { tabbarHidden } = useLayout();
   const location = useLocation();
-  const showTabbar = MAIN_ROUTES.includes(location.pathname);
+  const showTabbar = MAIN_ROUTES.includes(location.pathname) && !tabbarHidden;
 
   if (status === 'loading') {
     return (
@@ -63,6 +65,7 @@ export function AppRouter() {
 
   return (
     <>
+      <div className={showTabbar ? 'nfo-with-tabbar' : undefined}>
       <Routes>
           <Route path="/welcome" element={<WelcomePanel />} />
           <Route path="/reflection-level" element={<ReflectionLevelPanel />} />
@@ -83,6 +86,7 @@ export function AppRouter() {
           <Route path="/" element={<HashRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </div>
       {showTabbar && <Tabbar />}
     </>
   );

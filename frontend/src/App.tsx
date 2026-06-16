@@ -12,6 +12,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { bridge, getLaunchParams } from './lib/vk-bridge';
 import { transformVKBridgeAdaptivity } from './helpers/transformVKBridgeAdaptivity';
 import { AuthProvider } from './contexts/AuthContext';
+import { LayoutProvider } from './contexts/LayoutContext';
 import { AppRouter } from './routes/AppRouter';
 
 export function App() {
@@ -55,11 +56,13 @@ export function App() {
         <AppRoot mode="full">
           <BrowserRouter>
             <AuthProvider>
-              <SplitLayout>
-                <SplitCol>
-                  <AppRouter />
-                </SplitCol>
-              </SplitLayout>
+              <LayoutProvider>
+                <SplitLayout>
+                  <SplitCol>
+                    <AppRouter />
+                  </SplitCol>
+                </SplitLayout>
+              </LayoutProvider>
             </AuthProvider>
           </BrowserRouter>
         </AppRoot>

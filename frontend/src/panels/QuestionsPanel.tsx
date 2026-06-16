@@ -47,7 +47,7 @@ export function QuestionsPanel() {
 
   return (
     <PanelLayout id="questions" title="Вопросы" subtitle="Вопросы трека" loading={loading} error={error}>
-      <Group>
+      <Group header={<div className="nfo-sec-title">Вопросы трека</div>}>
         {Object.entries(
           questions.reduce((acc, q) => {
             const key = q.groupId || `single-${q.id}`;
@@ -62,9 +62,23 @@ export function QuestionsPanel() {
           const totalPoints = group.reduce((sum, q) => sum + q.points, 0);
           const unlockLabel = group.find((q) => q.isLocked)?.unlockLabel;
 
+          if (allAnswered && !anyLocked) {
+            return (
+              <Div key={key} style={{ padding: '8px 16px' }}>
+                <div className="nfo-qdone">
+                  <span>✅</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{QUESTION_TYPE_LABELS[group[0]?.type ?? ''] ?? group[0]?.type}</div>
+                    <div style={{ fontSize: 11, color: 'var(--nfo-green)' }}>Ответ отправлен</div>
+                  </div>
+                </div>
+              </Div>
+            );
+          }
+
           return (
             <Div key={key} style={{ padding: '8px 16px' }}>
-              <div className="nfo-card" style={{ opacity: anyLocked ? 0.6 : 1, margin: 0 }}>
+              <div className="nfo-qcard" style={{ opacity: anyLocked ? 0.6 : 1 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <span>{QUESTION_TYPE_LABELS[group[0]?.type ?? ''] ?? group[0]?.type}</span>
                   <span>·</span>

@@ -152,10 +152,30 @@ export async function initVkBridge(): Promise<{
     }
   }
 
+  if (bridge.isWebView()) {
+    void requestVkNotifications().catch(() => {});
+  }
+
   return {
     launchParams,
     userInfo: vkUserInfo,
   };
+}
+
+const NOTIFICATIONS_PROMPT_KEY = 'nfo_vk_notifications_prompted';
+
+export async function requestVkNotifications(): Promise<boolean> {
+  if (isDevMode() || !bridge.isWebView()) return false;
+  if (localStorage.getItem(NOTIFICATIONS_PROMPT_KEY) === '1') return false;
+
+  try {
+    const result = (await bridge.send('VKWebAppAllowNotifications')) as { result?: boolean };
+    localStorage.setItem(NOTIFICATIONS_PROMPT_KEY, '1');
+    return result?.result ?? false;
+  } catch (error) {
+    console.warn('[push] VKWebAppAllowNotifications failed:', error);
+    return false;
+  }
 }
 
 export function getLaunchParams(): LaunchParams {

@@ -7,16 +7,15 @@ import {
   ModalPage,
   ModalPageHeader,
   ModalRoot,
-  PanelHeaderButton,
   SimpleCell,
   Switch,
   Textarea,
 } from '@vkontakte/vkui';
-import { Icon24Dismiss } from '@vkontakte/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updateNotificationPrefs, updateProfile } from '../api/auth';
 import { submitFeedback } from '../api/home';
+import { ModalDismissButton } from '../components/ModalDismissButton';
 import { PanelLayout } from '../components/PanelLayout';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -123,7 +122,6 @@ export function SettingsPanel() {
           ] as const).map(([key, label]) => (
             <SimpleCell
               key={key}
-              Component="label"
               after={<Switch checked={prefs[key]} onChange={(e) => void handleTogglePref(key, e.target.checked)} />}
             >
               {label}
@@ -158,7 +156,7 @@ export function SettingsPanel() {
           id="feedback"
           header={
             <ModalPageHeader
-              before={<PanelHeaderButton onClick={() => setActiveModal(null)}><Icon24Dismiss /></PanelHeaderButton>}
+              before={<ModalDismissButton onClick={() => setActiveModal(null)} />}
             >
               Связь с организаторами
             </ModalPageHeader>

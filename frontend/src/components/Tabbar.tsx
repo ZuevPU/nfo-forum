@@ -1,19 +1,12 @@
-import {
-  Icon28CalendarOutline,
-  Icon28GameOutline,
-  Icon28HelpOutline,
-  Icon28HomeOutline,
-  Icon28StarsOutline,
-} from '@vkontakte/icons';
-import { Tabbar as VKTabbar, TabbarItem } from '@vkontakte/vkui';
+import { FixedLayout } from '@vkontakte/vkui';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const tabs = [
-  { path: '/home', label: 'Главная', Icon: Icon28HomeOutline },
-  { path: '/schedule', label: 'Программа', Icon: Icon28CalendarOutline },
-  { path: '/questions', label: 'Вопросы', Icon: Icon28HelpOutline },
-  { path: '/exchange', label: 'Обмен', Icon: Icon28GameOutline },
-  { path: '/tasks', label: 'Задания', Icon: Icon28StarsOutline },
+  { path: '/home', label: 'Главная', emoji: '🏠' },
+  { path: '/schedule', label: 'Программа', emoji: '📅' },
+  { path: '/questions', label: 'Вопросы', emoji: '💬' },
+  { path: '/exchange', label: 'Обмен', emoji: '💡' },
+  { path: '/tasks', label: 'Задания', emoji: '⭐' },
 ] as const;
 
 export function Tabbar() {
@@ -21,17 +14,24 @@ export function Tabbar() {
   const navigate = useNavigate();
 
   return (
-    <VKTabbar>
-      {tabs.map(({ path, label, Icon }) => (
-        <TabbarItem
-          key={path}
-          selected={location.pathname === path}
-          onClick={() => navigate(path)}
-          label={label}
-        >
-          <Icon />
-        </TabbarItem>
-      ))}
-    </VKTabbar>
+    <FixedLayout vertical="bottom" filled>
+      <nav className="nfo-bot-nav" aria-label="Навигация">
+        {tabs.map(({ path, label, emoji }) => {
+          const active = location.pathname === path;
+          return (
+            <button
+              key={path}
+              type="button"
+              className={`nfo-nav-item${active ? ' active' : ''}`}
+              onClick={() => navigate(path)}
+              aria-current={active ? 'page' : undefined}
+            >
+              <span className="ni">{emoji}</span>
+              <span className="nl">{label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </FixedLayout>
   );
 }
