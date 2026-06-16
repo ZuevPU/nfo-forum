@@ -45,18 +45,7 @@ export function ReflectionLevelPanel() {
 
   return (
     <Panel id="reflection-level">
-      <GradientHeader title="Уровень рефлексии 💭" subtitle="Прогресс осмысления опыта">
-        <Div style={{ marginTop: 8 }}>
-          <button
-            type="button"
-            className="nfo-admin-btn-outline"
-            style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.12)' }}
-            onClick={() => navigate('/home')}
-          >
-            ← На главную
-          </button>
-        </Div>
-      </GradientHeader>
+      <GradientHeader title="Уровень рефлексии 💭" subtitle="Прогресс осмысления опыта" backToHome />
 
       <div className="nfo-bg">
         {loading ? (

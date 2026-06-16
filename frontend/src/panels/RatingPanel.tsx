@@ -1,8 +1,8 @@
 import {
   Div,
   Group,
-  Headline,
   SegmentedControl,
+  Title,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { fetchPointsHistory, fetchRating, type PointsHistoryItem, type RatingData } from '../api/rating';
@@ -41,26 +41,25 @@ export function RatingPanel() {
     : 0;
 
   return (
-    <PanelLayout id="rating" title="Рейтинг" loading={loading} error={error}>
+    <PanelLayout id="rating" title="Рейтинг" subtitle="Мой трек и общий зачёт" loading={loading} error={error} useGradient>
       {data && me && (
         <Group>
-          <Div style={{ textAlign: 'center', padding: '16px 0' }}>
-            <Headline level="1" weight="1" style={{ fontSize: 36, color: 'var(--vkui--color_text_accent)' }}>
-              {me.points}
-            </Headline>
-            <div style={{ fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>
-              твои баллы · {me.trackRank} место в треке
-            </div>
-            <div style={{ marginTop: 12, padding: '0 16px' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                Ур. {me.reflectionLevel} — {REFLECTION_LEVEL_NAMES[me.reflectionLevel] ?? ''}
-              </div>
-              <ProgressBar value={reflectionProgress} max={100} />
-              {me.nextLevelPoints != null && (
-                <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>
-                  {me.nextLevelPoints - me.reflectionPoints} б. до след. уровня
+          <Div style={{ padding: '12px 16px' }}>
+            <div className="nfo-card nfo-rating-me" style={{ margin: 0 }}>
+              <Title level="2" style={{ color: 'var(--nfo-primary)' }}>{me.points}</Title>
+              <div className="nfo-rating-me-label">твои баллы</div>
+              <div className="nfo-rating-me-rank">{me.trackRank} место в треке</div>
+              <div style={{ marginTop: 12, width: '100%' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  Ур. {me.reflectionLevel} — {REFLECTION_LEVEL_NAMES[me.reflectionLevel] ?? ''}
                 </div>
-              )}
+                <ProgressBar value={reflectionProgress} max={100} />
+                {me.nextLevelPoints != null && (
+                  <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>
+                    {me.nextLevelPoints - me.reflectionPoints} б. до след. уровня
+                  </div>
+                )}
+              </div>
             </div>
           </Div>
         </Group>

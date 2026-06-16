@@ -16,6 +16,8 @@ import {
 import type { UserDto } from '../types/api.js';
 import type { EventDto } from './events.service.js';
 import { isTrainerTrack } from './diagnostics.service.js';
+import { getCheckinSettings } from './admin.service.js';
+import { getActiveCheckinSlot, getCheckinSlotLabel } from '../utils/slotMatching.js';
 
 export async function submitFeedback(userId: number, text: string) {
   await db.insert(feedbackMessages).values({
@@ -47,6 +49,11 @@ export interface HomeData {
     completedBlocks: number;
     totalBlocks: number;
     isCompleted: boolean;
+  };
+  checkin: {
+    available: boolean;
+    activeSlot: string | null;
+    slotLabel: string | null;
   };
 }
 
@@ -206,6 +213,14 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     completedBlocks = progressResult?.value ?? 0;
   }
 
+  const checkinSettings = await getCheckinSettings();
+  const checkinAvailable =
+    checkinSettings.enabledTracks.length === 0 ||
+    (!!user.track && checkinSettings.enabledTracks.includes(user.track));
+  const activeCheckin = checkinAvailable
+    ? getActiveCheckinSlot(checkinSettings.slots)
+    : null;
+
   return {
     user,
     currentEvent: currentEvent ? toEventDto(currentEvent) : null,
@@ -226,6 +241,11 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
       completedBlocks,
       totalBlocks: TOTAL_DIAGNOSTICS_BLOCKS,
       isCompleted: completedBlocks >= TOTAL_DIAGNOSTICS_BLOCKS,
+    },
+    checkin: {
+      available: checkinAvailable,
+      activeSlot: activeCheckin?.slot ?? null,
+      slotLabel: activeCheckin ? getCheckinSlotLabel(activeCheckin.index) : null,
     },
   };
 }

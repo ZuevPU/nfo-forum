@@ -25,6 +25,11 @@ export interface HomeData {
     totalBlocks: number;
     isCompleted: boolean;
   };
+  checkin: {
+    available: boolean;
+    activeSlot: string | null;
+    slotLabel: string | null;
+  };
 }
 
 export interface EventDto {

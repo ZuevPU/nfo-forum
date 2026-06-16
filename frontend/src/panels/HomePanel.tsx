@@ -24,7 +24,6 @@ import { updateNotifications, updateNotificationPrefs } from '../api/auth';
 import type { NotificationPrefs } from '../types/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { GradientHeader } from '../components/GradientHeader';
-import { ModalDismissButton } from '../components/ModalDismissButton';
 import { ParticipantJourney } from '../components/ParticipantJourney';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
@@ -155,13 +154,12 @@ export function HomePanel() {
   };
 
   const modal = (
-    <ModalRoot activeModal={activeModal}>
+    <ModalRoot activeModal={activeModal} onClose={() => setActiveModal(null)}>
       <ModalPage
         id="feedback"
+        onClose={() => setActiveModal(null)}
         header={
-          <ModalPageHeader
-            before={<ModalDismissButton onClick={() => setActiveModal(null)} />}
-          >
+          <ModalPageHeader>
             Связь с организаторами
           </ModalPageHeader>
         }
@@ -181,16 +179,15 @@ export function HomePanel() {
       </ModalPage>
       <ModalPage
         id="info"
+        onClose={() => setActiveModal(null)}
         header={
-          <ModalPageHeader
-            before={<ModalDismissButton onClick={() => setActiveModal(null)} />}
-          >
-            О боте
+          <ModalPageHeader>
+            О приложении
           </ModalPageHeader>
         }
       >
         <Div style={{ lineHeight: 1.5 }}>
-          <p>Привет! Это официальный бот Форума неформального образования.</p>
+          <p>Привет! Это официальное приложение Форума неформального образования.</p>
           <p>Здесь ты можешь:</p>
           <ul>
             <li>Следить за расписанием и узнавать, что сейчас идет в программе</li>
@@ -359,14 +356,21 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
+          {data?.checkin.available && (
           <div className="nfo-hcard" onClick={() => navigate('/checkin')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>😊</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Как ты сейчас?</div>
-              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>Чек-ин состояния</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
+                {data.checkin.slotLabel ?? 'Чек-ин состояния'}
+              </div>
             </div>
+            {data.checkin.activeSlot ? (
+              <span className="nfo-hcard-badge">Перейти</span>
+            ) : null}
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
+          )}
 
           {data?.diagnostics.available && (
             <div className="nfo-hcard" style={{ background: 'linear-gradient(135deg, #4f3ec0, #7b5ecf)', color: '#fff' }} onClick={() => navigate('/diagnostics')}>
@@ -453,7 +457,7 @@ export function HomePanel() {
             Настройки
           </Button>
           <Button mode="secondary" stretched onClick={() => setActiveModal('info')}>
-            О боте
+            О приложении
           </Button>
         </div>
       </Group>

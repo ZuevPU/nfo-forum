@@ -15,7 +15,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updateNotificationPrefs, updateProfile } from '../api/auth';
 import { submitFeedback } from '../api/home';
-import { ModalDismissButton } from '../components/ModalDismissButton';
 import { PanelLayout } from '../components/PanelLayout';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -85,7 +84,7 @@ export function SettingsPanel() {
 
   return (
     <>
-      <PanelLayout id="settings" title="Настройки" loading={loading}>
+      <PanelLayout id="settings" title="Настройки" loading={loading} useGradient>
         <Group header="Профиль">
           <FormItem top="Имя">
             <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
@@ -151,13 +150,12 @@ export function SettingsPanel() {
         </Group>
       </PanelLayout>
 
-      <ModalRoot activeModal={activeModal}>
+      <ModalRoot activeModal={activeModal} onClose={() => setActiveModal(null)}>
         <ModalPage
           id="feedback"
+          onClose={() => setActiveModal(null)}
           header={
-            <ModalPageHeader
-              before={<ModalDismissButton onClick={() => setActiveModal(null)} />}
-            >
+            <ModalPageHeader>
               Связь с организаторами
             </ModalPageHeader>
           }

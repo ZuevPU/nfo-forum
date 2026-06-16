@@ -3,14 +3,12 @@ import {
   Div,
   Group,
   Headline,
-  Panel,
-  PanelHeader,
   Spinner,
   PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { uploadFiles } from '../lib/vk-bridge';
-import { PanelTitle } from '../components/PanelTitle';
+import { PanelLayout } from '../components/PanelLayout';
 import {
   applyNetworkingTask,
   fetchDailyFocus,
@@ -99,8 +97,7 @@ export function TasksPanel() {
   };
 
   return (
-    <Panel id="tasks">
-      <PanelHeader><PanelTitle title="Задания" subtitle="Задания дня" /></PanelHeader>
+    <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient>
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
       {focus && (
         <Group>
@@ -197,6 +194,6 @@ export function TasksPanel() {
         </Group>
       )}
       </PullToRefresh>
-    </Panel>
+    </PanelLayout>
   );
 }

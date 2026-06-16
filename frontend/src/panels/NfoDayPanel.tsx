@@ -65,10 +65,11 @@ export function NfoDayPanel() {
   return (
     <PanelLayout
       id="nfo-day"
-      title="Вопрос дня"
+      title="Каким было НФО сегодня?"
       subtitle="Вечерняя рефлексия"
       loading={loading}
       error={error}
+      useGradient
     >
       <Group>
         <Div style={{ padding: '12px 16px' }}>

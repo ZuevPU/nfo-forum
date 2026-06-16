@@ -10,6 +10,8 @@ interface Props {
   loading?: boolean;
   error?: string | null;
   useGradient?: boolean;
+  backToHome?: boolean;
+  headerChildren?: ReactNode;
   children: ReactNode;
 }
 
@@ -20,12 +22,16 @@ export function PanelLayout({
   loading,
   error,
   useGradient = false,
+  backToHome,
+  headerChildren,
   children,
 }: Props) {
   return (
     <Panel id={id}>
       {useGradient ? (
-        <GradientHeader title={title} subtitle={subtitle} />
+        <GradientHeader title={title} subtitle={subtitle} backToHome={backToHome}>
+          {headerChildren}
+        </GradientHeader>
       ) : (
         <PanelHeader>
           <PanelTitle title={title} subtitle={subtitle} />

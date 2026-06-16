@@ -46,7 +46,7 @@ export function QuestionsPanel() {
   };
 
   return (
-    <PanelLayout id="questions" title="Вопросы" subtitle="Вопросы трека" loading={loading} error={error}>
+    <PanelLayout id="questions" title="Активные вопросы" subtitle="Вопросы трека" loading={loading} error={error} useGradient>
       <Group header={<div className="nfo-sec-title">Вопросы трека</div>}>
         {Object.entries(
           questions.reduce((acc, q) => {

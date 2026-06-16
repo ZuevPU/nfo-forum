@@ -16,6 +16,7 @@ import {
   type IncomingQuestion,
 } from '../api/exchange';
 import { ExchangeIncomingCard } from '../components/ExchangeIncomingCard';
+import { GradientHeader } from '../components/GradientHeader';
 
 function getExchangeSubtitle(incomingCount: number): string {
   const hour = Number(
@@ -77,10 +78,7 @@ export function ExchangePanel() {
 
   return (
     <Panel id="exchange">
-      <div className="nfo-ex-hdr">
-        <div className="t">Обмен опытом 💡</div>
-        <div className="s">{subtitle}</div>
-      </div>
+      <GradientHeader title="Обмен опытом 💡" subtitle={subtitle} />
 
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
         <div className="nfo-bg">

@@ -189,7 +189,7 @@ export function DiagnosticsPanel() {
 
   if (!user?.track || error?.includes('available only for trainer tracks')) {
     return (
-      <PanelLayout id="diagnostics" title="Самодиагностика">
+      <PanelLayout id="diagnostics" title="Самодиагностика" useGradient>
         <Div style={{ padding: 24, textAlign: 'center' }}>
           Доступно только для треков обучения тренеров
         </Div>
@@ -199,7 +199,7 @@ export function DiagnosticsPanel() {
 
   if (loading || !data) {
     return (
-      <PanelLayout id="diagnostics" title="Самодиагностика" loading={loading} error={error}>
+      <PanelLayout id="diagnostics" title="Самодиагностика" loading={loading} error={error} useGradient>
         <div />
       </PanelLayout>
     );
@@ -372,6 +372,7 @@ export function DiagnosticsPanel() {
       id="diagnostics"
       title="Самодиагностика"
       subtitle={data.subtitle}
+      useGradient
     >
       <Group>
         <Div style={{ textAlign: 'center', padding: '24px 16px' }}>
