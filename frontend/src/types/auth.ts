@@ -10,6 +10,7 @@ export interface UserDto {
   points: number;
   reflectionLevel: number;
   reflectionPoints: number;
+  notificationsEnabled: boolean;
 }
 
 export interface VkUserInfo {

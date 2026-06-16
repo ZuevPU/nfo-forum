@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { login, register } from '../api/auth';
+import { login, register, deleteAccount } from '../api/auth';
 import { ApiPausedError } from '../api/client';
 import type { Track } from '../constants/tracks';
 import { DEV_VK_ID, getLaunchParams, getVkUserInfo } from '../lib/vk-bridge';
@@ -11,6 +11,7 @@ interface UseAuthResult {
   vkUserInfo: VkUserInfo | null;
   error: string | null;
   registerUser: (track: Track) => Promise<void>;
+  deleteUserAccount: () => Promise<void>;
   retry: () => void;
 }
 
@@ -112,6 +113,21 @@ export function useAuth(): UseAuthResult {
     [],
   );
 
+  const deleteUserAccountFunc = useCallback(async () => {
+    setStatus('loading');
+    setError(null);
+    try {
+      await deleteAccount();
+      setUser(null);
+      setStatus('needs_registration');
+    } catch (err) {
+      if (err instanceof ApiPausedError) return;
+      const message = err instanceof Error ? err.message : 'Deletion failed';
+      setError(message);
+      setStatus('authenticated');
+    }
+  }, []);
+
   const retry = useCallback(() => {
     setAttempt((prev) => prev + 1);
   }, []);
@@ -122,6 +138,7 @@ export function useAuth(): UseAuthResult {
     vkUserInfo,
     error,
     registerUser,
+    deleteUserAccount: deleteUserAccountFunc,
     retry,
   };
 }

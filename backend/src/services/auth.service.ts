@@ -15,6 +15,7 @@ function toUserDto(user: typeof users.$inferSelect): UserDto {
     points: user.points,
     reflectionLevel: user.reflectionLevel,
     reflectionPoints: user.reflectionPoints,
+    notificationsEnabled: user.notificationsEnabled,
   };
 }
 
@@ -81,6 +82,10 @@ export async function registerUser(data: RegisterRequest): Promise<UserDto> {
   });
 
   return toUserDto(created);
+}
+
+export async function deleteUserAccount(userId: number): Promise<void> {
+  await db.delete(users).where(eq(users.id, userId));
 }
 
 export class AuthValidationError extends Error {

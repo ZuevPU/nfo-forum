@@ -15,8 +15,6 @@ import {
 
 export const exchangeRouter = Router();
 
-exchangeRouter.get('/incoming', requireUser, async (req: AuthenticatedRequest, res) => {
-
 const submitRateLimit = rateLimit({
   windowMs: 60_000,
   max: 30,
@@ -24,6 +22,16 @@ const submitRateLimit = rateLimit({
     const vkId = req.headers['x-vk-id'];
     return `exchange:${typeof vkId === 'string' ? vkId : req.ip ?? 'unknown'}`;
   },
+});
+
+exchangeRouter.get('/incoming', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const incoming = await getIncoming(req.user!);
+    res.json({ incoming });
+  } catch (error) {
+    console.error('Incoming error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 exchangeRouter.get('/feed', requireUser, async (req: AuthenticatedRequest, res) => {
@@ -79,14 +87,6 @@ exchangeRouter.post('/assignments/:id/skip', requireUser, async (req: Authentica
     res.json({ ok: true });
   } catch (error) {
     console.error('Skip assignment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-  try {
-    const incoming = await getIncoming(req.user!);
-    res.json({ incoming });
-  } catch (error) {
-    console.error('Incoming error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

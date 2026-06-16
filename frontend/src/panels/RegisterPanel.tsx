@@ -1,9 +1,11 @@
 import {
   Button,
+  Checkbox,
   Div,
   FormItem,
   Group,
   Input,
+  Link,
   Panel,
   PanelHeader,
   Placeholder,
@@ -20,8 +22,10 @@ export function RegisterPanel() {
   const { vkUserInfo, registerUser, error, status } = useAuthContext();
   const navigate = useNavigate();
   const [selectedTrack, setSelectedTrack] = useState<Track>('НФО и образование');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const handleRegister = async () => {
+    if (!termsAccepted) return;
     await registerUser(selectedTrack);
     navigate('/home');
   };
@@ -68,8 +72,15 @@ export function RegisterPanel() {
             </Title>
           </Div>
         )}
+        <FormItem>
+          <Checkbox checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)}>
+            Я принимаю{' '}
+            <Link href="https://vk.com/away.php?to=https%3A%2F%2Fvk.com%2Fterms" target="_blank" rel="noopener noreferrer">пользовательское соглашение</Link> и{' '}
+            <Link href="https://vk.com/away.php?to=https%3A%2F%2Fvk.com%2Fprivacy" target="_blank" rel="noopener noreferrer">политику конфиденциальности</Link>
+          </Checkbox>
+        </FormItem>
         <Div>
-          <Button size="l" stretched onClick={() => void handleRegister()}>
+          <Button size="l" stretched disabled={!termsAccepted} onClick={() => void handleRegister()}>
             Зарегистрироваться
           </Button>
         </Div>

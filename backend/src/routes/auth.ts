@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { rateLimit } from '../middleware/rateLimit.js';
+import { requireUser, type AuthenticatedRequest } from '../middleware/requireUser.js';
 import type { RegisterRequest } from '../types/api.js';
 import {
   AuthConflictError,
   AuthValidationError,
   loginByVkId,
   registerUser,
+  deleteUserAccount,
 } from '../services/auth.service.js';
 
 export const authRouter = Router();
@@ -63,6 +65,34 @@ authRouter.post('/register', authRateLimit, async (req, res) => {
     }
 
     console.error('Register error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+authRouter.delete('/account', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    await deleteUserAccount(req.user!.id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+authRouter.post('/notifications', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { enabled } = req.body as { enabled?: boolean };
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ error: 'enabled is required' });
+      return;
+    }
+    const { db } = await import('../db/index.js');
+    const { users } = await import('../db/schema.js');
+    const { eq } = await import('drizzle-orm');
+    await db.update(users).set({ notificationsEnabled: enabled }).where(eq(users.id, req.user!.id));
+    res.json({ ok: true, enabled });
+  } catch (error) {
+    console.error('Update notifications error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

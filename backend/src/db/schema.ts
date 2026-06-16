@@ -24,6 +24,7 @@ export const users = pgTable(
     points: integer('points').notNull().default(0),
     reflectionLevel: integer('reflection_level').notNull().default(1),
     reflectionPoints: integer('reflection_points').notNull().default(0),
+    notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     lastActiveAt: timestamp('last_active_at').notNull().defaultNow(),
   },

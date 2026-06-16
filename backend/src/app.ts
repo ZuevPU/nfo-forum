@@ -18,6 +18,7 @@ import { adminRouter } from './routes/admin.js';
 
 const VK_HOSTING_ORIGIN = /^https:\/\/[\w-]+\.vk-apps\.com$/;
 const VERCEL_ORIGIN = /^https:\/\/.*\.vercel\.app$/;
+const TIMEWEB_ORIGIN = /^https:\/\/.*\.twc1\.net$/;
 
 function isAllowedCorsOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
@@ -25,6 +26,7 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
   if (origin === 'http://localhost:5173') return true;
   if (origin === 'https://vk.com' || origin === 'https://m.vk.com') return true;
   if (VERCEL_ORIGIN.test(origin)) return true;
+  if (TIMEWEB_ORIGIN.test(origin)) return true;
   return VK_HOSTING_ORIGIN.test(origin);
 }
 
@@ -70,9 +72,6 @@ export function createApp() {
   app.use('/api/admin', adminRouter);
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'369cd3'},body:JSON.stringify({sessionId:'369cd3',hypothesisId:'cors_500_handler',location:'app.ts:error_handler',message:'Caught unhandled error',data:{err:err.message},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
   });

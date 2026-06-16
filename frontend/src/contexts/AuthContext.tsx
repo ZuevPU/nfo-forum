@@ -9,6 +9,7 @@ interface AuthContextValue {
   vkUserInfo: VkUserInfo | null;
   error: string | null;
   registerUser: (track: Track) => Promise<void>;
+  deleteUserAccount: () => Promise<void>;
   retry: () => void;
 }
 

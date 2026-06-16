@@ -102,9 +102,12 @@ export function ExchangeDetailPanel() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>{new Date(a.createdAt).toLocaleString('ru-RU')}</div>
                     {!a.isMine && (
-                      <IconButton onClick={() => void handleReaction(a.id)}>
-                        <Icon28LikeOutline width={20} height={20} />
-                      </IconButton>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <Button mode="tertiary" size="s" onClick={() => window.alert('Жалоба отправлена модераторам')}>Пожаловаться</Button>
+                        <IconButton onClick={() => void handleReaction(a.id)}>
+                          <Icon28LikeOutline width={20} height={20} />
+                        </IconButton>
+                      </div>
                     )}
                   </div>
                 </div>

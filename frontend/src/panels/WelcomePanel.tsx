@@ -43,7 +43,7 @@ export function WelcomePanel() {
           </Button>
         </div>
       </Div>
-      <Placeholder>мини-приложение · Форум НФО</Placeholder>
+      <Placeholder>мини-приложение · Форум НФО · 16+</Placeholder>
     </Panel>
   );
 }

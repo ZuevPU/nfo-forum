@@ -26,3 +26,16 @@ export async function register(payload: RegisterPayload): Promise<{ user: UserDt
     },
   });
 }
+
+export async function deleteAccount(): Promise<void> {
+  await apiRequest<void>('/api/auth/account', {
+    method: 'DELETE',
+  });
+}
+
+export async function updateNotifications(enabled: boolean): Promise<void> {
+  await apiRequest<void>('/api/auth/notifications', {
+    method: 'POST',
+    body: { enabled },
+  });
+}

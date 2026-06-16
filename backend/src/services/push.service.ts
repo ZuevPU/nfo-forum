@@ -1,7 +1,7 @@
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
 import { broadcasts, users } from '../db/schema.js';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, and } from 'drizzle-orm';
 
 interface PushPayload {
   text: string;
@@ -48,16 +48,19 @@ export async function sendPush(payload: PushPayload): Promise<{ sent: number; sc
     const [u] = await db
       .select({ id: users.id, vkId: users.vkId })
       .from(users)
-      .where(eq(users.id, payload.targetUserId))
+      .where(and(eq(users.id, payload.targetUserId), eq(users.notificationsEnabled, true)))
       .limit(1);
     if (u) targetUsers = [u];
   } else if (payload.targetType === 'track' && payload.targetTracks?.length) {
     targetUsers = await db
       .select({ id: users.id, vkId: users.vkId })
       .from(users)
-      .where(inArray(users.track, payload.targetTracks));
+      .where(and(inArray(users.track, payload.targetTracks), eq(users.notificationsEnabled, true)));
   } else {
-    targetUsers = await db.select({ id: users.id, vkId: users.vkId }).from(users);
+    targetUsers = await db
+      .select({ id: users.id, vkId: users.vkId })
+      .from(users)
+      .where(eq(users.notificationsEnabled, true));
   }
 
   await db.insert(broadcasts).values({

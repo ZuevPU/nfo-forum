@@ -13,11 +13,15 @@ import {
   FormItem,
   Textarea,
   Button,
+  Spacing,
+  Switch,
+  SimpleCell,
 } from '@vkontakte/vkui';
 import { Icon24Dismiss } from '@vkontakte/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchHome, submitFeedback, type HomeData } from '../api/home';
+import { updateNotifications } from '../api/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { GradientHeader } from '../components/GradientHeader';
 import { ProgressBar } from '../components/ProgressBar';
@@ -46,12 +50,14 @@ function getProgramDayInfo() {
 
 export function HomePanel() {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, deleteUserAccount } = useAuthContext();
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   useEffect(() => {
     fetchHome()
@@ -91,6 +97,26 @@ export function HomePanel() {
       console.error(e);
     } finally {
       setFeedbackSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (window.confirm('Вы уверены, что хотите удалить свой аккаунт и все данные? Это действие необратимо.')) {
+      await deleteUserAccount();
+    }
+  };
+
+  const handleToggleNotifications = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.checked;
+    setNotificationsEnabled(val);
+    setNotificationsLoading(true);
+    try {
+      await updateNotifications(val);
+    } catch (err) {
+      console.error(err);
+      setNotificationsEnabled(!val); // revert on error
+    } finally {
+      setNotificationsLoading(false);
     }
   };
 
@@ -140,6 +166,26 @@ export function HomePanel() {
             <li>Следить за своим местом в рейтинге трека</li>
           </ul>
           <p>За активное участие ты получаешь баллы, которые помогут тебе подняться в рейтинге!</p>
+          <Spacing size={16} />
+          
+          <SimpleCell
+            Component="label"
+            after={
+              <Switch 
+                checked={notificationsEnabled} 
+                onChange={(e) => void handleToggleNotifications(e)} 
+                disabled={notificationsLoading}
+              />
+            }
+            description="Уведомления о новых вопросах и заданиях"
+          >
+            Уведомления
+          </SimpleCell>
+
+          <Spacing size={16} />
+          <Button mode="destructive" stretched onClick={() => void handleDeleteAccount()}>
+            Удалить аккаунт
+          </Button>
         </Div>
       </ModalPage>
     </ModalRoot>
