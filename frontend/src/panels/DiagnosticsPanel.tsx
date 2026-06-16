@@ -38,6 +38,13 @@ export function DiagnosticsPanel() {
   const [expandedDetails, setExpandedDetails] = useState<number | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const nextFooterRef = useRef<HTMLDivElement>(null);
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     setTabbarHidden(activeSkillId !== null);
@@ -125,6 +132,13 @@ export function DiagnosticsPanel() {
     requestAnimationFrame(() => {
       nextFooterRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
+
+    if (expandedDetails === null) {
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        void handleNextRef.current();
+      }, 300);
+    }
   };
 
   const handleNext = async () => {
@@ -154,6 +168,9 @@ export function DiagnosticsPanel() {
       setExpandedDetails(null);
     }
   };
+
+  const handleNextRef = useRef(handleNext);
+  handleNextRef.current = handleNext;
 
   const handleStartNew = async () => {
     setLoading(true);
@@ -305,7 +322,11 @@ export function DiagnosticsPanel() {
                     </div>
                   ) : (
                     <div 
-                      onClick={(e) => { e.stopPropagation(); setExpandedDetails(level.level); }}
+                      onClick={(e) => { 
+                        e.stopPropagation();
+                        if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+                        setExpandedDetails(level.level);
+                      }}
                       style={{ color: '#4f3ec0', fontWeight: 500, marginTop: 8, cursor: 'pointer', fontSize: 13 }}
                     >
                       Подробнее

@@ -1,6 +1,6 @@
 # Post-deploy verification against production API
 param(
-  [string]$ApiUrl = "https://nfo-backend-production.up.railway.app"
+  [string]$ApiUrl = "https://zuevpu-nfo-forum-d400.twc1.net"
 )
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)

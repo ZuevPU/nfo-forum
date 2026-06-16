@@ -1,7 +1,7 @@
 # Deploy frontend to VK Hosting via @vkontakte/vk-miniapps-deploy
 param(
   [string]$AppId = "",
-  [string]$ApiUrl = "https://nfo-backend-production.up.railway.app",
+  [string]$ApiUrl = "https://zuevpu-nfo-forum-d400.twc1.net",
   [ValidateSet("dev", "production")]
   [string]$Environment = "dev"
 )
