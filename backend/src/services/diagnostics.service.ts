@@ -1,85 +1,50 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { systemSettings, trainerSelfDiagnostics } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
+import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
+import { awardPoints } from './points.service.js';
 
-const TRAINER_TRACKS = [
-  'Обучение тренеров',
-  'Аттестация тренеров',
-  'Действующий состав АТ РСМ',
-];
-
-const DEFAULT_BLOCKS = [
-  {
-    id: 1,
-    title: 'Методическое мастерство',
-    questions: [{ id: 1, text: 'Оцените свой уровень методического мастерства' }],
-  },
-  {
-    id: 2,
-    title: 'Работа с содержанием',
-    questions: [{ id: 2, text: 'Оцените свой уровень работы с содержанием' }],
-  },
-  {
-    id: 3,
-    title: 'Конструирование и проведение игр и упражнений',
-    questions: [{ id: 3, text: 'Оцените свой уровень конструирования игр' }],
-  },
-  {
-    id: 4,
-    title: 'Работа с группой',
-    questions: [{ id: 4, text: 'Оцените свой уровень работы с группой' }],
-  },
-  {
-    id: 5,
-    title: 'Взаимодействие с заказчиком',
-    questions: [{ id: 5, text: 'Оцените свой уровень взаимодействия с заказчиком' }],
-  },
-  {
-    id: 6,
-    title: 'Организация обучения',
-    questions: [{ id: 6, text: 'Оцените свой уровень организации обучения' }],
-  },
-  {
-    id: 7,
-    title: 'Оценка результатов обучения',
-    questions: [{ id: 7, text: 'Оцените свой уровень оценки результатов' }],
-  },
-  {
-    id: 8,
-    title: 'Визуализация',
-    questions: [{ id: 8, text: 'Оцените свой уровень визуализации' }],
-  },
-  {
-    id: 9,
-    title: 'Работа с искусственным интеллектом',
-    questions: [{ id: 9, text: 'Оцените свой уровень работы с ИИ' }],
-  },
-];
-
-export function isTrainerTrack(track: string | null): boolean {
-  return track != null && TRAINER_TRACKS.includes(track);
-}
-
-export async function getBlocks() {
+export async function getEnabledTracks(): Promise<string[]> {
   const [setting] = await db
     .select()
     .from(systemSettings)
-    .where(eq(systemSettings.key, 'diagnostics_blocks'))
+    .where(eq(systemSettings.key, 'diagnostics_enabled_tracks'))
     .limit(1);
 
-  if (setting?.value) {
-    return setting.value as typeof DEFAULT_BLOCKS;
+  if (setting?.value && Array.isArray(setting.value)) {
+    return setting.value as string[];
   }
-  return DEFAULT_BLOCKS;
+  return ['Обучение тренеров', 'Аттестация тренеров', 'Действующий состав АТ РСМ'];
+}
+
+export async function isTrainerTrack(track: string | null): Promise<boolean> {
+  if (!track) return false;
+  const enabledTracks = await getEnabledTracks();
+  return enabledTracks.includes(track);
+}
+
+export async function getBlocks() {
+  return DIAGNOSTICS_DATA;
 }
 
 export async function saveAnswer(
   user: UserDto,
   blockId: number,
-  questionId: number,
-  score: number,
+  questionId: number, // actually level (1-5) based on the skill
+  score: number, // the level they chose
+  comment?: string,
 ) {
+  // Find the latest attempt number for this user
+  const latestAttempt = await db
+    .select({ attemptNumber: trainerSelfDiagnostics.attemptNumber })
+    .from(trainerSelfDiagnostics)
+    .where(eq(trainerSelfDiagnostics.userId, user.id))
+    .orderBy(desc(trainerSelfDiagnostics.attemptNumber))
+    .limit(1);
+
+  const currentAttempt = latestAttempt.length > 0 ? latestAttempt[0].attemptNumber : 1;
+
   const existing = await db
     .select()
     .from(trainerSelfDiagnostics)
@@ -87,7 +52,7 @@ export async function saveAnswer(
       and(
         eq(trainerSelfDiagnostics.userId, user.id),
         eq(trainerSelfDiagnostics.blockId, blockId),
-        eq(trainerSelfDiagnostics.questionId, questionId),
+        eq(trainerSelfDiagnostics.attemptNumber, currentAttempt)
       ),
     )
     .limit(1);
@@ -95,7 +60,7 @@ export async function saveAnswer(
   if (existing.length) {
     const [updated] = await db
       .update(trainerSelfDiagnostics)
-      .set({ score, updatedAt: new Date() })
+      .set({ score, comment, updatedAt: new Date() })
       .where(eq(trainerSelfDiagnostics.id, existing[0].id))
       .returning();
     return updated;
@@ -103,7 +68,14 @@ export async function saveAnswer(
 
   const [created] = await db
     .insert(trainerSelfDiagnostics)
-    .values({ userId: user.id, blockId, questionId, score })
+    .values({ 
+      userId: user.id, 
+      blockId, 
+      questionId, 
+      score,
+      attemptNumber: currentAttempt,
+      comment
+    })
     .returning();
 
   return created;
@@ -113,5 +85,53 @@ export async function getProgress(userId: number) {
   return db
     .select()
     .from(trainerSelfDiagnostics)
-    .where(eq(trainerSelfDiagnostics.userId, userId));
+    .where(eq(trainerSelfDiagnostics.userId, userId))
+    .orderBy(desc(trainerSelfDiagnostics.attemptNumber), trainerSelfDiagnostics.blockId);
+}
+
+export async function completeAttempt(userId: number) {
+  const latestAttempt = await db
+    .select({ attemptNumber: trainerSelfDiagnostics.attemptNumber })
+    .from(trainerSelfDiagnostics)
+    .where(eq(trainerSelfDiagnostics.userId, userId))
+    .orderBy(desc(trainerSelfDiagnostics.attemptNumber))
+    .limit(1);
+
+  const currentAttempt = latestAttempt.length > 0 ? latestAttempt[0].attemptNumber : 1;
+
+  // Verify they answered all 9 blocks for this attempt
+  const answers = await db
+    .select()
+    .from(trainerSelfDiagnostics)
+    .where(
+      and(
+        eq(trainerSelfDiagnostics.userId, userId),
+        eq(trainerSelfDiagnostics.attemptNumber, currentAttempt)
+      )
+    );
+
+  if (answers.length >= 9) {
+    // Check if they already got points for this attempt
+    // Points sourceId can be combination of userId and attemptNumber or just award it
+    await awardPoints(userId, 100, 'diagnostics_complete', currentAttempt);
+    
+    // Start a new attempt for next time
+    // We do this by just incrementing the attempt number if they choose to start over.
+    // So "completeAttempt" just means we award points.
+    return { success: true, attempt: currentAttempt };
+  }
+  
+  return { success: false, reason: 'Not all blocks completed' };
+}
+
+export async function startNewAttempt(userId: number) {
+  const latestAttempt = await db
+    .select({ attemptNumber: trainerSelfDiagnostics.attemptNumber })
+    .from(trainerSelfDiagnostics)
+    .where(eq(trainerSelfDiagnostics.userId, userId))
+    .orderBy(desc(trainerSelfDiagnostics.attemptNumber))
+    .limit(1);
+
+  const newAttempt = (latestAttempt.length > 0 ? latestAttempt[0].attemptNumber : 0) + 1;
+  return newAttempt;
 }

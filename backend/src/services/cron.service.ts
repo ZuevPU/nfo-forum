@@ -1,6 +1,7 @@
 import { sendPush } from './push.service.js';
+import { getEnabledTracks } from './diagnostics.service.js';
 
-const CRON_JOBS: Record<string, { text: string; hour: number; minute: number; hash?: string }> = {
+const CRON_JOBS: Record<string, { text: string; hour: number; minute: number; hash?: string; isDiagnostics?: boolean }> = {
   'morning-greeting': {
     text: 'Доброе утро! Сегодня отличный день на Форуме НФО. Открой расписание своего трека.',
     hour: 8,
@@ -36,6 +37,13 @@ const CRON_JOBS: Record<string, { text: string; hour: number; minute: number; ha
     hour: 20,
     minute: 0,
   },
+  'trainer-diagnostics': {
+    text: 'Время оценить свои компетенции! Пройди самодиагностику тренера.',
+    hour: 14,
+    minute: 0,
+    hash: '#/diagnostics',
+    isDiagnostics: true,
+  }
 };
 
 export async function runCronJob(jobName: string): Promise<{ ok: boolean; sent?: number }> {
@@ -45,6 +53,19 @@ export async function runCronJob(jobName: string): Promise<{ ok: boolean; sent?:
   }
 
   const text = job.hash ? `${job.text}\n${job.hash}` : job.text;
+
+  if (job.isDiagnostics) {
+    const enabledTracks = await getEnabledTracks();
+    if (enabledTracks.length === 0) {
+      return { ok: true, sent: 0 };
+    }
+    const result = await sendPush({
+      text,
+      targetType: 'track',
+      targetTracks: enabledTracks,
+    });
+    return { ok: true, sent: result.sent };
+  }
 
   const result = await sendPush({
     text,

@@ -19,6 +19,10 @@ import {
   updateEvent,
   updateTask,
   listBroadcasts,
+  getDiagnosticsSettings,
+  setDiagnosticsSettings,
+  getDiagnosticsResults,
+  generateDiagnosticsCSV,
 } from '../services/admin.service.js';
 import { sendPush } from '../services/push.service.js';
 
@@ -149,4 +153,32 @@ adminRouter.post('/push/send', async (req: AuthenticatedRequest, res) => {
     scheduledAt: scheduled_at ? new Date(scheduled_at) : undefined,
   });
   res.json(result);
+});
+
+// Diagnostics
+adminRouter.get('/diagnostics/settings', async (_req, res) => {
+  const tracks = await getDiagnosticsSettings();
+  res.json({ tracks });
+});
+
+adminRouter.post('/diagnostics/settings', async (req, res) => {
+  const { tracks } = req.body as { tracks: string[] };
+  if (!Array.isArray(tracks)) {
+    res.status(400).json({ error: 'tracks must be an array' });
+    return;
+  }
+  await setDiagnosticsSettings(tracks);
+  res.json({ ok: true });
+});
+
+adminRouter.get('/diagnostics/results', async (_req, res) => {
+  const results = await getDiagnosticsResults();
+  res.json({ results });
+});
+
+adminRouter.get('/diagnostics/export', async (_req, res) => {
+  const csv = await generateDiagnosticsCSV();
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="diagnostics.csv"');
+  res.send('\uFEFF' + csv); // add BOM for Excel
 });

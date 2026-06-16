@@ -84,6 +84,42 @@ export function fetchBroadcasts() {
   return apiRequest<{ broadcasts: Broadcast[] }>('/api/admin/broadcasts');
 }
 
+// Diagnostics
+export function fetchDiagnosticsSettings() {
+  return apiRequest<{ tracks: string[] }>('/api/admin/diagnostics/settings');
+}
+
+export function saveDiagnosticsSettings(tracks: string[]) {
+  return apiRequest('/api/admin/diagnostics/settings', {
+    method: 'POST',
+    body: { tracks },
+  });
+}
+
+export interface DiagnosticResult {
+  id: number;
+  userId: number;
+  blockId: number;
+  questionId: number;
+  score: number;
+  attemptNumber: number;
+  comment: string | null;
+  createdAt: string;
+  user: {
+    firstName: string;
+    lastName: string | null;
+    track: string | null;
+  } | null;
+}
+
+export function fetchDiagnosticsResults() {
+  return apiRequest<{ results: DiagnosticResult[] }>('/api/admin/diagnostics/results');
+}
+
+export function getDiagnosticsExportUrl() {
+  return '/api/admin/diagnostics/export';
+}
+
 export interface Broadcast {
   id: number;
   text: string;

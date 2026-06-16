@@ -260,6 +260,8 @@ export const trainerSelfDiagnostics = pgTable('trainer_self_diagnostics', {
   blockId: integer('block_id').notNull(),
   questionId: integer('question_id').notNull(),
   score: integer('score').notNull(),
+  attemptNumber: integer('attempt_number').notNull().default(1),
+  comment: text('comment'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

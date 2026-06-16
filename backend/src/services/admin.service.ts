@@ -6,12 +6,15 @@ import {
   exchangeQuestions,
   pointsHistory,
   reflectionQuestions,
+  systemSettings,
   taskSubmissions,
   tasks,
+  trainerSelfDiagnostics,
   users,
 } from '../db/schema.js';
 import { assignRandomRespondents } from './exchange.service.js';
 import { awardPoints } from './points.service.js';
+import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
 
 export async function listBroadcasts() {
   return db.select().from(broadcasts).orderBy(desc(broadcasts.createdAt));
@@ -254,4 +257,96 @@ export async function createReflectionQuestion(data: {
 
 export async function deleteReflectionQuestion(id: number) {
   await db.delete(reflectionQuestions).where(eq(reflectionQuestions.id, id));
+}
+
+// Diagnostics
+export async function getDiagnosticsSettings() {
+  const [setting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'diagnostics_enabled_tracks'))
+    .limit(1);
+    
+  if (setting?.value && Array.isArray(setting.value)) {
+    return setting.value as string[];
+  }
+  return ['Обучение тренеров', 'Аттестация тренеров', 'Действующий состав АТ РСМ'];
+}
+
+export async function setDiagnosticsSettings(tracks: string[]) {
+  const [existing] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'diagnostics_enabled_tracks'))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(systemSettings)
+      .set({ value: tracks, updatedAt: new Date() })
+      .where(eq(systemSettings.id, existing.id));
+  } else {
+    await db
+      .insert(systemSettings)
+      .values({ key: 'diagnostics_enabled_tracks', value: tracks });
+  }
+}
+
+export async function getDiagnosticsResults() {
+  const results = await db
+    .select({
+      id: trainerSelfDiagnostics.id,
+      userId: trainerSelfDiagnostics.userId,
+      blockId: trainerSelfDiagnostics.blockId,
+      questionId: trainerSelfDiagnostics.questionId,
+      score: trainerSelfDiagnostics.score,
+      attemptNumber: trainerSelfDiagnostics.attemptNumber,
+      comment: trainerSelfDiagnostics.comment,
+      createdAt: trainerSelfDiagnostics.createdAt,
+      user: {
+        firstName: users.firstName,
+        lastName: users.lastName,
+        track: users.track,
+      }
+    })
+    .from(trainerSelfDiagnostics)
+    .leftJoin(users, eq(trainerSelfDiagnostics.userId, users.id))
+    .orderBy(desc(trainerSelfDiagnostics.createdAt));
+    
+  return results;
+}
+
+export async function generateDiagnosticsCSV(): Promise<string> {
+  const results = await getDiagnosticsResults();
+  
+  const headers = [
+    'ID',
+    'Имя',
+    'Фамилия',
+    'Трек',
+    'Блок (ID)',
+    'Название навыка',
+    'Оценка',
+    'Попытка',
+    'Комментарий',
+    'Дата'
+  ];
+  
+  const rows = results.map(r => {
+    const skill = DIAGNOSTICS_DATA.skills.find(s => s.id === r.blockId);
+    return [
+      r.id,
+      r.user?.firstName ?? '',
+      r.user?.lastName ?? '',
+      r.user?.track ?? '',
+      r.blockId,
+      skill?.title ?? '',
+      r.score,
+      r.attemptNumber,
+      r.comment ?? '',
+      new Date(r.createdAt).toISOString()
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+  
+  return [headers.join(','), ...rows].join('\n');
 }

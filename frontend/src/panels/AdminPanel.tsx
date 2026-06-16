@@ -13,6 +13,7 @@ import {
   Spinner,
   Textarea,
   Badge,
+  Checkbox,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -34,19 +35,24 @@ import {
   sendAdminPush,
   updateAdminEvent,
   updateAdminTask,
+  fetchDiagnosticsSettings,
+  saveDiagnosticsSettings,
+  fetchDiagnosticsResults,
+  getDiagnosticsExportUrl,
   type AdminEvent,
   type AdminTask,
   type Broadcast,
   type PendingQuestion,
   type PendingSubmission,
   type ReflectionQuestion,
+  type DiagnosticResult,
 } from '../api/admin';
 import { PanelTitle } from '../components/PanelTitle';
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
 import { uploadFiles } from '../lib/vk-bridge';
 
-type Tab = 'events' | 'tasks' | 'exchange' | 'submissions' | 'reflection' | 'push';
+type Tab = 'events' | 'tasks' | 'exchange' | 'submissions' | 'reflection' | 'push' | 'diagnostics';
 
 export function AdminPanel() {
   const { user } = useAuthContext();
@@ -59,6 +65,8 @@ export function AdminPanel() {
   const [submissions, setSubmissions] = useState<PendingSubmission[]>([]);
   const [reflections, setReflections] = useState<ReflectionQuestion[]>([]);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [diagTracks, setDiagTracks] = useState<string[]>([]);
+  const [diagResults, setDiagResults] = useState<DiagnosticResult[]>([]);
 
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDesc, setNewEventDesc] = useState('');
@@ -131,14 +139,18 @@ export function AdminPanel() {
       fetchPendingSubmissions(),
       fetchReflectionQuestions(),
       fetchBroadcasts(),
+      fetchDiagnosticsSettings(),
+      fetchDiagnosticsResults(),
     ])
-      .then(([e, t, q, s, r, b]) => {
+      .then(([e, t, q, s, r, b, ds, dr]) => {
         setEvents(e.events);
         setTasks(t.tasks);
         setQuestions(q.questions);
         setSubmissions(s.submissions);
         setReflections(r.questions);
         setBroadcasts(b.broadcasts);
+        setDiagTracks(ds.tracks);
+        setDiagResults(dr.results);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -180,6 +192,7 @@ export function AdminPanel() {
               { label: 'Ответы', value: 'submissions' },
               { label: 'Вопросы', value: 'reflection' },
               { label: 'Push', value: 'push' },
+              { label: 'Диагностика', value: 'diagnostics' },
             ]}
           />
         </Div>
@@ -521,7 +534,7 @@ export function AdminPanel() {
             </SimpleCell>
           ))}
         </Group>
-      ) : (
+      ) : tab === 'push' ? (
         <Group header="Рассылка">
           <FormItem top="Текст сообщения">
             <Textarea value={pushText} onChange={(e) => setPushText(e.target.value)} />
@@ -602,7 +615,58 @@ export function AdminPanel() {
             ))}
           </Group>
         </Group>
-      )}
+      ) : tab === 'diagnostics' ? (
+        <Group header="Самодиагностика тренера">
+          <FormItem top="Доступна для треков">
+            {TRACKS.map(t => (
+              <Checkbox 
+                key={t} 
+                checked={diagTracks.includes(t)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setDiagTracks([...diagTracks, t]);
+                  } else {
+                    setDiagTracks(diagTracks.filter(track => track !== t));
+                  }
+                }}
+              >
+                {t}
+              </Checkbox>
+            ))}
+          </FormItem>
+          <Div>
+            <Button size="m" onClick={() => void saveDiagnosticsSettings(diagTracks).then(load)}>
+              Сохранить настройки
+            </Button>
+          </Div>
+
+          <Div style={{ marginTop: 24 }}>
+            <Button 
+              size="l" 
+              stretched 
+              mode="secondary" 
+              href={getDiagnosticsExportUrl()} 
+              target="_blank"
+            >
+              Скачать результаты (CSV)
+            </Button>
+          </Div>
+
+          <Group header="Последние результаты">
+            {diagResults.slice(0, 50).map(r => (
+              <SimpleCell
+                key={r.id}
+                multiline
+                subtitle={`${new Date(r.createdAt).toLocaleString('ru-RU')} · Блок ${r.blockId} · Попытка ${r.attemptNumber}`}
+                after={<div style={{ fontWeight: 600 }}>{r.score}/5</div>}
+              >
+                {r.user?.firstName} {r.user?.lastName} ({r.user?.track})
+              </SimpleCell>
+            ))}
+            {diagResults.length === 0 && <Placeholder>Нет результатов</Placeholder>}
+          </Group>
+        </Group>
+      ) : null}
     </Panel>
   );
 }
