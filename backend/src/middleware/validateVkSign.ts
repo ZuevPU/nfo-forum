@@ -67,6 +67,15 @@ export function validateVkSign(req: Request, res: Response, next: NextFunction) 
     }
   }
 
+  // #region agent log
+  if (req.path === '/api/auth/login') {
+    const secret = env.VK_APP_SECRET || '';
+    console.log(`[AUTH DEBUG] VK_APP_SECRET length on server: ${secret.length}. Expected: 20`);
+    console.log(`[AUTH DEBUG] Does secret end with space? ${secret.endsWith(' ')}`);
+    console.log(`[AUTH DEBUG] Auth header present: ${!!authHeader}`);
+  }
+  // #endregion
+
   if (!sign || Object.keys(vkParams).length === 0) {
     res.status(403).json({ error: 'VK signature required' });
     return;
