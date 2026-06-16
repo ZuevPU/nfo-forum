@@ -1,5 +1,6 @@
+import 'express-async-errors';
 import cors from 'cors';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { env } from './config/env.js';
 import { pool } from './db/index.js';
 import { validateVkSign } from './middleware/validateVkSign.js';
@@ -67,6 +68,14 @@ export function createApp() {
   app.use('/api/diagnostics', diagnosticsRouter);
   app.use('/api/cron', cronRouter);
   app.use('/api/admin', adminRouter);
+
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'369cd3'},body:JSON.stringify({sessionId:'369cd3',hypothesisId:'cors_500_handler',location:'app.ts:error_handler',message:'Caught unhandled error',data:{err:err.message},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  });
 
   return app;
 }
