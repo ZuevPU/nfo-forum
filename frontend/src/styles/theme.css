@@ -554,3 +554,236 @@ body {
 .nfo-journey-tag--green { background: #e0f5ef; color: var(--nfo-green); }
 .nfo-journey-tag--orange { background: #fff4e0; color: #c27000; }
 .nfo-journey-tag--gray { background: #f0f2f5; color: #999; }
+
+/* Admin panel */
+.nfo-admin {
+  padding-bottom: 16px;
+  min-height: 100%;
+}
+
+.nfo-admin-nav-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--nfo-bg);
+  border-bottom: 1px solid #e8eaf2;
+  padding-bottom: 8px;
+}
+
+.nfo-admin-nav {
+  padding: 8px 16px 4px;
+}
+
+.nfo-admin-nav-group {
+  margin-bottom: 10px;
+}
+
+.nfo-admin-nav-group:last-child {
+  margin-bottom: 0;
+}
+
+.nfo-admin-nav-group .nfo-sec-title {
+  padding: 0 0 4px;
+}
+
+.nfo-admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nfo-admin-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f5f6ff;
+  border: 1px solid #d0d4ff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--nfo-primary);
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.nfo-admin-tab.active {
+  background: var(--nfo-primary);
+  color: #fff;
+  border-color: var(--nfo-primary);
+  font-weight: 600;
+}
+
+.nfo-admin-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  background: #e74c3c;
+  color: #fff;
+}
+
+.nfo-admin-tab.active .nfo-admin-tab-badge {
+  background: rgba(255, 255, 255, 0.9);
+  color: #e74c3c;
+}
+
+.nfo-admin-section {
+  padding: 0 16px 12px;
+}
+
+.nfo-admin-form-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.nfo-admin-list-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.nfo-admin-list-card:last-child {
+  margin-bottom: 0;
+}
+
+.nfo-admin-list-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #1a1a2e;
+}
+
+.nfo-admin-list-meta {
+  font-size: 11px;
+  color: var(--vkui--color_text_secondary);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.nfo-admin-list-badge {
+  margin-bottom: 6px;
+}
+
+.nfo-admin-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 360px) {
+  .nfo-admin-actions {
+    flex-direction: column;
+  }
+
+  .nfo-admin-actions .nfo-admin-btn-primary,
+  .nfo-admin-actions .nfo-admin-btn-secondary,
+  .nfo-admin-actions .nfo-admin-btn-outline,
+  .nfo-admin-actions .nfo-admin-btn-danger {
+    width: 100%;
+  }
+}
+
+.nfo-admin-btn-primary,
+.nfo-admin-btn-secondary,
+.nfo-admin-btn-outline,
+.nfo-admin-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  line-height: 1.2;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.nfo-admin-btn-primary {
+  background: linear-gradient(135deg, var(--nfo-primary) 0%, #6b5ecf 100%);
+  color: #fff;
+}
+
+.nfo-admin-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.nfo-admin-btn-secondary {
+  background: #f5f6ff;
+  color: var(--nfo-primary);
+  border: 1px solid #d0d4ff;
+}
+
+.nfo-admin-btn-outline {
+  background: #fff;
+  color: var(--nfo-primary);
+  border: 1px solid #d0d4ff;
+}
+
+.nfo-admin-btn-danger {
+  background: #fff;
+  color: #e74c3c;
+  border: 1px solid #f5c6c6;
+}
+
+.nfo-admin-btn-primary.stretched,
+.nfo-admin-btn-secondary.stretched,
+.nfo-admin-btn-outline.stretched,
+.nfo-admin-btn-danger.stretched {
+  width: 100%;
+}
+
+.nfo-admin .vkuiButton--mode-primary:not(.vkuiButton--mode-link) {
+  background: var(--nfo-primary);
+  color: #fff;
+}
+
+.nfo-admin .vkuiButton--mode-secondary {
+  background: #f5f6ff;
+  color: var(--nfo-primary);
+}
+
+.nfo-admin .vkuiButton--mode-outline {
+  color: var(--nfo-primary);
+  border-color: #d0d4ff;
+}
+
+.nfo-admin .vkuiButton--mode-tertiary {
+  color: #fff;
+}
+
+.nfo-admin-empty {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--vkui--color_text_secondary);
+  font-size: 13px;
+}
+
+.nfo-admin-export-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nfo-admin-export-row .nfo-admin-btn-secondary,
+.nfo-admin-export-row .nfo-admin-btn-outline {
+  flex: 1;
+  min-width: 120px;
+}

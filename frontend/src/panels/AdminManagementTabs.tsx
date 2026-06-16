@@ -1,4 +1,4 @@
-import { Button, Div, FormItem, Group, Input, NativeSelect, SimpleCell, Checkbox } from '@vkontakte/vkui';
+import { Div, FormItem, Input, NativeSelect, Checkbox } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import {
   adjustUserPoints,
@@ -25,6 +25,7 @@ import {
   type NfoDayStats,
   type ActivityLogRow,
 } from '../api/admin';
+import { AdminListCard } from '../components/AdminListCard';
 import { TRACKS } from '../constants/tracks';
 
 export function AdminUsersTab() {
@@ -41,33 +42,38 @@ export function AdminUsersTab() {
   useEffect(() => { load(); }, [trackFilter]);
 
   return (
-    <Group header="Участники">
-      <FormItem top="Фильтр по треку">
-        <NativeSelect value={trackFilter} onChange={(e) => setTrackFilter(e.target.value)}>
-          <option value="">Все</option>
-          {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
-        </NativeSelect>
-      </FormItem>
-      {users.map((u) => (
-        <SimpleCell key={u.id} subtitle={`${u.track ?? '—'} · ${u.points} б.`} multiline>
-          {u.firstName} {u.lastName ?? ''}
-        </SimpleCell>
-      ))}
-      <FormItem top="ID участника">
-        <Input value={adjustUserId} onChange={(e) => setAdjustUserId(e.target.value)} />
-      </FormItem>
-      <FormItem top="Баллы (+/-)">
-        <Input type="number" value={adjustPoints} onChange={(e) => setAdjustPoints(e.target.value)} />
-      </FormItem>
-      <FormItem top="Комментарий">
-        <Input value={adjustComment} onChange={(e) => setAdjustComment(e.target.value)} />
-      </FormItem>
-      <Div>
-        <Button size="m" onClick={() => void adjustUserPoints(Number(adjustUserId), Number(adjustPoints), adjustComment).then(load)}>
+    <div className="nfo-admin-section">
+      <div className="nfo-sec-title">Участники</div>
+      <div className="nfo-admin-form-card">
+        <FormItem top="Фильтр по треку">
+          <NativeSelect value={trackFilter} onChange={(e) => setTrackFilter(e.target.value)}>
+            <option value="">Все</option>
+            {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </NativeSelect>
+        </FormItem>
+        <FormItem top="ID участника">
+          <Input value={adjustUserId} onChange={(e) => setAdjustUserId(e.target.value)} />
+        </FormItem>
+        <FormItem top="Баллы (+/-)">
+          <Input type="number" value={adjustPoints} onChange={(e) => setAdjustPoints(e.target.value)} />
+        </FormItem>
+        <FormItem top="Комментарий">
+          <Input value={adjustComment} onChange={(e) => setAdjustComment(e.target.value)} />
+        </FormItem>
+        <button type="button" className="nfo-admin-btn-primary" onClick={() => void adjustUserPoints(Number(adjustUserId), Number(adjustPoints), adjustComment).then(load)}>
           Скорректировать баллы
-        </Button>
-      </Div>
-    </Group>
+        </button>
+      </div>
+
+      {users.length === 0 && <div className="nfo-admin-empty">Нет участников</div>}
+      {users.map((u) => (
+        <AdminListCard
+          key={u.id}
+          title={`${u.firstName} ${u.lastName ?? ''}`.trim()}
+          meta={`${u.track ?? '—'} · ${u.points} б.`}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -78,15 +84,19 @@ export function AdminFeedbackTab() {
   }, []);
 
   return (
-    <Group header="Сообщения от участников">
+    <div className="nfo-admin-section">
+      <div className="nfo-sec-title">Сообщения от участников</div>
+      {!messages.length && <div className="nfo-admin-empty">Нет сообщений</div>}
       {messages.map((m) => (
-        <SimpleCell key={m.id} subtitle={new Date(m.createdAt).toLocaleString('ru-RU')} multiline>
-          <strong>{m.firstName} {m.lastName ?? ''}</strong> ({m.track ?? '—'})
-          <div style={{ marginTop: 4 }}>{m.text}</div>
-        </SimpleCell>
+        <AdminListCard
+          key={m.id}
+          title={`${m.firstName} ${m.lastName ?? ''}`.trim()}
+          meta={`${m.track ?? '—'} · ${new Date(m.createdAt).toLocaleString('ru-RU')}`}
+        >
+          <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.4 }}>{m.text}</div>
+        </AdminListCard>
       ))}
-      {!messages.length && <Div>Нет сообщений</Div>}
-    </Group>
+    </div>
   );
 }
 
@@ -104,33 +114,35 @@ export function AdminReflectionAnswersTab() {
   useEffect(() => { load(); }, [track, day]);
 
   return (
-    <Group header="Ответы на рефлексию">
-      <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Button size="s" mode="secondary" href={getAdminExportUrl('reflection')} target="_blank">
-          CSV
-        </Button>
-        <Button size="s" mode="outline" href={getAdminExportXlsxUrl('reflection')} target="_blank">
-          XLSX
-        </Button>
-      </Div>
-      <FormItem top="Трек">
-        <NativeSelect value={track} onChange={(e) => setTrack(e.target.value)}>
-          <option value="">Все</option>
-          {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
-        </NativeSelect>
-      </FormItem>
-      <FormItem top="Дата (YYYY-MM-DD)">
-        <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
-      </FormItem>
+    <div className="nfo-admin-section">
+      <div className="nfo-sec-title">Ответы на рефлексию</div>
+      <div className="nfo-admin-export-row" style={{ marginBottom: 12 }}>
+        <a className="nfo-admin-btn-secondary" href={getAdminExportUrl('reflection')} target="_blank" rel="noreferrer">CSV</a>
+        <a className="nfo-admin-btn-outline" href={getAdminExportXlsxUrl('reflection')} target="_blank" rel="noreferrer">XLSX</a>
+      </div>
+      <div className="nfo-admin-form-card">
+        <FormItem top="Трек">
+          <NativeSelect value={track} onChange={(e) => setTrack(e.target.value)}>
+            <option value="">Все</option>
+            {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </NativeSelect>
+        </FormItem>
+        <FormItem top="Дата (YYYY-MM-DD)">
+          <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+        </FormItem>
+      </div>
+      {!answers.length && <div className="nfo-admin-empty">Нет ответов</div>}
       {answers.map((a) => (
-        <SimpleCell key={a.id} subtitle={`${a.track ?? '—'} · ${a.questionType} · ${new Date(a.createdAt).toLocaleString('ru-RU')}`} multiline>
-          <strong>{a.userName} {a.userLastName ?? ''}</strong>
-          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>{a.questionText}</div>
-          <div style={{ marginTop: 4 }}>{a.answerText}</div>
-        </SimpleCell>
+        <AdminListCard
+          key={a.id}
+          title={`${a.userName} ${a.userLastName ?? ''}`.trim()}
+          meta={`${a.track ?? '—'} · ${a.questionType} · ${new Date(a.createdAt).toLocaleString('ru-RU')}`}
+        >
+          <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>{a.questionText}</div>
+          <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.4 }}>{a.answerText}</div>
+        </AdminListCard>
       ))}
-      {!answers.length && <Div>Нет ответов</Div>}
-    </Group>
+    </div>
   );
 }
 
@@ -140,26 +152,29 @@ export function AdminNfoStatsTab() {
     fetchNfoDayStats().then(setStats).catch(console.error);
   }, []);
 
-  if (!stats) return <Div>Загрузка...</Div>;
+  if (!stats) return <Div style={{ padding: 24, textAlign: 'center' }}>Загрузка...</Div>;
 
   return (
-    <>
-      <Group header="Частота факторов">
-        {Object.entries(stats.factorCounts)
-          .sort(([, a], [, b]) => b - a)
-          .map(([factor, count]) => (
-            <SimpleCell key={factor} after={count}>{factor}</SimpleCell>
-          ))}
-      </Group>
-      <Group header="Ответы НФО дня">
-        {stats.answers.slice(0, 50).map((a, i) => (
-          <SimpleCell key={i} subtitle={`${a.track ?? '—'} · ${a.date}`} multiline>
-            <strong>{a.userName}</strong>: {a.answerText}
-            <div style={{ fontSize: 11, marginTop: 4 }}>{a.factors.join(', ')}</div>
-          </SimpleCell>
+    <div className="nfo-admin-section">
+      <div className="nfo-sec-title">Частота факторов</div>
+      {Object.entries(stats.factorCounts)
+        .sort(([, a], [, b]) => b - a)
+        .map(([factor, count]) => (
+          <AdminListCard key={factor} title={factor} actions={<span style={{ fontWeight: 700, color: 'var(--nfo-primary)' }}>{count}</span>} />
         ))}
-      </Group>
-    </>
+
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Ответы НФО дня</div>
+      {stats.answers.slice(0, 50).map((a, i) => (
+        <AdminListCard
+          key={i}
+          title={a.userName}
+          meta={`${a.track ?? '—'} · ${a.date}`}
+        >
+          <div style={{ marginTop: 4, fontSize: 14 }}>{a.answerText}</div>
+          <div style={{ fontSize: 11, marginTop: 4, color: 'var(--vkui--color_text_secondary)' }}>{a.factors.join(', ')}</div>
+        </AdminListCard>
+      ))}
+    </div>
   );
 }
 
@@ -170,18 +185,21 @@ export function AdminActivityTab() {
   }, []);
 
   return (
-    <Group header="Журнал активности">
-      <Div>
-        <Button size="s" mode="secondary" href={getAdminExportUrl('activity')} target="_blank">
+    <div className="nfo-admin-section">
+      <div className="nfo-sec-title">Журнал активности</div>
+      <div style={{ marginBottom: 12 }}>
+        <a className="nfo-admin-btn-secondary" href={getAdminExportUrl('activity')} target="_blank" rel="noreferrer">
           Скачать CSV
-        </Button>
-      </Div>
+        </a>
+      </div>
       {logs.slice(0, 100).map((l) => (
-        <SimpleCell key={l.id} subtitle={new Date(l.createdAt).toLocaleString('ru-RU')}>
-          {l.userName} ({l.track ?? '—'}) — {l.action}
-        </SimpleCell>
+        <AdminListCard
+          key={l.id}
+          title={`${l.userName} (${l.track ?? '—'})`}
+          meta={`${new Date(l.createdAt).toLocaleString('ru-RU')} · ${l.action}`}
+        />
       ))}
-    </Group>
+    </div>
   );
 }
 
@@ -201,8 +219,9 @@ export function AdminSettingsTab() {
   }, []);
 
   return (
-    <>
-      <Group header="Баллы за действия">
+    <div className="nfo-admin-section">
+      <div className="nfo-sec-title">Баллы за действия</div>
+      <div className="nfo-admin-form-card">
         {Object.entries(config).map(([key, value]) => (
           <FormItem key={key} top={key}>
             <Input
@@ -212,12 +231,13 @@ export function AdminSettingsTab() {
             />
           </FormItem>
         ))}
-        <Div>
-          <Button size="m" onClick={() => void savePointsSettings(config)}>Сохранить баллы</Button>
-        </Div>
-      </Group>
+        <button type="button" className="nfo-admin-btn-primary" onClick={() => void savePointsSettings(config)}>
+          Сохранить баллы
+        </button>
+      </div>
 
-      <Group header="Чек-ин по трекам">
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Чек-ин по трекам</div>
+      <div className="nfo-admin-form-card">
         {TRACKS.map((t) => (
           <Checkbox
             key={t}
@@ -240,24 +260,26 @@ export function AdminSettingsTab() {
             onChange={(e) => setCheckin((c) => ({ ...c, slots: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }))}
           />
         </FormItem>
-        <Div>
-          <Button size="m" onClick={() => void saveCheckinSettings(checkin)}>Сохранить чек-ин</Button>
-        </Div>
-      </Group>
+        <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveCheckinSettings(checkin)}>
+          Сохранить чек-ин
+        </button>
+      </div>
 
-      <Group header="Слоты «Обмена опытом»">
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Слоты «Обмена опытом»</div>
+      <div className="nfo-admin-form-card">
         <FormItem top="Время рассылки (HH:MM через запятую)">
           <Input
             value={exchangeSlots.join(', ')}
             onChange={(e) => setExchangeSlots(e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
           />
         </FormItem>
-        <Div>
-          <Button size="m" onClick={() => void saveExchangeSlots(exchangeSlots)}>Сохранить слоты</Button>
-        </Div>
-      </Group>
+        <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveExchangeSlots(exchangeSlots)}>
+          Сохранить слоты
+        </button>
+      </div>
 
-      <Group header="Вопрос дня НФО">
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Вопрос дня НФО</div>
+      <div className="nfo-admin-form-card">
         <FormItem top="Час публикации (MSK)">
           <Input type="number" min={0} max={23} value={String(nfoDay.publishHour)} onChange={(e) => setNfoDay((c) => ({ ...c, publishHour: Number(e.target.value) }))} />
         </FormItem>
@@ -267,34 +289,36 @@ export function AdminSettingsTab() {
         <FormItem top="Баллы">
           <Input type="number" value={String(nfoDay.points)} onChange={(e) => setNfoDay((c) => ({ ...c, points: Number(e.target.value) }))} />
         </FormItem>
-        <Div>
-          <Button size="m" onClick={() => void saveNfoDaySettings(nfoDay)}>Сохранить НФО день</Button>
-        </Div>
-      </Group>
+        <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveNfoDaySettings(nfoDay)}>
+          Сохранить НФО день
+        </button>
+      </div>
 
-      <Group header="Фокус дня (текст на главной)">
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Фокус дня (текст на главной)</div>
+      <div className="nfo-admin-form-card">
         <FormItem top="Заголовок">
           <Input value={dailyFocusTitle} onChange={(e) => setDailyFocusTitle(e.target.value)} placeholder="Если пусто — берётся задание с флагом «Фокус дня»" />
         </FormItem>
-        <Div>
-          <Button size="m" onClick={() => void saveDailyFocusSettings(dailyFocusTitle)}>Сохранить фокус</Button>
-        </Div>
-      </Group>
+        <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveDailyFocusSettings(dailyFocusTitle)}>
+          Сохранить фокус
+        </button>
+      </div>
 
-      <Group header="Выгрузки CSV / Excel">
-        <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Выгрузки CSV / Excel</div>
+      <div className="nfo-admin-form-card">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(['reflection', 'tasks', 'exchange', 'rating', 'checkins', 'nfo-day', 'points-history', 'activity'] as const).map((type) => (
-            <div key={type} style={{ display: 'flex', gap: 8 }}>
-              <Button size="s" mode="secondary" href={getAdminExportUrl(type)} target="_blank" style={{ flex: 1 }}>
+            <div key={type} className="nfo-admin-export-row">
+              <a className="nfo-admin-btn-secondary" href={getAdminExportUrl(type)} target="_blank" rel="noreferrer">
                 {type} CSV
-              </Button>
-              <Button size="s" mode="outline" href={getAdminExportXlsxUrl(type)} target="_blank" style={{ flex: 1 }}>
+              </a>
+              <a className="nfo-admin-btn-outline" href={getAdminExportXlsxUrl(type)} target="_blank" rel="noreferrer">
                 {type} XLSX
-              </Button>
+              </a>
             </div>
           ))}
-        </Div>
-      </Group>
-    </>
+        </div>
+      </div>
+    </div>
   );
 }
