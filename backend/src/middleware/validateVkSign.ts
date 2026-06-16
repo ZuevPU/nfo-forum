@@ -51,8 +51,21 @@ export function validateVkSign(req: Request, res: Response, next: NextFunction) 
     return;
   }
 
-  const sign = (req.headers['x-vk-sign'] as string) ?? (req.body as Record<string, string>)?.sign;
   const vkParams = extractVkParams(req);
+  let sign = (req.headers['x-vk-sign'] as string) ?? (req.body as Record<string, string>)?.sign;
+
+  // Извлекаем параметры из заголовка Authorization, если он есть
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('VK ')) {
+    const query = new URLSearchParams(authHeader.slice(3));
+    for (const [key, value] of query.entries()) {
+      if (key.startsWith('vk_')) {
+        vkParams[key] = value;
+      } else if (key === 'sign') {
+        sign = value;
+      }
+    }
+  }
 
   if (!sign || Object.keys(vkParams).length === 0) {
     res.status(403).json({ error: 'VK signature required' });

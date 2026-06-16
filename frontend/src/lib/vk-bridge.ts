@@ -173,12 +173,17 @@ export function getVkSignHeaders(): Record<string, string> {
   const params = getLaunchParams();
   const headers: Record<string, string> = {};
 
+  const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (key.startsWith('vk_') && value != null) {
-      headers[`X-Vk-${key.replace('vk_', '')}`] = String(value);
+    if (value != null) {
+      query.set(key, String(value));
     }
   }
 
+  // Передаем все параметры одной строкой, чтобы сервера не вырезали пустые значения
+  headers['Authorization'] = `VK ${query.toString()}`;
+
+  // Оставляем для обратной совместимости
   const sign = (params as Record<string, unknown>).sign;
   if (sign != null) {
     headers['X-Vk-Sign'] = String(sign);
