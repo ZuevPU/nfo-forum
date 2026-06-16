@@ -36,7 +36,7 @@ export function WelcomePanel() {
             size="l"
             stretched
             mode="outline"
-            style={{ borderColor: 'rgba(255,255,255,0.5)', color: '#fff' }}
+            style={{ borderColor: 'rgba(255,255,255,0.7)', color: '#fff' }}
             onClick={() => navigate('/register')}
           >
             Начать регистрацию

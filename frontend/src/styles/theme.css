@@ -14,6 +14,9 @@
 
 body {
   background: var(--nfo-bg);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .nfo-gradient-header {
@@ -112,7 +115,7 @@ body {
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 6px;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   border: none;
   background: transparent;

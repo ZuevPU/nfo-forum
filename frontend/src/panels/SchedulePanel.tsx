@@ -4,6 +4,7 @@ import {
   Panel,
   SegmentedControl,
   Spinner,
+  PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchEvents } from '../api/events';
@@ -38,13 +39,17 @@ export function SchedulePanel() {
 
   const [selectedDay, setSelectedDay] = useState(dayTabs[0]?.key ?? toDayKey(new Date()));
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true);
     const track = filter === 'track' ? (user?.track ?? 'all') : 'all';
     fetchEvents(track, selectedDay)
       .then((r) => setEvents(r.events))
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, [filter, user?.track, selectedDay]);
 
   const now = new Date();
@@ -65,6 +70,7 @@ export function SchedulePanel() {
           ))}
         </div>
       </GradientHeader>
+      <PullToRefresh onRefresh={() => load()} isFetching={loading}>
       <Group>
         <Div>
           <SegmentedControl
@@ -115,6 +121,7 @@ export function SchedulePanel() {
           </Div>
         </Group>
       )}
+      </PullToRefresh>
     </Panel>
   );
 }

@@ -5,6 +5,7 @@ import {
   Placeholder,
   SegmentedControl,
   Spinner,
+  PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -57,7 +58,8 @@ export function ExchangePanel() {
 
   return (
     <PanelLayout id="exchange" title="Обмен опытом" subtitle="Задай вопрос — участники ответят">
-      <Group>
+      <PullToRefresh onRefresh={() => load()} isFetching={loading}>
+        <Group>
         <Div style={{ padding: '12px 16px' }}>
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Твой вопрос</div>
           <textarea 
@@ -112,6 +114,7 @@ export function ExchangePanel() {
           </Div>
         </Group>
       )}
+      </PullToRefresh>
     </PanelLayout>
   );
 }

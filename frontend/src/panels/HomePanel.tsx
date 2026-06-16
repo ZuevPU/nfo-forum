@@ -16,6 +16,7 @@ import {
   Spacing,
   Switch,
   SimpleCell,
+  PullToRefresh,
 } from '@vkontakte/vkui';
 import { Icon24Dismiss } from '@vkontakte/icons';
 import { useEffect, useState } from 'react';
@@ -59,11 +60,16 @@ export function HomePanel() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
     fetchHome()
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, []);
 
   if (loading || !user) {
@@ -177,13 +183,13 @@ export function HomePanel() {
                 disabled={notificationsLoading}
               />
             }
-            description="Уведомления о новых вопросах и заданиях"
+            subtitle="Уведомления о новых вопросах и заданиях"
           >
             Уведомления
           </SimpleCell>
 
           <Spacing size={16} />
-          <Button mode="destructive" stretched onClick={() => void handleDeleteAccount()}>
+          <Button mode="primary" style={{ backgroundColor: 'var(--vkui--color_background_negative)' }} stretched onClick={() => void handleDeleteAccount()}>
             Удалить аккаунт
           </Button>
         </Div>
@@ -194,6 +200,7 @@ export function HomePanel() {
   return (
     <>
       <Panel id="home">
+      <PullToRefresh onRefresh={() => load()} isFetching={loading}>
       <GradientHeader title="Главная" subtitle="Форум неформального образования">
         <Div style={{ marginTop: 12 }}><UserProfileCard user={data?.user ?? user} trackRank={data?.trackRank} /></Div>
         <Div style={{ paddingBottom: 0 }}>
@@ -231,9 +238,9 @@ export function HomePanel() {
               <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📅</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Что далее</div>
-                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{data.upcomingBlock.title}</div>
+                <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data.upcomingBlock.title}</div>
               </div>
-              <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+              <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
             </div>
           )}
 
@@ -241,38 +248,38 @@ export function HomePanel() {
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🌙</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активные вопросы</div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{data?.stats.activeQuestions ?? 0} доступно</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data?.stats.activeQuestions ?? 0} доступно</div>
             </div>
             {data?.stats.activeQuestions ? <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e74c3c' }} /> : null}
-            <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
           <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/tasks')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>⭐</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активные задания</div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{data?.stats.tasksAvailable ?? 0} доступных · {data?.stats.tasksCompleted ?? 0} выполнено</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data?.stats.tasksAvailable ?? 0} доступных · {data?.stats.tasksCompleted ?? 0} выполнено</div>
             </div>
-            <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
           
           <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/exchange')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>💡</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активный обмен опытом</div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{data?.stats.activeExchange ?? 0} вопросов · {data?.stats.newExchangeAnswers ?? 0} новых ответа</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data?.stats.activeExchange ?? 0} вопросов · {data?.stats.newExchangeAnswers ?? 0} новых ответа</div>
             </div>
             {data?.stats.newExchangeAnswers ? <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e74c3c' }} /> : null}
-            <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
           <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/checkin')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>😊</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Как ты сейчас?</div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Чек-ин состояния</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>Чек-ин состояния</div>
             </div>
-            <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
           {user.role === 'admin' && (
@@ -280,9 +287,9 @@ export function HomePanel() {
               <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>⚙️</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Админка</div>
-                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Управление форумом</div>
+                <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>Управление форумом</div>
               </div>
-              <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+              <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
             </div>
           )}
         </Div>
@@ -320,9 +327,9 @@ export function HomePanel() {
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏆</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Рейтинг</div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Общий рейтинг участников</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>Общий рейтинг участников</div>
             </div>
-            <div style={{ color: '#ccc', fontSize: 20 }}>›</div>
+            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
         </Div>
       </Group>
@@ -337,6 +344,7 @@ export function HomePanel() {
           </Button>
         </Div>
       </Group>
+      </PullToRefresh>
     </Panel>
     {modal}
     </>

@@ -34,6 +34,14 @@ export function App() {
         );
       })
       .catch(() => {});
+
+    bridge
+      .send('VKWebAppSetViewSettings', {
+        status_bar_style: 'dark',
+        action_bar_color: '#f2f3f9',
+        navigation_bar_color: '#f2f3f9',
+      })
+      .catch(() => {});
   }, []);
 
   return (

@@ -383,7 +383,7 @@ export function DiagnosticsPanel() {
                   </div>
                 </div>
               </div>
-              <Icon24ChevronRight fill="#ccc" />
+              <Icon24ChevronRight fill="var(--vkui--color_icon_tertiary)" />
             </div>
           );
         })}

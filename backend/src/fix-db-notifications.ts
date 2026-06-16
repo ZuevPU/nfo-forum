@@ -13,7 +13,7 @@ async function main() {
   try {
     await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS notifications_enabled boolean DEFAULT true NOT NULL;');
     console.log('Added notifications_enabled');
-  } catch (e) {
+  } catch (e: any) {
     console.error(e.message);
   } finally {
     await client.end();

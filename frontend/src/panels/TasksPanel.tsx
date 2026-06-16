@@ -6,6 +6,7 @@ import {
   Panel,
   PanelHeader,
   Spinner,
+  PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { PanelTitle } from '../components/PanelTitle';
@@ -92,6 +93,7 @@ export function TasksPanel() {
   return (
     <Panel id="tasks">
       <PanelHeader><PanelTitle title="Задания" subtitle="Задания дня" /></PanelHeader>
+      <PullToRefresh onRefresh={() => load()} isFetching={loading}>
       {focus && (
         <Group>
           <Div className="nfo-gradient-green" style={{ borderRadius: 12, margin: 12, padding: 12 }}>
@@ -148,7 +150,7 @@ export function TasksPanel() {
               <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                 {statusBadge(t.status)}
                 {t.deadline && (
-                  <div style={{ fontSize: 11, color: t.isPastDeadline ? '#e74c3c' : '#888' }}>
+                  <div style={{ fontSize: 11, color: t.isPastDeadline ? '#e74c3c' : 'var(--vkui--color_text_secondary)' }}>
                     До {new Date(t.deadline).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 )}
@@ -158,6 +160,7 @@ export function TasksPanel() {
           </Div>
         </Group>
       )}
+      </PullToRefresh>
     </Panel>
   );
 }

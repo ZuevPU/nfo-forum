@@ -38,6 +38,7 @@ function toUserDto(user: typeof users.$inferSelect): UserDto {
     points: user.points,
     reflectionLevel: user.reflectionLevel,
     reflectionPoints: user.reflectionPoints,
+    notificationsEnabled: user.notificationsEnabled,
   };
 }
 
