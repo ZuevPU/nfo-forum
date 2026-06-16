@@ -16,13 +16,7 @@ function buildSignString(params: Record<string, string>): string {
 function extractVkParams(req: Request): Record<string, string> {
   const vkParams: Record<string, string> = {};
 
-  const raw = req.body as Record<string, unknown>;
-  for (const [key, value] of Object.entries(raw ?? {})) {
-    if (key.startsWith('vk_') && value != null) {
-      vkParams[key] = String(value);
-    }
-  }
-
+  // Только launch-параметры из заголовков; поля вроде vk_id из body не подписывает VK
   for (const [key, value] of Object.entries(req.headers)) {
     if (!key.startsWith('x-vk-') || key === 'x-vk-sign' || key === 'x-vk-id') continue;
     const vkKey = `vk_${key.slice(5)}`;
@@ -66,15 +60,6 @@ export function validateVkSign(req: Request, res: Response, next: NextFunction) 
       }
     }
   }
-
-  // #region agent log
-  if (req.path === '/api/auth/login') {
-    const secret = env.VK_APP_SECRET || '';
-    console.log(`[AUTH DEBUG] VK_APP_SECRET length on server: ${secret.length}. Expected: 20`);
-    console.log(`[AUTH DEBUG] Does secret end with space? ${secret.endsWith(' ')}`);
-    console.log(`[AUTH DEBUG] Auth header present: ${!!authHeader}`);
-  }
-  // #endregion
 
   if (!sign || Object.keys(vkParams).length === 0) {
     res.status(403).json({ error: 'VK signature required' });
