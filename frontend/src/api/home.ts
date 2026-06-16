@@ -17,6 +17,12 @@ export interface HomeData {
     id: number;
     title: string;
   } | null;
+  diagnostics: {
+    available: boolean;
+    completedBlocks: number;
+    totalBlocks: number;
+    isCompleted: boolean;
+  };
 }
 
 export interface EventDto {

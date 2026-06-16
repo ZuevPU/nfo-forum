@@ -8,10 +8,12 @@ import {
   feedbackMessages,
   taskSubmissions,
   tasks,
+  trainerSelfDiagnostics,
   users,
 } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import type { EventDto } from './events.service.js';
+import { isTrainerTrack } from './diagnostics.service.js';
 
 export async function submitFeedback(userId: number, text: string) {
   await db.insert(feedbackMessages).values({
@@ -36,6 +38,12 @@ export interface HomeData {
     id: number;
     title: string;
   } | null;
+  diagnostics: {
+    available: boolean;
+    completedBlocks: number;
+    totalBlocks: number;
+    isCompleted: boolean;
+  };
 }
 
 function toEventDto(e: typeof events.$inferSelect): EventDto {
@@ -129,6 +137,31 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     .orderBy(desc(tasks.createdAt))
     .limit(1);
 
+  const diagnosticsAvailable = await isTrainerTrack(user.track);
+  const TOTAL_DIAGNOSTICS_BLOCKS = 9;
+  let completedBlocks = 0;
+
+  if (diagnosticsAvailable) {
+    const latestAttempt = await db
+      .select({ attemptNumber: trainerSelfDiagnostics.attemptNumber })
+      .from(trainerSelfDiagnostics)
+      .where(eq(trainerSelfDiagnostics.userId, user.id))
+      .orderBy(desc(trainerSelfDiagnostics.attemptNumber))
+      .limit(1);
+
+    const attemptNumber = latestAttempt[0]?.attemptNumber ?? 1;
+    const [progressResult] = await db
+      .select({ value: count() })
+      .from(trainerSelfDiagnostics)
+      .where(
+        and(
+          eq(trainerSelfDiagnostics.userId, user.id),
+          eq(trainerSelfDiagnostics.attemptNumber, attemptNumber),
+        ),
+      );
+    completedBlocks = progressResult?.value ?? 0;
+  }
+
   return {
     user,
     currentEvent: currentEvent ? toEventDto(currentEvent) : null,
@@ -142,5 +175,11 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
       activeExchange,
     },
     focusOfDay: focusOfDay ?? null,
+    diagnostics: {
+      available: diagnosticsAvailable,
+      completedBlocks,
+      totalBlocks: TOTAL_DIAGNOSTICS_BLOCKS,
+      isCompleted: completedBlocks >= TOTAL_DIAGNOSTICS_BLOCKS,
+    },
   };
 }

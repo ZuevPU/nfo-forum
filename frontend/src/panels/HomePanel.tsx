@@ -282,6 +282,37 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
+          {data?.diagnostics.available && (
+            <div
+              className="nfo-card"
+              style={{
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                background: 'linear-gradient(135deg, #4f3ec0, #7b5ecf)',
+                color: '#fff',
+              }}
+              onClick={() => navigate('/diagnostics')}
+            >
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎯</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Самодиагностика тренера</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
+                  {data.diagnostics.isCompleted
+                    ? 'Пройдена · смотреть профиль'
+                    : data.diagnostics.completedBlocks > 0
+                      ? `Продолжить · ${data.diagnostics.completedBlocks}/${data.diagnostics.totalBlocks} блоков`
+                      : '9 ключевых умений · ~5 минут'}
+                </div>
+              </div>
+              {!data.diagnostics.isCompleted && (
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#fff' }} />
+              )}
+              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 20 }}>›</div>
+            </div>
+          )}
+
           {user.role === 'admin' && (
             <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/admin')}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>⚙️</div>
