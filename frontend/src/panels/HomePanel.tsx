@@ -242,6 +242,8 @@ export function HomePanel() {
     </ModalRoot>
   );
 
+  const checkinInfo = data?.checkin ?? { available: true, activeSlot: null, slotLabel: null };
+
   return (
     <>
       <Panel id="home">
@@ -356,16 +358,16 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
-          {data?.checkin.available && (
+          {checkinInfo.available && (
           <div className="nfo-hcard" onClick={() => navigate('/checkin')}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>😊</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Как ты сейчас?</div>
               <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
-                {data.checkin.slotLabel ?? 'Чек-ин состояния'}
+                {checkinInfo.slotLabel ?? 'Чек-ин состояния'}
               </div>
             </div>
-            {data.checkin.activeSlot ? (
+            {checkinInfo.activeSlot ? (
               <span className="nfo-hcard-badge">Перейти</span>
             ) : null}
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>

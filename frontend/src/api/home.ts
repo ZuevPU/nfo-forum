@@ -25,7 +25,7 @@ export interface HomeData {
     totalBlocks: number;
     isCompleted: boolean;
   };
-  checkin: {
+  checkin?: {
     available: boolean;
     activeSlot: string | null;
     slotLabel: string | null;
