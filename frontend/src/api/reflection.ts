@@ -15,6 +15,10 @@ export function fetchEveningQuestions() {
   return apiRequest<{ questions: EveningQuestion[] }>('/api/reflection/evening');
 }
 
+export function fetchNfoDayConfig() {
+  return apiRequest<NfoDayConfig>('/api/reflection/nfo-day/config');
+}
+
 export function submitNfoDayReflection(answerText: string, factors: string[]) {
   return apiRequest('/api/reflection/nfo-day', {
     method: 'POST',
@@ -23,7 +27,7 @@ export function submitNfoDayReflection(answerText: string, factors: string[]) {
 }
 
 export function fetchNfoDayToday() {
-  return apiRequest('/api/reflection/nfo-day/today');
+  return apiRequest<{ reflection: NfoDayReflection | null }>('/api/reflection/nfo-day/today');
 }
 
 export interface ReflectionQuestion {
@@ -42,4 +46,18 @@ export interface EveningQuestion {
   text: string;
   type: string;
   points: number;
+}
+
+export interface NfoDayConfig {
+  question: string;
+  factors: string[];
+  publishHour: number;
+  publishMinute: number;
+  points: number;
+}
+
+export interface NfoDayReflection {
+  answerText: string;
+  factors: string[];
+  createdAt: string;
 }

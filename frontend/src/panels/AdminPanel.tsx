@@ -47,12 +47,13 @@ import {
   type ReflectionQuestion,
   type DiagnosticResult,
 } from '../api/admin';
+import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab } from './AdminManagementTabs';
 import { PanelTitle } from '../components/PanelTitle';
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
 import { uploadFiles } from '../lib/vk-bridge';
 
-type Tab = 'events' | 'tasks' | 'exchange' | 'submissions' | 'reflection' | 'push' | 'diagnostics';
+type Tab = 'events' | 'tasks' | 'exchange' | 'submissions' | 'reflection' | 'push' | 'diagnostics' | 'users' | 'feedback' | 'settings';
 
 export function AdminPanel() {
   const { user } = useAuthContext();
@@ -89,6 +90,8 @@ export function AdminPanel() {
   const [newTaskRequiresPhoto, setNewTaskRequiresPhoto] = useState(false);
   const [newTaskSendNotification, setNewTaskSendNotification] = useState(true);
   const [newTaskIsFocusOfDay, setNewTaskIsFocusOfDay] = useState(false);
+  const [newTaskIsRandomDistribution, setNewTaskIsRandomDistribution] = useState(false);
+  const [newTaskAutoApprove, setNewTaskAutoApprove] = useState(false);
   
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
@@ -193,6 +196,9 @@ export function AdminPanel() {
               { label: 'Вопросы', value: 'reflection' },
               { label: 'Push', value: 'push' },
               { label: 'Диагностика', value: 'diagnostics' },
+              { label: 'Участники', value: 'users' },
+              { label: 'Inbox', value: 'feedback' },
+              { label: 'Настройки', value: 'settings' },
             ]}
           />
         </Div>
@@ -319,6 +325,18 @@ export function AdminPanel() {
               <option value="yes">Да</option>
             </NativeSelect>
           </FormItem>
+          <FormItem top="Нетворкинг (рандом-пара)">
+            <NativeSelect value={newTaskIsRandomDistribution ? 'yes' : 'no'} onChange={(e) => setNewTaskIsRandomDistribution(e.target.value === 'yes')}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </NativeSelect>
+          </FormItem>
+          <FormItem top="Авто-подтверждение">
+            <NativeSelect value={newTaskAutoApprove ? 'yes' : 'no'} onChange={(e) => setNewTaskAutoApprove(e.target.value === 'yes')}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </NativeSelect>
+          </FormItem>
           <FormItem top="Фокус дня">
             <NativeSelect value={newTaskIsFocusOfDay ? 'yes' : 'no'} onChange={(e) => setNewTaskIsFocusOfDay(e.target.value === 'yes')}>
               <option value="no">Нет</option>
@@ -343,7 +361,9 @@ export function AdminPanel() {
                 requiresPhoto: newTaskRequiresPhoto,
                 sendNotification: newTaskSendNotification,
                 isFocusOfDay: newTaskIsFocusOfDay,
-              }).then(() => { 
+                isRandomDistribution: newTaskIsRandomDistribution,
+                autoApprove: newTaskAutoApprove,
+              }).then(() => {
                 setNewTaskTitle(''); 
                 setNewTaskDesc(''); 
                 setNewTaskDeadline('');
@@ -666,6 +686,12 @@ export function AdminPanel() {
             {diagResults.length === 0 && <Placeholder>Нет результатов</Placeholder>}
           </Group>
         </Group>
+      ) : tab === 'users' ? (
+        <AdminUsersTab />
+      ) : tab === 'feedback' ? (
+        <AdminFeedbackTab />
+      ) : tab === 'settings' ? (
+        <AdminSettingsTab />
       ) : null}
     </Panel>
   );

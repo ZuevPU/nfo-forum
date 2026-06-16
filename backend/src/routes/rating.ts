@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { AuthenticatedRequest } from '../middleware/requireUser.js';
 import { requireUser } from '../middleware/requireUser.js';
 import { logActivity } from '../services/activity.service.js';
-import { getRating } from '../services/rating.service.js';
+import { getPointsHistory, getRating } from '../services/rating.service.js';
 
 export const ratingRouter = Router();
 
@@ -14,6 +14,24 @@ ratingRouter.get('/', requireUser, async (req: AuthenticatedRequest, res) => {
     res.json(data);
   } catch (error) {
     console.error('Rating error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+ratingRouter.get('/history', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const history = await getPointsHistory(req.user!.id);
+    res.json({
+      history: history.map((h) => ({
+        id: h.id,
+        points: h.points,
+        source: h.source,
+        comment: h.comment,
+        createdAt: h.createdAt.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error('Points history error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

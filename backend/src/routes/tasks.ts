@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from '../middleware/rateLimit.js';
 import type { AuthenticatedRequest } from '../middleware/requireUser.js';
 import { requireUser } from '../middleware/requireUser.js';
-import { getDailyFocus, getTask, getTasks, submitTask } from '../services/tasks.service.js';
+import { applyNetworking, getDailyFocus, getTask, getTasks, submitTask } from '../services/tasks.service.js';
 
 export const tasksRouter = Router();
 
@@ -49,19 +49,29 @@ tasksRouter.get('/:id', requireUser, async (req: AuthenticatedRequest, res) => {
   }
 });
 
+tasksRouter.post('/:id/apply-networking', requireUser, submitRateLimit, async (req: AuthenticatedRequest, res) => {
+  try {
+    const result = await applyNetworking(req.user!, Number(req.params.id));
+    res.status(201).json({ networking: result });
+  } catch (error) {
+    console.error('Networking apply error:', error);
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Error' });
+  }
+});
+
 tasksRouter.post('/:id/submit', requireUser, submitRateLimit, async (req: AuthenticatedRequest, res) => {
   try {
     const { answer_text, photos } = req.body as {
       answer_text?: string;
       photos?: string[];
     };
-    const submission = await submitTask(
+    const result = await submitTask(
       req.user!,
       Number(req.params.id),
       answer_text,
       photos,
     );
-    res.status(201).json({ submission });
+    res.status(201).json({ submission: result });
   } catch (error) {
     console.error('Task submit error:', error);
     res.status(400).json({ error: error instanceof Error ? error.message : 'Error' });

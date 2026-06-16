@@ -25,6 +25,13 @@ export const users = pgTable(
     reflectionLevel: integer('reflection_level').notNull().default(1),
     reflectionPoints: integer('reflection_points').notNull().default(0),
     notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
+    notificationPrefs: jsonb('notification_prefs').$type<{
+      program: boolean;
+      questions: boolean;
+      tasks: boolean;
+      exchange: boolean;
+      points: boolean;
+    }>(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     lastActiveAt: timestamp('last_active_at').notNull().defaultNow(),
   },
@@ -46,6 +53,7 @@ export const events = pgTable(
     place: text('place'),
     track: text('track'),
     isKeyBlock: boolean('is_key_block').notNull().default(false),
+    reminderSentAt: timestamp('reminder_sent_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [index('idx_events_track_time').on(table.track, table.startTime, table.endTime)],
@@ -114,6 +122,23 @@ export const tasks = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [index('idx_tasks_track').on(table.track)],
+);
+
+export const taskNetworkingQueue = pgTable(
+  'task_networking_queue',
+  {
+    id: serial('id').primaryKey(),
+    taskId: integer('task_id')
+      .notNull()
+      .references(() => tasks.id, { onDelete: 'cascade' }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    partnerUserId: integer('partner_user_id').references(() => users.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('waiting'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('idx_task_networking_task_status').on(table.taskId, table.status)],
 );
 
 export const taskSubmissions = pgTable(

@@ -3,6 +3,27 @@ import { db } from '../db/index.js';
 import { systemSettings, taskSubmissions, tasks } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import { awardPoints } from './points.service.js';
+import { getNetworkingPartner, joinNetworkingQueue } from './taskNetworking.service.js';
+
+const MAX_PHOTOS = 3;
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+function validatePhotos(photos?: string[]) {
+  if (!photos?.length) return;
+  if (photos.length > MAX_PHOTOS) throw new Error(`Maximum ${MAX_PHOTOS} photos allowed`);
+  for (const photo of photos) {
+    if (photo.startsWith('data:')) {
+      const base64 = photo.split(',')[1] ?? '';
+      const bytes = Math.ceil((base64.length * 3) / 4);
+      if (bytes > MAX_PHOTO_BYTES) throw new Error('Photo exceeds 10 MB limit');
+      if (!/^data:image\/(jpeg|jpg|png);/i.test(photo)) {
+        throw new Error('Only jpg and png images are allowed');
+      }
+    } else if (!/^https?:\/\/.+\.(jpg|jpeg|png)/i.test(photo)) {
+      throw new Error('Invalid photo URL');
+    }
+  }
+}
 
 export async function getTasks(user: UserDto) {
   const allTasks = await db.select().from(tasks);
@@ -13,7 +34,7 @@ export async function getTasks(user: UserDto) {
     .from(taskSubmissions)
     .where(eq(taskSubmissions.userId, user.id));
 
-  return userTasks.map((t) => {
+  const baseTasks = userTasks.map((t) => {
     const subs = submissions.filter((s) => s.taskId === t.id);
     const latest = subs[subs.length - 1];
     const isPastDeadline = t.deadline ? new Date() > t.deadline : false;
@@ -25,11 +46,24 @@ export async function getTasks(user: UserDto) {
       deadline: t.deadline?.toISOString() ?? null,
       allowMultiple: t.allowMultiple,
       requiresPhoto: t.requiresPhoto,
+      isRandomDistribution: t.isRandomDistribution,
       isPastDeadline,
       status: latest?.status ?? 'new',
       submissionCount: subs.length,
     };
   });
+
+  return Promise.all(
+    baseTasks.map(async (t) => {
+      if (!t.isRandomDistribution) return t;
+      const networking = await getNetworkingPartner(t.id, user.id);
+      return {
+        ...t,
+        networkingStatus: networking?.status ?? null,
+        partner: networking?.partner ?? null,
+      };
+    }),
+  );
 }
 
 export async function getTask(taskId: number, userId: number) {
@@ -44,6 +78,18 @@ export async function getTask(taskId: number, userId: number) {
   return { task, submissions: subs };
 }
 
+export async function applyNetworking(user: UserDto, taskId: number) {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
+  if (!task) throw new Error('Task not found');
+  if (!task.isRandomDistribution) throw new Error('Not a networking task');
+
+  if (task.deadline && new Date() > task.deadline) {
+    throw new Error('Deadline passed');
+  }
+
+  return joinNetworkingQueue(taskId, user.id);
+}
+
 export async function submitTask(
   user: UserDto,
   taskId: number,
@@ -55,6 +101,19 @@ export async function submitTask(
 
   if (task.deadline && new Date() > task.deadline) {
     throw new Error('Deadline passed');
+  }
+
+  if (task.requiresPhoto && (!photos || photos.length === 0)) {
+    throw new Error('Photo is required for this task');
+  }
+
+  validatePhotos(photos);
+
+  if (task.isRandomDistribution) {
+    const networking = await getNetworkingPartner(taskId, user.id);
+    if (!networking || networking.status !== 'paired') {
+      throw new Error('Join networking queue and wait for a partner first');
+    }
   }
 
   if (!task.allowMultiple) {

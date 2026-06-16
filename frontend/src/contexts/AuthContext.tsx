@@ -10,6 +10,7 @@ interface AuthContextValue {
   error: string | null;
   registerUser: (track: Track) => Promise<void>;
   deleteUserAccount: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   retry: () => void;
 }
 

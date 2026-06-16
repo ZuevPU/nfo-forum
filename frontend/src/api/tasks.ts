@@ -12,6 +12,13 @@ export function fetchTask(id: number) {
   return apiRequest(`/api/tasks/${id}`);
 }
 
+export function applyNetworkingTask(id: number) {
+  return apiRequest<{ networking?: { status: string }; submission?: unknown }>(
+    `/api/tasks/${id}/apply-networking`,
+    { method: 'POST', body: {} },
+  );
+}
+
 export function submitTask(id: number, answerText: string, photos?: string[]) {
   return apiRequest(`/api/tasks/${id}/submit`, {
     method: 'POST',
@@ -29,6 +36,9 @@ export interface TaskItem {
   submissionCount: number;
   isPastDeadline: boolean;
   requiresPhoto: boolean;
+  isRandomDistribution?: boolean;
+  networkingStatus?: 'waiting' | 'paired' | null;
+  partner?: { id: number; firstName: string; lastName: string | null; track: string | null } | null;
 }
 
 export interface DailyFocus {

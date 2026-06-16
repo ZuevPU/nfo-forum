@@ -1,7 +1,9 @@
 import { and, asc, desc, eq, lte } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { nfoDayReflections, reflectionAnswers, reflectionQuestions } from '../db/schema.js';
+import { NFO_DAY_FACTORS, NFO_DAY_QUESTION } from '../constants/nfoFactors.js';
+import { nfoDayReflections, pointsHistory, reflectionAnswers, reflectionQuestions, systemSettings } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
+import { moscowDateString } from '../utils/moscowTime.js';
 import { awardPoints } from './points.service.js';
 
 export async function getQuestions(user: UserDto) {
@@ -48,6 +50,14 @@ export async function submitAnswer(user: UserDto, questionId: number, answerText
   if (!question) throw new Error('Question not found');
   if (question.publishTime > new Date()) throw new Error('Question is locked');
 
+  const [existingAnswer] = await db
+    .select({ id: reflectionAnswers.id })
+    .from(reflectionAnswers)
+    .where(and(eq(reflectionAnswers.userId, user.id), eq(reflectionAnswers.questionId, questionId)))
+    .limit(1);
+
+  if (existingAnswer) throw new Error('Already answered');
+
   const [created] = await db
     .insert(reflectionAnswers)
     .values({ userId: user.id, questionId, answerText })
@@ -68,12 +78,45 @@ export async function getEveningQuestions(user: UserDto) {
   return questions.filter((q) => !q.track || q.track === user.track);
 }
 
+export async function getNfoDayConfig() {
+  const [setting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'nfo_day_config'))
+    .limit(1);
+
+  const value = (setting?.value ?? {}) as { publishHour?: number; publishMinute?: number; points?: number };
+  return {
+    question: NFO_DAY_QUESTION,
+    factors: [...NFO_DAY_FACTORS],
+    publishHour: value.publishHour ?? 19,
+    publishMinute: value.publishMinute ?? 30,
+    points: value.points ?? 10,
+  };
+}
+
 export async function submitNfoDayReflection(
   user: UserDto,
   answerText: string,
   factors: string[],
 ) {
-  const today = new Date().toISOString().split('T')[0];
+  if (factors.length === 0 || factors.length > 3) {
+    throw new Error('Select 1 to 3 factors');
+  }
+
+  const invalid = factors.filter((f) => !NFO_DAY_FACTORS.includes(f as (typeof NFO_DAY_FACTORS)[number]));
+  if (invalid.length > 0) throw new Error('Invalid factors');
+
+  const today = moscowDateString();
+  const [existing] = await db
+    .select({ id: nfoDayReflections.id })
+    .from(nfoDayReflections)
+    .where(and(eq(nfoDayReflections.userId, user.id), eq(nfoDayReflections.date, today)))
+    .limit(1);
+
+  if (existing) throw new Error('Already submitted today');
+
+  const config = await getNfoDayConfig();
   const [created] = await db
     .insert(nfoDayReflections)
     .values({
@@ -84,12 +127,20 @@ export async function submitNfoDayReflection(
     })
     .returning();
 
-  await awardPoints(user.id, 10, 'nfo_day_reflection', created.id, undefined, 10);
+  const [existingPoints] = await db
+    .select({ id: pointsHistory.id })
+    .from(pointsHistory)
+    .where(and(eq(pointsHistory.source, 'nfo_day_reflection'), eq(pointsHistory.sourceId, created.id)))
+    .limit(1);
+
+  if (!existingPoints) {
+    await awardPoints(user.id, config.points, 'nfo_day_reflection', created.id, undefined, config.points);
+  }
   return created;
 }
 
 export async function getNfoDayReflectionToday(userId: number) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = moscowDateString();
   const [row] = await db
     .select()
     .from(nfoDayReflections)

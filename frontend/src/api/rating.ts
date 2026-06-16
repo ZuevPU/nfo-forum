@@ -4,6 +4,18 @@ export function fetchRating(scope: 'track' | 'all' = 'track') {
   return apiRequest<RatingData>(`/api/rating?scope=${scope}`);
 }
 
+export function fetchPointsHistory() {
+  return apiRequest<{ history: PointsHistoryItem[] }>('/api/rating/history');
+}
+
+export interface PointsHistoryItem {
+  id: number;
+  points: number;
+  source: string;
+  comment: string | null;
+  createdAt: string;
+}
+
 export interface RatingData {
   list: RatingEntry[];
   me: {
@@ -11,6 +23,8 @@ export interface RatingData {
     trackRank: number;
     reflectionLevel: number;
     reflectionPoints: number;
+    reflectionLevelName?: string;
+    nextLevelPoints?: number | null;
   };
 }
 

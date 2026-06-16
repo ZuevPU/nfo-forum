@@ -120,6 +120,54 @@ export function getDiagnosticsExportUrl() {
   return '/api/admin/diagnostics/export';
 }
 
+export interface AdminUser {
+  id: number;
+  firstName: string;
+  lastName: string | null;
+  track: string | null;
+  points: number;
+  role: string;
+  createdAt: string;
+}
+
+export interface FeedbackMessage {
+  id: number;
+  text: string;
+  createdAt: string;
+  userId: number;
+  firstName: string;
+  lastName: string | null;
+  track: string | null;
+}
+
+export function fetchAdminUsers(track?: string) {
+  const q = track ? `?track=${encodeURIComponent(track)}` : '';
+  return apiRequest<{ users: AdminUser[] }>(`/api/admin/users${q}`);
+}
+
+export function adjustUserPoints(userId: number, points: number, comment: string) {
+  return apiRequest(`/api/admin/users/${userId}/points`, {
+    method: 'POST',
+    body: { points, comment },
+  });
+}
+
+export function fetchFeedbackMessages() {
+  return apiRequest<{ messages: FeedbackMessage[] }>('/api/admin/feedback');
+}
+
+export function fetchPointsSettings() {
+  return apiRequest<{ config: Record<string, number> }>('/api/admin/settings/points');
+}
+
+export function savePointsSettings(config: Record<string, number>) {
+  return apiRequest('/api/admin/settings/points', { method: 'POST', body: config });
+}
+
+export function getAdminExportUrl(type: string) {
+  return `/api/admin/export/${type}`;
+}
+
 export interface Broadcast {
   id: number;
   text: string;
@@ -150,6 +198,8 @@ export interface AdminTask {
   requiresPhoto?: boolean;
   sendNotification?: boolean;
   isFocusOfDay?: boolean;
+  isRandomDistribution?: boolean;
+  autoApprove?: boolean;
 }
 
 export interface PendingQuestion {

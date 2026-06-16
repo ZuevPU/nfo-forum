@@ -1,5 +1,13 @@
 import type { Track } from '../constants/tracks.js';
 
+export interface NotificationPrefs {
+  program: boolean;
+  questions: boolean;
+  tasks: boolean;
+  exchange: boolean;
+  points: boolean;
+}
+
 export interface UserDto {
   id: number;
   vkId: string;
@@ -11,6 +19,8 @@ export interface UserDto {
   reflectionLevel: number;
   reflectionPoints: number;
   notificationsEnabled: boolean;
+  notificationPrefs?: NotificationPrefs | null;
+  createdAt?: string;
 }
 
 export interface LoginRequest {

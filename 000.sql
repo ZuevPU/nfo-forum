@@ -200,3 +200,16 @@ CREATE TABLE IF NOT EXISTS user_activity_logs (
   action text NOT NULL,
   created_at timestamp NOT NULL DEFAULT now()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_prefs jsonb;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS reminder_sent_at timestamp;
+
+CREATE TABLE IF NOT EXISTS task_networking_queue (
+  id serial PRIMARY KEY,
+  task_id integer NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  partner_user_id integer REFERENCES users(id) ON DELETE SET NULL,
+  status text NOT NULL DEFAULT 'waiting',
+  created_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_task_networking_task_status ON task_networking_queue (task_id, status);

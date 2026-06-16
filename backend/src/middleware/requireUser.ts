@@ -28,6 +28,13 @@ function extractVkId(req: AuthenticatedRequest): string | null {
 }
 
 function toUserDto(user: typeof users.$inferSelect): UserDto {
+  const defaultPrefs = {
+    program: true,
+    questions: true,
+    tasks: true,
+    exchange: true,
+    points: true,
+  };
   return {
     id: user.id,
     vkId: user.vkId,
@@ -39,6 +46,8 @@ function toUserDto(user: typeof users.$inferSelect): UserDto {
     reflectionLevel: user.reflectionLevel,
     reflectionPoints: user.reflectionPoints,
     notificationsEnabled: user.notificationsEnabled,
+    notificationPrefs: (user.notificationPrefs as UserDto['notificationPrefs']) ?? defaultPrefs,
+    createdAt: user.createdAt.toISOString(),
   };
 }
 

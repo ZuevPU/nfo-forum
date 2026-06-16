@@ -1,7 +1,7 @@
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
 import { broadcasts, users } from '../db/schema.js';
-import { eq, inArray, and } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 interface PushPayload {
   text: string;
@@ -41,28 +41,37 @@ async function sendVkMessage(vkUserIds: number[], message: string, image?: strin
   }
 }
 
-export async function sendPush(payload: PushPayload): Promise<{ sent: number; scheduled?: boolean }> {
-  let targetUsers: { id: number; vkId: string }[] = [];
-
+async function resolveTargetUsers(payload: PushPayload) {
   if (payload.targetType === 'user' && payload.targetUserId) {
     const [u] = await db
       .select({ id: users.id, vkId: users.vkId })
       .from(users)
       .where(and(eq(users.id, payload.targetUserId), eq(users.notificationsEnabled, true)))
       .limit(1);
-    if (u) targetUsers = [u];
-  } else if (payload.targetType === 'track' && payload.targetTracks?.length) {
-    targetUsers = await db
+    return u ? [u] : [];
+  }
+  if (payload.targetType === 'track' && payload.targetTracks?.length) {
+    return db
       .select({ id: users.id, vkId: users.vkId })
       .from(users)
       .where(and(inArray(users.track, payload.targetTracks), eq(users.notificationsEnabled, true)));
-  } else {
-    targetUsers = await db
-      .select({ id: users.id, vkId: users.vkId })
-      .from(users)
-      .where(eq(users.notificationsEnabled, true));
   }
+  return db
+    .select({ id: users.id, vkId: users.vkId })
+    .from(users)
+    .where(eq(users.notificationsEnabled, true));
+}
 
+export async function deliverPush(payload: PushPayload): Promise<number> {
+  const targetUsers = await resolveTargetUsers(payload);
+  const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
+  if (vkIds.length > 0) {
+    await sendVkMessage(vkIds, payload.text, payload.image);
+  }
+  return vkIds.length;
+}
+
+export async function sendPush(payload: PushPayload): Promise<{ sent: number; scheduled?: boolean }> {
   await db.insert(broadcasts).values({
     text: payload.text,
     image: payload.image ?? null,
@@ -70,18 +79,13 @@ export async function sendPush(payload: PushPayload): Promise<{ sent: number; sc
     targetTracks: payload.targetTracks ?? null,
     targetUserId: payload.targetUserId ?? null,
     scheduledAt: payload.scheduledAt ?? null,
-    sentAt: payload.scheduledAt ? null : new Date(),
+    sentAt: payload.scheduledAt && payload.scheduledAt > new Date() ? null : new Date(),
   });
 
   if (payload.scheduledAt && payload.scheduledAt > new Date()) {
     return { sent: 0, scheduled: true };
   }
 
-  const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
-
-  if (vkIds.length > 0) {
-    await sendVkMessage(vkIds, payload.text, payload.image);
-  }
-
-  return { sent: vkIds.length };
+  const sent = await deliverPush(payload);
+  return { sent };
 }

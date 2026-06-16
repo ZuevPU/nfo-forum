@@ -12,6 +12,7 @@ interface UseAuthResult {
   error: string | null;
   registerUser: (track: Track) => Promise<void>;
   deleteUserAccount: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   retry: () => void;
 }
 
@@ -132,6 +133,15 @@ export function useAuth(): UseAuthResult {
     setAttempt((prev) => prev + 1);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const launchParams = getLaunchParams();
+    const info = getVkUserInfo();
+    const vkId = launchParams.vk_user_id != null ? String(launchParams.vk_user_id) : info?.id != null ? String(info.id) : null;
+    if (!vkId) return;
+    const result = await login(vkId, { firstName: info?.first_name, lastName: info?.last_name });
+    if (result.registered) setUser(result.user);
+  }, []);
+
   return {
     status,
     user,
@@ -139,6 +149,7 @@ export function useAuth(): UseAuthResult {
     error,
     registerUser,
     deleteUserAccount: deleteUserAccountFunc,
+    refreshUser,
     retry,
   };
 }

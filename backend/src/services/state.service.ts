@@ -2,6 +2,8 @@ import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { stateCheckins } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
+import { awardPoints } from './points.service.js';
+import { getPointsSettings } from './admin.service.js';
 
 const BOT_REACTIONS: Record<string, string> = {
   радость: 'Отличное настроение — хороший знак для продуктивного дня!',
@@ -27,7 +29,10 @@ export async function createCheckin(
     })
     .returning();
 
-  const botReaction = BOT_REACTIONS[emotion] ?? 'Спасибо за чек-ин! Я рядом весь день.';
+  const botReaction = BOT_REACTIONS[emotion.toLowerCase()] ?? 'Спасибо за чек-ин! Я рядом весь день.';
+
+  const pointsConfig = await getPointsSettings();
+  await awardPoints(user.id, pointsConfig.checkin ?? 5, 'checkin', created.id);
 
   return { checkin: created, botReaction };
 }

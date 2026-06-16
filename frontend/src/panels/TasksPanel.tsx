@@ -9,8 +9,10 @@ import {
   PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
+import { uploadFiles } from '../lib/vk-bridge';
 import { PanelTitle } from '../components/PanelTitle';
 import {
+  applyNetworkingTask,
   fetchDailyFocus,
   fetchTasks,
   submitTask,
@@ -26,6 +28,7 @@ export function TasksPanel() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [networkingLoading, setNetworkingLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const load = () => {
@@ -40,26 +43,31 @@ export function TasksPanel() {
 
   useEffect(() => { load(); }, []);
 
-  const handleUploadPhoto = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      setUploading(true);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPhotos((prev) => [...prev, reader.result as string]);
-        setUploading(false);
-      };
-      reader.onerror = () => {
-        console.error('Failed to read file');
-        setUploading(false);
-      };
-      reader.readAsDataURL(file);
-    };
-    input.click();
+  const handleUploadPhoto = async () => {
+    if (photos.length >= 3) return;
+    setUploading(true);
+    try {
+      const urls = await uploadFiles(1);
+      if (urls.length > 0) {
+        setPhotos((prev) => [...prev, urls[0]].slice(0, 3));
+      }
+    } catch (e) {
+      console.error('Upload failed:', e);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleApplyNetworking = async (task: TaskItem) => {
+    setNetworkingLoading(true);
+    try {
+      await applyNetworkingTask(task.id);
+      load();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setNetworkingLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -111,6 +119,13 @@ export function TasksPanel() {
             <div className="nfo-card" style={{ margin: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTask.title}</div>
               <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>{selectedTask.description}</div>
+              {selectedTask.isRandomDistribution && selectedTask.partner && (
+                <div style={{ marginTop: 12, padding: 10, background: '#f2f3f9', borderRadius: 8, fontSize: 12 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Твой партнёр:</div>
+                  {selectedTask.partner.firstName} {selectedTask.partner.lastName ?? ''}
+                  {selectedTask.partner.track ? ` · ${selectedTask.partner.track}` : ''}
+                </div>
+              )}
             </div>
           </Div>
           <Div style={{ padding: '0 16px 12px' }}>
@@ -123,8 +138,8 @@ export function TasksPanel() {
             />
           </Div>
           <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '0 16px 12px' }}>
-            <Button size="m" mode="secondary" loading={uploading} onClick={() => void handleUploadPhoto()}>
-              📷 Добавить фото
+            <Button size="m" mode="secondary" loading={uploading} disabled={photos.length >= 3} onClick={() => void handleUploadPhoto()}>
+              📷 Добавить фото ({photos.length}/3)
             </Button>
             {photos.map((url, i) => (
               <img key={url} src={url} alt={`Фото ${i + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover' }} />
@@ -139,7 +154,11 @@ export function TasksPanel() {
         <Group>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
           {tasks.map((t) => (
-            <div key={t.id} className="nfo-card" style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }} onClick={() => t.status !== 'approved' && setSelectedTask(t)}>
+            <div key={t.id} className="nfo-card" style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }} onClick={() => {
+              if (t.status === 'approved') return;
+              if (t.isRandomDistribution && !t.networkingStatus) return;
+              setSelectedTask(t);
+            }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nfo-primary)' }}>{t.points} б.</div>
@@ -147,6 +166,23 @@ export function TasksPanel() {
               <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>
                 {t.description}
               </div>
+              {t.isRandomDistribution && (
+                <div style={{ marginTop: 8 }}>
+                  {!t.networkingStatus && (
+                    <Button size="s" loading={networkingLoading} onClick={(e) => { e.stopPropagation(); void handleApplyNetworking(t); }}>
+                      Подать заявку на нетворкинг
+                    </Button>
+                  )}
+                  {t.networkingStatus === 'waiting' && (
+                    <div style={{ fontSize: 11, color: '#f39c12' }}>Ожидаем партнёра...</div>
+                  )}
+                  {t.networkingStatus === 'paired' && t.partner && (
+                    <div style={{ fontSize: 11, color: '#27ae60' }}>
+                      Партнёр: {t.partner.firstName} {t.partner.lastName ?? ''}
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                 {statusBadge(t.status)}
                 {t.deadline && (

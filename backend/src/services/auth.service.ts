@@ -5,6 +5,13 @@ import { userActivityLogs, users } from '../db/schema.js';
 import type { RegisterRequest, UserDto } from '../types/api.js';
 
 function toUserDto(user: typeof users.$inferSelect): UserDto {
+  const defaultPrefs = {
+    program: true,
+    questions: true,
+    tasks: true,
+    exchange: true,
+    points: true,
+  };
   return {
     id: user.id,
     vkId: user.vkId,
@@ -16,6 +23,8 @@ function toUserDto(user: typeof users.$inferSelect): UserDto {
     reflectionLevel: user.reflectionLevel,
     reflectionPoints: user.reflectionPoints,
     notificationsEnabled: user.notificationsEnabled,
+    notificationPrefs: (user.notificationPrefs as UserDto['notificationPrefs']) ?? defaultPrefs,
+    createdAt: user.createdAt.toISOString(),
   };
 }
 
@@ -82,6 +91,28 @@ export async function registerUser(data: RegisterRequest): Promise<UserDto> {
   });
 
   return toUserDto(created);
+}
+
+export async function updateProfile(userId: number, firstName: string, lastName?: string) {
+  if (!firstName.trim()) throw new AuthValidationError('firstName is required');
+  const [updated] = await db
+    .update(users)
+    .set({ firstName: firstName.trim(), lastName: lastName?.trim() || null })
+    .where(eq(users.id, userId))
+    .returning();
+  if (!updated) throw new AuthValidationError('User not found');
+  return toUserDto(updated);
+}
+
+export async function updateNotificationPrefs(userId: number, prefs: NonNullable<UserDto['notificationPrefs']>) {
+  const enabled = Object.values(prefs).some(Boolean);
+  const [updated] = await db
+    .update(users)
+    .set({ notificationPrefs: prefs, notificationsEnabled: enabled })
+    .where(eq(users.id, userId))
+    .returning();
+  if (!updated) throw new AuthValidationError('User not found');
+  return toUserDto(updated);
 }
 
 export async function deleteUserAccount(userId: number): Promise<void> {

@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lte, or } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   broadcasts,
@@ -95,6 +95,7 @@ export async function createTask(data: {
   requiresPhoto?: boolean;
   sendNotification?: boolean;
   isFocusOfDay?: boolean;
+  isRandomDistribution?: boolean;
 }) {
   const [row] = await db
     .insert(tasks)
@@ -109,6 +110,7 @@ export async function createTask(data: {
       requiresPhoto: data.requiresPhoto ?? false,
       sendNotification: data.sendNotification ?? true,
       isFocusOfDay: data.isFocusOfDay ?? false,
+      isRandomDistribution: data.isRandomDistribution ?? false,
     })
     .returning();
   return row;
@@ -126,6 +128,8 @@ export async function updateTask(
     requiresPhoto: boolean;
     sendNotification: boolean;
     isFocusOfDay: boolean;
+    isRandomDistribution: boolean;
+    autoApprove: boolean;
   }>,
 ) {
   const patch: Record<string, unknown> = { ...data };
@@ -349,4 +353,44 @@ export async function generateDiagnosticsCSV(): Promise<string> {
   });
   
   return [headers.join(','), ...rows].join('\n');
+}
+
+export async function getPointsSettings() {
+  const [setting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'points_config'))
+    .limit(1);
+
+  const defaults = {
+    reflection_answer: 10,
+    task_submission: 20,
+    exchange_question: 5,
+    exchange_answer: 5,
+    nfo_day_reflection: 10,
+    checkin: 5,
+    diagnostics_complete: 100,
+  };
+
+  if (setting?.value && typeof setting.value === 'object') {
+    return { ...defaults, ...(setting.value as Record<string, number>) };
+  }
+  return defaults;
+}
+
+export async function setPointsSettings(config: Record<string, number>) {
+  const [existing] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'points_config'))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(systemSettings)
+      .set({ value: config, updatedAt: new Date() })
+      .where(eq(systemSettings.id, existing.id));
+  } else {
+    await db.insert(systemSettings).values({ key: 'points_config', value: config });
+  }
 }

@@ -5,34 +5,62 @@ import {
   SegmentedControl,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
-import { fetchRating, type RatingData } from '../api/rating';
+import { fetchPointsHistory, fetchRating, type PointsHistoryItem, type RatingData } from '../api/rating';
+import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
 import { PanelLayout } from '../components/PanelLayout';
+import { ProgressBar } from '../components/ProgressBar';
+
+const REFLECTION_THRESHOLDS = [0, 30, 70, 120, 200];
 
 export function RatingPanel() {
   const [scope, setScope] = useState<'track' | 'all'>('track');
   const [data, setData] = useState<RatingData | null>(null);
+  const [history, setHistory] = useState<PointsHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetchRating(scope)
-      .then(setData)
+    Promise.all([fetchRating(scope), fetchPointsHistory()])
+      .then(([rating, hist]) => {
+        setData(rating);
+        setHistory(hist.history);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
       .finally(() => setLoading(false));
   }, [scope]);
 
+  const me = data?.me;
+  const reflectionProgress = me
+    ? me.reflectionLevel >= 5
+      ? 100
+      : ((me.reflectionPoints - REFLECTION_THRESHOLDS[me.reflectionLevel - 1]) /
+          (REFLECTION_THRESHOLDS[me.reflectionLevel] - REFLECTION_THRESHOLDS[me.reflectionLevel - 1])) *
+        100
+    : 0;
+
   return (
     <PanelLayout id="rating" title="Рейтинг" loading={loading} error={error}>
-      {data && (
+      {data && me && (
         <Group>
           <Div style={{ textAlign: 'center', padding: '16px 0' }}>
             <Headline level="1" weight="1" style={{ fontSize: 36, color: 'var(--vkui--color_text_accent)' }}>
-              {data.me.points}
+              {me.points}
             </Headline>
             <div style={{ fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>
-              твои баллы · {data.me.trackRank} место в треке
+              твои баллы · {me.trackRank} место в треке
+            </div>
+            <div style={{ marginTop: 12, padding: '0 16px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                Ур. {me.reflectionLevel} — {REFLECTION_LEVEL_NAMES[me.reflectionLevel] ?? ''}
+              </div>
+              <ProgressBar value={reflectionProgress} max={100} />
+              {me.nextLevelPoints != null && (
+                <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>
+                  {me.nextLevelPoints - me.reflectionPoints} б. до след. уровня
+                </div>
+              )}
             </div>
           </Div>
         </Group>
@@ -65,6 +93,25 @@ export function RatingPanel() {
         ))}
         </Div>
       </Group>
+      {history.length > 0 && (
+        <Group header="История баллов">
+          <Div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '0 16px 12px' }}>
+            {history.map((h) => (
+              <div key={h.id} className="nfo-card" style={{ margin: 0, padding: '8px 12px', fontSize: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 600, color: h.points >= 0 ? '#27ae60' : '#e74c3c' }}>
+                    {h.points >= 0 ? '+' : ''}{h.points} б.
+                  </span>
+                  <span style={{ color: 'var(--vkui--color_text_secondary)' }}>
+                    {new Date(h.createdAt).toLocaleString('ru-RU')}
+                  </span>
+                </div>
+                <div style={{ marginTop: 4, color: 'var(--vkui--color_text_secondary)' }}>{h.source}{h.comment ? ` · ${h.comment}` : ''}</div>
+              </div>
+            ))}
+          </Div>
+        </Group>
+      )}
     </PanelLayout>
   );
 }

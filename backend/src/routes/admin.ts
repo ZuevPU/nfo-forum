@@ -23,7 +23,21 @@ import {
   setDiagnosticsSettings,
   getDiagnosticsResults,
   generateDiagnosticsCSV,
+  getPointsSettings,
+  setPointsSettings,
 } from '../services/admin.service.js';
+import {
+  adjustUserPoints,
+  generateCheckinsCSV,
+  generateExchangeCSV,
+  generateNfoDayCSV,
+  generatePointsHistoryCSV,
+  generateRatingCSV,
+  generateReflectionCSV,
+  generateTasksCSV,
+  listFeedbackMessages,
+  listUsers,
+} from '../services/export.service.js';
 import { sendPush } from '../services/push.service.js';
 
 export const adminRouter = Router();
@@ -180,5 +194,70 @@ adminRouter.get('/diagnostics/export', async (_req, res) => {
   const csv = await generateDiagnosticsCSV();
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="diagnostics.csv"');
-  res.send('\uFEFF' + csv); // add BOM for Excel
+  res.send('\uFEFF' + csv);
+});
+
+adminRouter.get('/users', async (req, res) => {
+  const track = req.query.track as string | undefined;
+  const rows = await listUsers(track);
+  res.json({ users: rows });
+});
+
+adminRouter.post('/users/:id/points', async (req, res) => {
+  const { points, comment } = req.body as { points?: number; comment?: string };
+  if (typeof points !== 'number') {
+    res.status(400).json({ error: 'points is required' });
+    return;
+  }
+  const result = await adjustUserPoints(Number(req.params.id), points, comment ?? 'Admin adjustment');
+  res.json(result);
+});
+
+adminRouter.get('/feedback', async (_req, res) => {
+  const messages = await listFeedbackMessages();
+  res.json({ messages });
+});
+
+adminRouter.get('/settings/points', async (_req, res) => {
+  const config = await getPointsSettings();
+  res.json({ config });
+});
+
+adminRouter.post('/settings/points', async (req, res) => {
+  await setPointsSettings(req.body as Record<string, number>);
+  res.json({ ok: true });
+});
+
+function sendCsv(res: import('express').Response, filename: string, csv: string) {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send('\uFEFF' + csv);
+}
+
+adminRouter.get('/export/reflection', async (_req, res) => {
+  sendCsv(res, 'reflection.csv', await generateReflectionCSV());
+});
+
+adminRouter.get('/export/tasks', async (_req, res) => {
+  sendCsv(res, 'tasks.csv', await generateTasksCSV());
+});
+
+adminRouter.get('/export/exchange', async (_req, res) => {
+  sendCsv(res, 'exchange.csv', await generateExchangeCSV());
+});
+
+adminRouter.get('/export/rating', async (_req, res) => {
+  sendCsv(res, 'rating.csv', await generateRatingCSV());
+});
+
+adminRouter.get('/export/checkins', async (_req, res) => {
+  sendCsv(res, 'checkins.csv', await generateCheckinsCSV());
+});
+
+adminRouter.get('/export/nfo-day', async (_req, res) => {
+  sendCsv(res, 'nfo-day.csv', await generateNfoDayCSV());
+});
+
+adminRouter.get('/export/points-history', async (_req, res) => {
+  sendCsv(res, 'points-history.csv', await generatePointsHistoryCSV());
 });

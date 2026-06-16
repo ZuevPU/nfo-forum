@@ -39,3 +39,17 @@ export async function updateNotifications(enabled: boolean): Promise<void> {
     body: { enabled },
   });
 }
+
+export async function updateProfile(firstName: string, lastName?: string): Promise<{ user: UserDto }> {
+  return apiRequest<{ user: UserDto }>('/api/auth/profile', {
+    method: 'PATCH',
+    body: { first_name: firstName, last_name: lastName },
+  });
+}
+
+export async function updateNotificationPrefs(prefs: NonNullable<UserDto['notificationPrefs']>): Promise<{ user: UserDto }> {
+  return apiRequest<{ user: UserDto }>('/api/auth/notification-prefs', {
+    method: 'POST',
+    body: prefs,
+  });
+}

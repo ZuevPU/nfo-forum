@@ -8,6 +8,8 @@ import {
   loginByVkId,
   registerUser,
   deleteUserAccount,
+  updateProfile,
+  updateNotificationPrefs,
 } from '../services/auth.service.js';
 
 export const authRouter = Router();
@@ -75,6 +77,42 @@ authRouter.delete('/account', requireUser, async (req: AuthenticatedRequest, res
     res.json({ ok: true });
   } catch (error) {
     console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+authRouter.patch('/profile', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { first_name, last_name } = req.body as { first_name?: string; last_name?: string };
+    if (!first_name) {
+      res.status(400).json({ error: 'first_name is required' });
+      return;
+    }
+    const user = await updateProfile(req.user!.id, first_name, last_name);
+    res.json({ user });
+  } catch (error) {
+    if (error instanceof AuthValidationError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+authRouter.post('/notification-prefs', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const prefs = req.body as Record<string, boolean>;
+    const user = await updateNotificationPrefs(req.user!.id, {
+      program: prefs.program ?? true,
+      questions: prefs.questions ?? true,
+      tasks: prefs.tasks ?? true,
+      exchange: prefs.exchange ?? true,
+      points: prefs.points ?? true,
+    });
+    res.json({ user });
+  } catch (error) {
+    console.error('Update notification prefs error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

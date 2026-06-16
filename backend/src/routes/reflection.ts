@@ -4,6 +4,7 @@ import { requireUser } from '../middleware/requireUser.js';
 import { logActivity } from '../services/activity.service.js';
 import {
   getEveningQuestions,
+  getNfoDayConfig,
   getNfoDayReflectionToday,
   getQuestions,
   submitAnswer,
@@ -50,6 +51,16 @@ reflectionRouter.get('/evening', requireUser, async (req: AuthenticatedRequest, 
   }
 });
 
+reflectionRouter.get('/nfo-day/config', requireUser, async (_req, res) => {
+  try {
+    const config = await getNfoDayConfig();
+    res.json(config);
+  } catch (error) {
+    console.error('NFO day config error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 reflectionRouter.post('/nfo-day', requireUser, async (req: AuthenticatedRequest, res) => {
   try {
     const { answer_text, factors } = req.body as {
@@ -64,14 +75,22 @@ reflectionRouter.post('/nfo-day', requireUser, async (req: AuthenticatedRequest,
     res.status(201).json({ reflection });
   } catch (error) {
     console.error('NFO day reflection error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Error' });
   }
 });
 
 reflectionRouter.get('/nfo-day/today', requireUser, async (req: AuthenticatedRequest, res) => {
   try {
     const reflection = await getNfoDayReflectionToday(req.user!.id);
-    res.json({ reflection });
+    res.json({
+      reflection: reflection
+        ? {
+            answerText: reflection.answerText,
+            factors: reflection.factors,
+            createdAt: reflection.createdAt.toISOString(),
+          }
+        : null,
+    });
   } catch (error) {
     console.error('NFO day today error:', error);
     res.status(500).json({ error: 'Internal server error' });

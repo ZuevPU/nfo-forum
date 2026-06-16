@@ -1,7 +1,10 @@
-import { sendPush } from './push.service.js';
+import { and, eq, gte, isNull, lte } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import { broadcasts, events } from '../db/schema.js';
+import { sendPush, deliverPush } from './push.service.js';
 import { getEnabledTracks } from './diagnostics.service.js';
 
-const CRON_JOBS: Record<string, { text: string; hour: number; minute: number; hash?: string; isDiagnostics?: boolean }> = {
+const CRON_JOBS: Record<string, { text?: string; hour?: number; minute?: number; hash?: string; isDiagnostics?: boolean; custom?: boolean }> = {
   'morning-greeting': {
     text: 'Доброе утро! Сегодня отличный день на Форуме НФО. Открой расписание своего трека.',
     hour: 8,
@@ -30,7 +33,7 @@ const CRON_JOBS: Record<string, { text: string; hour: number; minute: number; ha
     text: 'Вечерняя рефлексия открыта. Поделись мыслями о прошедшем дне.',
     hour: 19,
     minute: 30,
-    hash: '#/reflection',
+    hash: '#/nfo-day',
   },
   goodnight: {
     text: 'Спокойной ночи! Завтра — новый день на Форуме НФО.',
@@ -43,8 +46,68 @@ const CRON_JOBS: Record<string, { text: string; hour: number; minute: number; ha
     minute: 0,
     hash: '#/diagnostics',
     isDiagnostics: true,
-  }
+  },
+  'event-reminders': { custom: true },
+  'scheduled-broadcasts': { custom: true },
 };
+
+async function runEventReminders(): Promise<number> {
+  const now = new Date();
+  const inTenMinutes = new Date(now.getTime() + 10 * 60 * 1000);
+  const inElevenMinutes = new Date(now.getTime() + 11 * 60 * 1000);
+
+  const upcoming = await db
+    .select()
+    .from(events)
+    .where(
+      and(
+        eq(events.isKeyBlock, true),
+        gte(events.startTime, inTenMinutes),
+        lte(events.startTime, inElevenMinutes),
+        isNull(events.reminderSentAt),
+      ),
+    );
+
+  let sent = 0;
+  for (const event of upcoming) {
+    const trackFilter = event.track;
+    const place = event.place ? ` · ${event.place}` : '';
+    const text = `Через 10 минут: «${event.title}»${place}\n#/schedule`;
+
+    const result = trackFilter
+      ? await sendPush({ text, targetType: 'track', targetTracks: [trackFilter] })
+      : await sendPush({ text, targetType: 'all' });
+
+    await db.update(events).set({ reminderSentAt: new Date() }).where(eq(events.id, event.id));
+    sent += result.sent;
+  }
+  return sent;
+}
+
+async function runScheduledBroadcasts(): Promise<number> {
+  const now = new Date();
+  const pending = await db
+    .select()
+    .from(broadcasts)
+    .where(and(isNull(broadcasts.sentAt), lte(broadcasts.scheduledAt, now)));
+
+  let sent = 0;
+  for (const b of pending) {
+    if (!b.scheduledAt) continue;
+
+    const sentCount = await deliverPush({
+      text: b.text,
+      image: b.image ?? undefined,
+      targetType: b.targetType as 'all' | 'track' | 'user',
+      targetTracks: b.targetTracks ?? undefined,
+      targetUserId: b.targetUserId ?? undefined,
+    });
+
+    await db.update(broadcasts).set({ sentAt: new Date() }).where(eq(broadcasts.id, b.id));
+    sent += sentCount;
+  }
+  return sent;
+}
 
 export async function runCronJob(jobName: string): Promise<{ ok: boolean; sent?: number }> {
   const job = CRON_JOBS[jobName];
@@ -52,7 +115,17 @@ export async function runCronJob(jobName: string): Promise<{ ok: boolean; sent?:
     return { ok: false };
   }
 
-  const text = job.hash ? `${job.text}\n${job.hash}` : job.text;
+  if (jobName === 'event-reminders') {
+    const sent = await runEventReminders();
+    return { ok: true, sent };
+  }
+
+  if (jobName === 'scheduled-broadcasts') {
+    const sent = await runScheduledBroadcasts();
+    return { ok: true, sent };
+  }
+
+  const text = job.hash ? `${job.text}\n${job.hash}` : job.text!;
 
   if (job.isDiagnostics) {
     const enabledTracks = await getEnabledTracks();
