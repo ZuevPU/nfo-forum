@@ -9,6 +9,7 @@ interface PushPayload {
   targetType: 'all' | 'track' | 'user';
   targetTracks?: string[];
   targetUserId?: number;
+  scheduledAt?: Date;
 }
 
 async function sendVkMessage(vkUserIds: number[], message: string, image?: string): Promise<void> {
@@ -40,7 +41,7 @@ async function sendVkMessage(vkUserIds: number[], message: string, image?: strin
   }
 }
 
-export async function sendPush(payload: PushPayload): Promise<{ sent: number }> {
+export async function sendPush(payload: PushPayload): Promise<{ sent: number; scheduled?: boolean }> {
   let targetUsers: { id: number; vkId: string }[] = [];
 
   if (payload.targetType === 'user' && payload.targetUserId) {
@@ -59,20 +60,25 @@ export async function sendPush(payload: PushPayload): Promise<{ sent: number }> 
     targetUsers = await db.select({ id: users.id, vkId: users.vkId }).from(users);
   }
 
-  const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
-
-  if (vkIds.length > 0) {
-    await sendVkMessage(vkIds, payload.text, payload.image);
-  }
-
   await db.insert(broadcasts).values({
     text: payload.text,
     image: payload.image ?? null,
     targetType: payload.targetType,
     targetTracks: payload.targetTracks ?? null,
     targetUserId: payload.targetUserId ?? null,
-    sentAt: new Date(),
+    scheduledAt: payload.scheduledAt ?? null,
+    sentAt: payload.scheduledAt ? null : new Date(),
   });
+
+  if (payload.scheduledAt && payload.scheduledAt > new Date()) {
+    return { sent: 0, scheduled: true };
+  }
+
+  const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
+
+  if (vkIds.length > 0) {
+    await sendVkMessage(vkIds, payload.text, payload.image);
+  }
 
   return { sent: vkIds.length };
 }

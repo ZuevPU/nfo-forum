@@ -1,20 +1,21 @@
 import {
   Button,
   Div,
-  FormItem,
   Group,
   Panel,
   PanelHeader,
   Placeholder,
   SimpleCell,
   Spinner,
-  Textarea,
+  IconButton,
 } from '@vkontakte/vkui';
+import { Icon28LikeOutline } from '@vkontakte/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   createExchangeAnswer,
   fetchQuestionDetail,
+  addReaction,
   type QuestionDetail,
 } from '../api/exchange';
 import { PanelTitle } from '../components/PanelTitle';
@@ -49,6 +50,17 @@ export function ExchangeDetailPanel() {
       console.error(e);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleReaction = async (answerId: number) => {
+    try {
+      await addReaction(answerId, 'like');
+      // Optimistically update the UI or refetch
+      const updated = await fetchQuestionDetail(Number(id));
+      setDetail(updated);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -87,7 +99,14 @@ export function ExchangeDetailPanel() {
               detail.answers.map((a) => (
                 <div key={a.id} className="nfo-card" style={{ margin: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{a.answerText}</div>
-                  <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>{new Date(a.createdAt).toLocaleString('ru-RU')}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>{new Date(a.createdAt).toLocaleString('ru-RU')}</div>
+                    {!a.isMine && (
+                      <IconButton onClick={() => void handleReaction(a.id)}>
+                        <Icon28LikeOutline width={20} height={20} />
+                      </IconButton>
+                    )}
+                  </div>
                 </div>
               ))
             )}

@@ -10,9 +10,12 @@ import {
   getFeed,
   getIncoming,
   getQuestionWithAnswers,
+  skipAssignment,
 } from '../services/exchange.service.js';
 
 export const exchangeRouter = Router();
+
+exchangeRouter.get('/incoming', requireUser, async (req: AuthenticatedRequest, res) => {
 
 const submitRateLimit = rateLimit({
   windowMs: 60_000,
@@ -69,7 +72,16 @@ exchangeRouter.post('/answers', requireUser, submitRateLimit, async (req: Authen
   }
 });
 
-exchangeRouter.get('/incoming', requireUser, async (req: AuthenticatedRequest, res) => {
+exchangeRouter.post('/assignments/:id/skip', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    await skipAssignment(req.user!, id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Skip assignment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
   try {
     const incoming = await getIncoming(req.user!);
     res.json({ incoming });

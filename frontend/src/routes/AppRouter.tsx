@@ -11,14 +11,13 @@ import { ExchangePanel } from '../panels/ExchangePanel';
 import { HomePanel } from '../panels/HomePanel';
 import { QuestionsPanel } from '../panels/QuestionsPanel';
 import { RatingPanel } from '../panels/RatingPanel';
-import { ReflectionPanel } from '../panels/ReflectionPanel';
 import { RegisterPanel } from '../panels/RegisterPanel';
 import { SchedulePanel } from '../panels/SchedulePanel';
 import { StateCheckinPanel } from '../panels/StateCheckinPanel';
 import { TasksPanel } from '../panels/TasksPanel';
 import { WelcomePanel } from '../panels/WelcomePanel';
 
-const MAIN_ROUTES = ['/home', '/schedule', '/questions', '/exchange', '/tasks', '/rating', '/checkin', '/reflection', '/diagnostics'];
+const MAIN_ROUTES = ['/home', '/schedule', '/questions', '/exchange', '/tasks', '/rating', '/checkin', '/diagnostics'];
 
 function HashRedirect() {
   const navigate = useNavigate();
@@ -73,7 +72,6 @@ export function AppRouter() {
           <Route path="/tasks" element={<TasksPanel />} />
           <Route path="/rating" element={<RatingPanel />} />
           <Route path="/checkin" element={<StateCheckinPanel />} />
-          <Route path="/reflection" element={<ReflectionPanel />} />
           <Route path="/diagnostics" element={<DiagnosticsPanel />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/" element={<HashRedirect />} />

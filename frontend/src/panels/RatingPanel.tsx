@@ -1,10 +1,8 @@
 import {
-  Avatar,
   Div,
   Group,
   Headline,
   SegmentedControl,
-  SimpleCell,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { fetchRating, type RatingData } from '../api/rating';

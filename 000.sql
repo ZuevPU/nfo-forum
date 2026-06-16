@@ -37,7 +37,10 @@ CREATE TABLE IF NOT EXISTS reflection_questions (
   type text NOT NULL,
   track text,
   publish_time timestamp NOT NULL,
+  end_time timestamp,
   points integer NOT NULL DEFAULT 10,
+  send_notification boolean NOT NULL DEFAULT true,
+  group_id text,
   created_at timestamp NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_reflection_questions_track_publish ON reflection_questions (track, publish_time);
@@ -69,6 +72,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   allow_multiple boolean NOT NULL DEFAULT false,
   auto_approve boolean NOT NULL DEFAULT false,
   is_random_distribution boolean NOT NULL DEFAULT false,
+  is_focus_of_day boolean NOT NULL DEFAULT false,
+  requires_photo boolean NOT NULL DEFAULT false,
+  send_notification boolean NOT NULL DEFAULT true,
   created_at timestamp NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_track ON tasks (track);

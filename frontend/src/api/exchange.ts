@@ -22,8 +22,19 @@ export function fetchIncomingQuestions() {
   return apiRequest<{ incoming: IncomingQuestion[] }>('/api/exchange/incoming');
 }
 
+export function skipExchangeQuestion(assignmentId: number) {
+  return apiRequest(`/api/exchange/assignments/${assignmentId}/skip`, { method: 'POST' });
+}
+
 export function fetchQuestionDetail(id: number) {
   return apiRequest<QuestionDetail>(`/api/exchange/questions/${id}`);
+}
+
+export function addReaction(answerId: number, reactionType: string = 'like') {
+  return apiRequest('/api/exchange/reactions', {
+    method: 'POST',
+    body: { answer_id: answerId, reaction_type: reactionType },
+  });
 }
 
 export interface ExchangeFeedItem {

@@ -18,12 +18,18 @@ import {
   moderateSubmission,
   updateEvent,
   updateTask,
+  listBroadcasts,
 } from '../services/admin.service.js';
 import { sendPush } from '../services/push.service.js';
 
 export const adminRouter = Router();
 
 adminRouter.use(requireUser, requireAdmin);
+
+adminRouter.get('/broadcasts', async (_req, res) => {
+  const rows = await listBroadcasts();
+  res.json({ broadcasts: rows });
+});
 
 adminRouter.get('/events', async (_req, res) => {
   const rows = await listEvents();
@@ -79,12 +85,12 @@ adminRouter.get('/exchange/pending', async (_req, res) => {
 });
 
 adminRouter.post('/exchange/:id/moderate', async (req, res) => {
-  const { status } = req.body as { status?: 'approved' | 'rejected' };
+  const { status, publishTime } = req.body as { status?: 'approved' | 'rejected'; publishTime?: string };
   if (!status) {
     res.status(400).json({ error: 'status required' });
     return;
   }
-  const question = await moderateExchangeQuestion(Number(req.params.id), status);
+  const question = await moderateExchangeQuestion(Number(req.params.id), status, publishTime);
   res.json({ question });
 });
 
@@ -122,12 +128,13 @@ adminRouter.delete('/reflection-questions/:id', async (req, res) => {
 });
 
 adminRouter.post('/push/send', async (req: AuthenticatedRequest, res) => {
-  const { text, image, target_type, target_tracks, target_user_id } = req.body as {
+  const { text, image, target_type, target_tracks, target_user_id, scheduled_at } = req.body as {
     text?: string;
     image?: string;
     target_type?: 'all' | 'track' | 'user';
     target_tracks?: string[];
     target_user_id?: number;
+    scheduled_at?: string;
   };
   if (!text || !target_type) {
     res.status(400).json({ error: 'text and target_type are required' });
@@ -139,6 +146,7 @@ adminRouter.post('/push/send', async (req: AuthenticatedRequest, res) => {
     targetType: target_type,
     targetTracks: target_tracks,
     targetUserId: target_user_id,
+    scheduledAt: scheduled_at ? new Date(scheduled_at) : undefined,
   });
   res.json(result);
 });

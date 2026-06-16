@@ -36,8 +36,8 @@ export function fetchPendingExchange() {
   return apiRequest<{ questions: PendingQuestion[] }>('/api/admin/exchange/pending');
 }
 
-export function moderateExchange(id: number, status: 'approved' | 'rejected') {
-  return apiRequest(`/api/admin/exchange/${id}/moderate`, { method: 'POST', body: { status } });
+export function moderateExchange(id: number, status: 'approved' | 'rejected', publishTime?: string) {
+  return apiRequest(`/api/admin/exchange/${id}/moderate`, { method: 'POST', body: { status, publishTime } });
 }
 
 export function fetchPendingSubmissions() {
@@ -56,7 +56,10 @@ export function createReflectionQuestion(data: {
   text: string;
   type: string;
   publishTime: string;
+  endTime?: string | null;
   points?: number;
+  sendNotification?: boolean;
+  groupId?: string | null;
   track?: string | null;
 }) {
   return apiRequest('/api/admin/reflection-questions', { method: 'POST', body: data });
@@ -72,10 +75,23 @@ export function sendAdminPush(payload: {
   target_type: 'all' | 'track' | 'user';
   target_tracks?: string[];
   target_user_id?: number;
+  scheduled_at?: string;
 }) {
   return apiRequest('/api/admin/push/send', { method: 'POST', body: payload });
 }
 
+export function fetchBroadcasts() {
+  return apiRequest<{ broadcasts: Broadcast[] }>('/api/admin/broadcasts');
+}
+
+export interface Broadcast {
+  id: number;
+  text: string;
+  targetType: string;
+  scheduledAt: string | null;
+  sentAt: string | null;
+  createdAt: string;
+}
 export interface AdminEvent {
   id: number;
   title: string;
@@ -95,6 +111,9 @@ export interface AdminTask {
   track: string | null;
   allowMultiple?: boolean;
   deadline?: string | null;
+  requiresPhoto?: boolean;
+  sendNotification?: boolean;
+  isFocusOfDay?: boolean;
 }
 
 export interface PendingQuestion {
@@ -115,6 +134,9 @@ export interface ReflectionQuestion {
   text: string;
   type: string;
   publishTime: string;
+  endTime: string | null;
   points: number;
+  sendNotification: boolean;
+  groupId: string | null;
   track: string | null;
 }

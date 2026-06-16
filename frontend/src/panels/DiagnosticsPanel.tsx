@@ -5,7 +5,6 @@ import {
   Headline,
   Panel,
   PanelHeader,
-  SimpleCell,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import {

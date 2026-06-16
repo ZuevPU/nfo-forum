@@ -30,6 +30,7 @@ export interface ReflectionQuestion {
   id: number;
   text: string;
   type: string;
+  groupId: string | null;
   points: number;
   isLocked: boolean;
   isAnswered: boolean;

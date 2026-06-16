@@ -26,6 +26,7 @@ export async function createQuestion(
     })
     .returning({ id: exchangeQuestions.id });
 
+  await awardPoints(user.id, 5, 'exchange_question', created.id);
   return created;
 }
 
@@ -125,6 +126,13 @@ export async function addReaction(user: UserDto, answerId: number, reactionType 
     userId: user.id,
     reactionType,
   });
+}
+
+export async function skipAssignment(user: UserDto, assignmentId: number) {
+  await db
+    .update(exchangeAssignments)
+    .set({ status: 'skipped' })
+    .where(and(eq(exchangeAssignments.id, assignmentId), eq(exchangeAssignments.assignedUserId, user.id)));
 }
 
 export async function assignQuestion(questionId: number, assignedUserId: number) {

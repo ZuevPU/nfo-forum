@@ -1,13 +1,10 @@
 import {
   Button,
   Div,
-  FormItem,
   Group,
   Placeholder,
   SegmentedControl,
-  SimpleCell,
   Spinner,
-  Textarea,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';

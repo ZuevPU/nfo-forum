@@ -20,12 +20,15 @@ export async function getQuestions(user: UserDto) {
 
   return questions
     .filter((q) => !q.track || q.track === user.track)
+    .filter((q) => !q.endTime || q.endTime > now)
     .map((q) => ({
       id: q.id,
       text: q.text,
       type: q.type,
+      groupId: q.groupId,
       points: q.points,
       publishTime: q.publishTime.toISOString(),
+      endTime: q.endTime?.toISOString() ?? null,
       isLocked: q.publishTime > now,
       isAnswered: answeredIds.has(q.id),
       unlockLabel:

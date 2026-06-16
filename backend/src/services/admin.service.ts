@@ -1,6 +1,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
+  broadcasts,
   events,
   exchangeQuestions,
   pointsHistory,
@@ -11,6 +12,10 @@ import {
 } from '../db/schema.js';
 import { assignRandomRespondents } from './exchange.service.js';
 import { awardPoints } from './points.service.js';
+
+export async function listBroadcasts() {
+  return db.select().from(broadcasts).orderBy(desc(broadcasts.createdAt));
+}
 
 export async function listEvents() {
   return db.select().from(events).orderBy(events.startTime);
@@ -84,6 +89,9 @@ export async function createTask(data: {
   autoApprove?: boolean;
   allowMultiple?: boolean;
   deadline?: string | null;
+  requiresPhoto?: boolean;
+  sendNotification?: boolean;
+  isFocusOfDay?: boolean;
 }) {
   const [row] = await db
     .insert(tasks)
@@ -95,6 +103,9 @@ export async function createTask(data: {
       autoApprove: data.autoApprove ?? false,
       allowMultiple: data.allowMultiple ?? false,
       deadline: data.deadline ? new Date(data.deadline) : null,
+      requiresPhoto: data.requiresPhoto ?? false,
+      sendNotification: data.sendNotification ?? true,
+      isFocusOfDay: data.isFocusOfDay ?? false,
     })
     .returning();
   return row;
@@ -109,6 +120,9 @@ export async function updateTask(
     track: string | null;
     allowMultiple: boolean;
     deadline: string | null;
+    requiresPhoto: boolean;
+    sendNotification: boolean;
+    isFocusOfDay: boolean;
   }>,
 ) {
   const patch: Record<string, unknown> = { ...data };
@@ -131,7 +145,7 @@ export async function listPendingExchangeQuestions() {
     .orderBy(desc(exchangeQuestions.createdAt));
 }
 
-export async function moderateExchangeQuestion(id: number, status: 'approved' | 'rejected') {
+export async function moderateExchangeQuestion(id: number, status: 'approved' | 'rejected', publishTime?: string) {
   const [existing] = await db
     .select()
     .from(exchangeQuestions)
@@ -146,7 +160,7 @@ export async function moderateExchangeQuestion(id: number, status: 'approved' | 
     .update(exchangeQuestions)
     .set({
       status: newStatus,
-      publishTime: status === 'approved' ? new Date() : null,
+      publishTime: status === 'approved' ? (publishTime ? new Date(publishTime) : new Date()) : null,
     })
     .where(eq(exchangeQuestions.id, id))
     .returning();
@@ -216,7 +230,10 @@ export async function createReflectionQuestion(data: {
   text: string;
   type: string;
   publishTime: string;
+  endTime?: string | null;
   points?: number;
+  sendNotification?: boolean;
+  groupId?: string | null;
   track?: string | null;
 }) {
   const [row] = await db
@@ -225,7 +242,10 @@ export async function createReflectionQuestion(data: {
       text: data.text,
       type: data.type,
       publishTime: new Date(data.publishTime),
+      endTime: data.endTime ? new Date(data.endTime) : null,
       points: data.points ?? 10,
+      sendNotification: data.sendNotification ?? true,
+      groupId: data.groupId ?? null,
       track: data.track ?? null,
     })
     .returning();

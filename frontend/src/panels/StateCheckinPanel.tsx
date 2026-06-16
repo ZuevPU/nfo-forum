@@ -1,13 +1,11 @@
 import {
   Button,
   Div,
-  FormItem,
   Group,
   Headline,
   Placeholder,
   SimpleCell,
   Spinner,
-  Textarea,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import {

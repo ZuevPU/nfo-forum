@@ -4,12 +4,21 @@ import {
   events,
   exchangeAnswers,
   exchangeQuestions,
+  reflectionQuestions,
+  feedbackMessages,
   taskSubmissions,
   tasks,
   users,
 } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import type { EventDto } from './events.service.js';
+
+export async function submitFeedback(userId: number, text: string) {
+  await db.insert(feedbackMessages).values({
+    userId,
+    text,
+  });
+}
 
 export interface HomeData {
   user: UserDto;
@@ -20,7 +29,13 @@ export interface HomeData {
     tasksAvailable: number;
     tasksCompleted: number;
     newExchangeAnswers: number;
+    activeQuestions: number;
+    activeExchange: number;
   };
+  focusOfDay: {
+    id: number;
+    title: string;
+  } | null;
 }
 
 function toEventDto(e: typeof events.$inferSelect): EventDto {
@@ -72,7 +87,8 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     .select({
       tasksAvailable: sql<number>`(
         SELECT COUNT(*)::int FROM ${tasks}
-        WHERE ${tasks.track} IS NULL OR ${tasks.track} = ${user.track ?? ''}
+        WHERE (${tasks.track} IS NULL OR ${tasks.track} = ${user.track ?? ''})
+        AND ${tasks.isFocusOfDay} = false
       )`,
       tasksCompleted: sql<number>`(
         SELECT COUNT(*)::int FROM ${taskSubmissions}
@@ -89,6 +105,30 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     .where(eq(exchangeQuestions.userId, user.id));
   const newAnswers = answersResult?.value ?? 0;
 
+  const [activeQuestionsResult] = await db
+    .select({ value: count() })
+    .from(reflectionQuestions)
+    .where(
+      and(
+        lte(reflectionQuestions.publishTime, now),
+        or(isNull(reflectionQuestions.track), eq(reflectionQuestions.track, user.track ?? ''))
+      )
+    );
+  const activeQuestions = activeQuestionsResult?.value ?? 0;
+
+  const [activeExchangeResult] = await db
+    .select({ value: count() })
+    .from(exchangeQuestions)
+    .where(eq(exchangeQuestions.status, 'published'));
+  const activeExchange = activeExchangeResult?.value ?? 0;
+
+  const [focusOfDay] = await db
+    .select({ id: tasks.id, title: tasks.title })
+    .from(tasks)
+    .where(eq(tasks.isFocusOfDay, true))
+    .orderBy(desc(tasks.createdAt))
+    .limit(1);
+
   return {
     user,
     currentEvent: currentEvent ? toEventDto(currentEvent) : null,
@@ -98,6 +138,9 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
       tasksAvailable: taskStats?.tasksAvailable ?? 0,
       tasksCompleted: taskStats?.tasksCompleted ?? 0,
       newExchangeAnswers: newAnswers,
+      activeQuestions,
+      activeExchange,
     },
+    focusOfDay: focusOfDay ?? null,
   };
 }

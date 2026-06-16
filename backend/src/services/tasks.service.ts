@@ -24,6 +24,7 @@ export async function getTasks(user: UserDto) {
       points: t.points,
       deadline: t.deadline?.toISOString() ?? null,
       allowMultiple: t.allowMultiple,
+      requiresPhoto: t.requiresPhoto,
       isPastDeadline,
       status: latest?.status ?? 'new',
       submissionCount: subs.length,

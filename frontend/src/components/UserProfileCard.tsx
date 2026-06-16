@@ -1,4 +1,3 @@
-import { Avatar, Div, Footnote, Headline } from '@vkontakte/vkui';
 import type { UserDto } from '../types/auth';
 
 interface Props {
@@ -6,7 +5,7 @@ interface Props {
   trackRank?: number;
 }
 
-export function UserProfileCard({ user, trackRank }: Props) {
+export function UserProfileCard({ user }: Props) {
   const initials = `${user.firstName[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase();
 
   return (

@@ -1,17 +1,14 @@
 import {
   Button,
   Div,
-  FormItem,
   Group,
   Panel,
   PanelHeader,
-  SimpleCell,
   Spinner,
-  Textarea,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createExchangeAnswer, fetchIncomingQuestions, type IncomingQuestion } from '../api/exchange';
+import { createExchangeAnswer, fetchIncomingQuestions, skipExchangeQuestion, type IncomingQuestion } from '../api/exchange';
 import { PanelTitle } from '../components/PanelTitle';
 
 export function ExchangeIncomingPanel() {
@@ -31,6 +28,19 @@ export function ExchangeIncomingPanel() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [assignmentId]);
+
+  const handleSkip = async () => {
+    if (!question) return;
+    setSubmitting(true);
+    try {
+      await skipExchangeQuestion(question.assignmentId);
+      navigate('/exchange');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!question || !answer.trim()) return;
@@ -60,12 +70,21 @@ export function ExchangeIncomingPanel() {
               <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{question.text}</div>
             </div>
           </Div>
-          <FormItem top="Твой ответ">
-            <Textarea value={answer} onChange={(e) => setAnswer(e.target.value)} />
-          </FormItem>
-          <Div>
+          <Div style={{ padding: '0 16px 12px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Твой ответ</div>
+            <textarea
+              className="nfo-input"
+              rows={3}
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+            />
+          </Div>
+          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Button size="l" stretched loading={submitting} onClick={() => void handleSubmit()}>
               Отправить ответ
+            </Button>
+            <Button size="l" mode="secondary" stretched loading={submitting} onClick={() => void handleSkip()}>
+              Пропустить вопрос
             </Button>
           </Div>
         </Group>

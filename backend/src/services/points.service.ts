@@ -1,6 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { pointsHistory, reflectionLevelHistory, users } from '../db/schema.js';
+import { sendPush } from './push.service.js';
 
 const REFLECTION_THRESHOLDS = [0, 30, 70, 120, 200];
 
@@ -53,6 +54,14 @@ export async function awardPoints(
       oldLevel: user.reflectionLevel,
       newLevel,
     });
+
+    if (newLevel > user.reflectionLevel) {
+      void sendPush({
+        text: `Поздравляем! Твой уровень рефлексии повышен до ${newLevel}! 🎉`,
+        targetType: 'user',
+        targetUserId: userId,
+      }).catch(console.error);
+    }
   }
 }
 

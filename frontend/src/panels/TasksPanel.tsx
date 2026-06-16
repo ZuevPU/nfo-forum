@@ -1,19 +1,14 @@
 import {
-  Badge,
   Button,
   Div,
-  FormItem,
   Group,
   Headline,
   Panel,
   PanelHeader,
-  SimpleCell,
   Spinner,
-  Textarea,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { PanelTitle } from '../components/PanelTitle';
-import { uploadFiles } from '../lib/vk-bridge';
 import {
   fetchDailyFocus,
   fetchTasks,
@@ -44,20 +39,34 @@ export function TasksPanel() {
 
   useEffect(() => { load(); }, []);
 
-  const handleUploadPhoto = async () => {
-    setUploading(true);
-    try {
-      const urls = await uploadFiles(1);
-      setPhotos((prev) => [...prev, ...urls]);
-    } catch (e) {
-      console.error('Photo upload failed:', e);
-    } finally {
-      setUploading(false);
-    }
+  const handleUploadPhoto = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setUploading(true);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPhotos((prev) => [...prev, reader.result as string]);
+        setUploading(false);
+      };
+      reader.onerror = () => {
+        console.error('Failed to read file');
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
   };
 
   const handleSubmit = async () => {
     if (!selectedTask) return;
+    if (selectedTask.requiresPhoto && photos.length === 0) {
+      alert('Для этого задания необходимо прикрепить фото');
+      return;
+    }
     setSubmitting(true);
     try {
       await submitTask(selectedTask.id, answer, photos.length ? photos : undefined);
@@ -73,9 +82,10 @@ export function TasksPanel() {
   };
 
   const statusBadge = (status: string) => {
-    if (status === 'new') return <Badge mode="prominent">новое</Badge>;
-    if (status === 'pending') return <Badge mode="new">на проверке</Badge>;
-    if (status === 'approved') return <Badge mode="prominent">выполнено</Badge>;
+    if (status === 'new') return <div style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, background: 'var(--nfo-primary)', color: '#fff', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>Новое</div>;
+    if (status === 'pending') return <div style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, background: '#f39c12', color: '#fff', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>На проверке</div>;
+    if (status === 'approved') return <div style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, background: '#27ae60', color: '#fff', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>Выполнено</div>;
+    if (status === 'rejected') return <div style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, background: '#e74c3c', color: '#fff', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>Отклонено</div>;
     return null;
   };
 
@@ -135,8 +145,13 @@ export function TasksPanel() {
               <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>
                 {t.description}
               </div>
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                 {statusBadge(t.status)}
+                {t.deadline && (
+                  <div style={{ fontSize: 11, color: t.isPastDeadline ? '#e74c3c' : '#888' }}>
+                    До {new Date(t.deadline).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
               </div>
             </div>
           ))}

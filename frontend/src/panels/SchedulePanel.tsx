@@ -1,12 +1,9 @@
 import {
-  Badge,
   Div,
   Group,
   Panel,
   SegmentedControl,
-  SimpleCell,
   Spinner,
-  Subhead,
 } from '@vkontakte/vkui';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchEvents } from '../api/events';

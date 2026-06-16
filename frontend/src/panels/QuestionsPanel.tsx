@@ -2,8 +2,6 @@ import {
   Button,
   Div,
   Group,
-  SimpleCell,
-  Textarea,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import {
@@ -40,32 +38,71 @@ export function QuestionsPanel() {
   return (
     <PanelLayout id="questions" title="Вопросы" subtitle="Вопросы трека" loading={loading} error={error}>
       <Group>
-        {questions.map((q) => (
-          <Div key={q.id} style={{ padding: '8px 16px' }}>
-            <div className="nfo-card" style={{ opacity: q.isLocked ? 0.6 : 1, margin: 0 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 6 }}>
-                {q.isLocked ? q.unlockLabel ?? 'Заблокировано' : q.isAnswered ? 'Ответ отправлен' : `${q.points} баллов`}
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12, lineHeight: 1.4 }}>
-                {q.isLocked ? '🔒 ' : q.isAnswered ? '✅ ' : ''}{q.text}
-              </div>
-              {!q.isLocked && !q.isAnswered && (
-                <div>
-                  <textarea
-                    className="nfo-input"
-                    rows={3}
-                    placeholder="Твой ответ..."
-                    value={answers[q.id] ?? ''}
-                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  />
-                  <Button size="m" stretched style={{ marginTop: 12 }} onClick={() => void handleSubmit(q)}>
-                    Отправить
-                  </Button>
+        {Object.entries(
+          questions.reduce((acc, q) => {
+            const key = q.groupId || `single-${q.id}`;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(q);
+            return acc;
+          }, {} as Record<string, ReflectionQuestion[]>)
+        ).map(([key, group]) => {
+          const isGroup = group.length > 1;
+          const allAnswered = group.every((q) => q.isAnswered);
+          const anyLocked = group.some((q) => q.isLocked);
+          const totalPoints = group.reduce((sum, q) => sum + q.points, 0);
+          const unlockLabel = group.find((q) => q.isLocked)?.unlockLabel;
+
+          return (
+            <Div key={key} style={{ padding: '8px 16px' }}>
+              <div className="nfo-card" style={{ opacity: anyLocked ? 0.6 : 1, margin: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  {anyLocked ? unlockLabel ?? 'Заблокировано' : allAnswered ? 'Ответ отправлен' : `${totalPoints} баллов`}
                 </div>
-              )}
-            </div>
-          </Div>
-        ))}
+                
+                {group.map((q, index) => (
+                  <div key={q.id} style={{ marginBottom: index === group.length - 1 ? 0 : 16 }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, lineHeight: 1.4 }}>
+                      {anyLocked ? '🔒 ' : q.isAnswered ? '✅ ' : ''}{q.text}
+                    </div>
+                    {!anyLocked && !q.isAnswered && (
+                      <div>
+                        <textarea
+                          className="nfo-input"
+                          rows={2}
+                          placeholder="Твой ответ..."
+                          value={answers[q.id] ?? ''}
+                          onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                        />
+                        {!isGroup && (
+                          <Button size="m" stretched style={{ marginTop: 12 }} onClick={() => void handleSubmit(q)}>
+                            Отправить
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {isGroup && !anyLocked && !allAnswered && (
+                  <Button 
+                    size="m" 
+                    stretched 
+                    style={{ marginTop: 12 }} 
+                    onClick={() => {
+                      group.filter(q => !q.isAnswered).forEach(q => {
+                        if (answers[q.id]?.trim()) {
+                          void handleSubmit(q);
+                        }
+                      });
+                    }}
+                  >
+                    Отправить ответы
+                  </Button>
+                )}
+              </div>
+            </Div>
+          );
+        })}
       </Group>
     </PanelLayout>
   );

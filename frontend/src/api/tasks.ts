@@ -27,6 +27,8 @@ export interface TaskItem {
   deadline: string | null;
   status: string;
   submissionCount: number;
+  isPastDeadline: boolean;
+  requiresPhoto: boolean;
 }
 
 export interface DailyFocus {

@@ -10,7 +10,13 @@ export interface HomeData {
     tasksAvailable: number;
     tasksCompleted: number;
     newExchangeAnswers: number;
+    activeQuestions: number;
+    activeExchange: number;
   };
+  focusOfDay: {
+    id: number;
+    title: string;
+  } | null;
 }
 
 export interface EventDto {
@@ -26,4 +32,11 @@ export interface EventDto {
 
 export function fetchHome(): Promise<HomeData> {
   return apiRequest<HomeData>('/api/home');
+}
+
+export function submitFeedback(text: string) {
+  return apiRequest('/api/home/feedback', {
+    method: 'POST',
+    body: { text },
+  });
 }
