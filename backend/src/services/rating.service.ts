@@ -1,6 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { pointsHistory, users } from '../db/schema.js';
+import { pointsHistory, reflectionLevelHistory, users } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import { getTrackRank } from './points.service.js';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors.js';
@@ -51,4 +51,12 @@ export async function getPointsHistory(userId: number) {
     .where(eq(pointsHistory.userId, userId))
     .orderBy(desc(pointsHistory.createdAt))
     .limit(50);
+}
+
+export async function getReflectionLevelHistory(userId: number) {
+  return db
+    .select()
+    .from(reflectionLevelHistory)
+    .where(eq(reflectionLevelHistory.userId, userId))
+    .orderBy(desc(reflectionLevelHistory.createdAt));
 }

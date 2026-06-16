@@ -31,3 +31,24 @@ export const FORUM_DAYS = [
   { key: '2026-06-20', label: 'Сб 20.06' },
   { key: '2026-06-21', label: 'Вс 21.06' },
 ] as const;
+
+export function moscowDayBounds(dayKey: string): { start: Date; end: Date } {
+  return {
+    start: new Date(`${dayKey}T00:00:00+03:00`),
+    end: new Date(`${dayKey}T23:59:59.999+03:00`),
+  };
+}
+
+export function programDayFromMsk(date = new Date()): number | null {
+  const mskDate = moscowDateString(date);
+  const idx = FORUM_DAYS.findIndex((d) => d.key === mskDate);
+  return idx >= 0 ? idx + 1 : null;
+}
+
+export function formatMoscowDate(date = new Date()): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: MSK,
+  }).format(date);
+}

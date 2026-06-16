@@ -10,6 +10,8 @@ import {
   getFeed,
   getIncoming,
   getQuestionWithAnswers,
+  markExchangeSeen,
+  reportAnswer,
   skipAssignment,
 } from '../services/exchange.service.js';
 
@@ -36,7 +38,9 @@ exchangeRouter.get('/incoming', requireUser, async (req: AuthenticatedRequest, r
 
 exchangeRouter.get('/feed', requireUser, async (req: AuthenticatedRequest, res) => {
   try {
-    const feed = await getFeed(req.user!);
+    const feedScope = (req.query.scope as 'all' | 'track') ?? 'all';
+    const feed = await getFeed(req.user!, feedScope);
+    await markExchangeSeen(req.user!.id);
     await logActivity(req.user!.id, 'view_exchange');
     res.json({ feed });
   } catch (error) {
@@ -99,6 +103,9 @@ exchangeRouter.get('/questions/:id', requireUser, async (req: AuthenticatedReque
       res.status(404).json({ error: 'Question not found' });
       return;
     }
+    if (data.question.isMine) {
+      await markExchangeSeen(req.user!.id);
+    }
     res.json(data);
   } catch (error) {
     console.error('Question detail error:', error);
@@ -121,5 +128,20 @@ exchangeRouter.post('/reactions', requireUser, async (req: AuthenticatedRequest,
   } catch (error) {
     console.error('Reaction error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+exchangeRouter.post('/reports', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { answer_id } = req.body as { answer_id?: number };
+    if (!answer_id) {
+      res.status(400).json({ error: 'answer_id is required' });
+      return;
+    }
+    const result = await reportAnswer(req.user!, answer_id);
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Report error:', error);
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Error' });
   }
 });

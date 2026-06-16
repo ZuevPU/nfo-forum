@@ -8,7 +8,7 @@ interface AuthContextValue {
   user: UserDto | null;
   vkUserInfo: VkUserInfo | null;
   error: string | null;
-  registerUser: (track: Track) => Promise<void>;
+  registerUser: (track: Track, profile?: { firstName?: string; lastName?: string }) => Promise<void>;
   deleteUserAccount: () => Promise<void>;
   refreshUser: () => Promise<void>;
   retry: () => void;

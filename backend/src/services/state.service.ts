@@ -2,15 +2,21 @@ import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { stateCheckins } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
-import { awardPoints } from './points.service.js';
-import { getPointsSettings } from './admin.service.js';
+import { awardPointsForSource } from './pointsConfig.service.js';
+import { getCheckinSettings } from './admin.service.js';
 
 const BOT_REACTIONS: Record<string, string> = {
-  радость: 'Отличное настроение — хороший знак для продуктивного дня!',
-  открытость: 'Открытость к новому — ключевой навык на форуме.',
-  любопытство: 'Любопытство поможет извлечь максимум из программы.',
   тревога: 'Тревога нормальна — попробуй сфокусироваться на одном блоке за раз.',
+  растерянность: 'Растерянность бывает — выбери один ближайший блок и начни с него.',
+  скука: 'Если скучно — попробуй задать вопрос в «Обмене опытом» или ответить коллегам.',
+  раздражение: 'Раздражение — сигнал усталости. Короткая пауза может помочь.',
   усталость: 'Если устал — сделай паузу между блоками, это поможет.',
+  спокойствие: 'Спокойствие — хорошая база для осмысленного дня на форуме.',
+  интерес: 'Интерес — отличный двигатель для участия в программе!',
+  вовлечённость: 'Вовлечённость помогает извлекать максимум из каждого блока.',
+  воодушевление: 'Воодушевление — суперсила! Поделись энергией с коллегами.',
+  радость: 'Отличное настроение — хороший знак для продуктивного дня!',
+  гордость: 'Гордость за прогресс — признак настоящего роста. Так держать!',
 };
 
 export async function createCheckin(
@@ -19,6 +25,15 @@ export async function createCheckin(
   energyLevel: number,
   comment?: string,
 ) {
+  const settings = await getCheckinSettings();
+  if (
+    settings.enabledTracks.length > 0 &&
+    user.track &&
+    !settings.enabledTracks.includes(user.track)
+  ) {
+    throw new Error('Check-in is not enabled for your track');
+  }
+
   const [created] = await db
     .insert(stateCheckins)
     .values({
@@ -31,8 +46,7 @@ export async function createCheckin(
 
   const botReaction = BOT_REACTIONS[emotion.toLowerCase()] ?? 'Спасибо за чек-ин! Я рядом весь день.';
 
-  const pointsConfig = await getPointsSettings();
-  await awardPoints(user.id, pointsConfig.checkin ?? 5, 'checkin', created.id);
+  await awardPointsForSource(user.id, 'checkin', created.id);
 
   return { checkin: created, botReaction };
 }

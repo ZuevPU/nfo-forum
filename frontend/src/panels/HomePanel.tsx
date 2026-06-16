@@ -22,29 +22,26 @@ import { Icon24Dismiss } from '@vkontakte/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchHome, submitFeedback, type HomeData } from '../api/home';
-import { updateNotifications } from '../api/auth';
+import { updateNotifications, updateNotificationPrefs } from '../api/auth';
+import type { NotificationPrefs } from '../types/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { GradientHeader } from '../components/GradientHeader';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
 import { useAuthContext } from '../contexts/AuthContext';
+import { FORUM_DAYS } from '../constants/nfoFactors';
 
 function getProgramDayInfo() {
-  const now = new Date();
-  const day = now.getDate();
-  const month = now.getMonth();
-  const year = now.getFullYear();
+  const mskDate = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+  const dateObj = new Date(`${mskDate}T12:00:00+03:00`);
+  const dateStr = new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'Europe/Moscow',
+  }).format(dateObj);
 
-  const formatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
-  const dateStr = formatter.format(now);
-
-  let programDay = null;
-  if (month === 5 && year === 2026) {
-    if (day === 18) programDay = 1;
-    else if (day === 19) programDay = 2;
-    else if (day === 20) programDay = 3;
-    else if (day === 21) programDay = 4;
-  }
+  const dayIndex = FORUM_DAYS.findIndex((d) => d.key === mskDate);
+  const programDay = dayIndex >= 0 ? dayIndex + 1 : null;
 
   return { dateStr, programDay };
 }
@@ -58,6 +55,15 @@ export function HomePanel() {
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>(
+    user?.notificationPrefs ?? {
+      program: true,
+      questions: true,
+      tasks: true,
+      exchange: true,
+      points: true,
+    },
+  );
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   const load = () => {
@@ -120,10 +126,32 @@ export function HomePanel() {
       await updateNotifications(val);
     } catch (err) {
       console.error(err);
-      setNotificationsEnabled(!val); // revert on error
+      setNotificationsEnabled(!val);
     } finally {
       setNotificationsLoading(false);
     }
+  };
+
+  const handleTogglePref = async (key: keyof NotificationPrefs, val: boolean) => {
+    const next = { ...notificationPrefs, [key]: val };
+    setNotificationPrefs(next);
+    setNotificationsLoading(true);
+    try {
+      await updateNotificationPrefs(next);
+    } catch (err) {
+      console.error(err);
+      setNotificationPrefs(notificationPrefs);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const formatUpcomingSubtitle = (block: NonNullable<HomeData['upcomingBlock']>) => {
+    const start = new Date(block.startTime);
+    const diffMin = Math.round((start.getTime() - Date.now()) / 60000);
+    const timeStr = start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const prefix = diffMin > 0 && diffMin <= 180 ? `Через ${diffMin} мин · ` : `${timeStr} · `;
+    return `${prefix}${block.title}${block.place ? ` · ${block.place}` : ''}`;
   };
 
   const modal = (
@@ -183,10 +211,32 @@ export function HomePanel() {
                 disabled={notificationsLoading}
               />
             }
-            subtitle="Уведомления о новых вопросах и заданиях"
+            subtitle="Общий переключатель уведомлений"
           >
             Уведомления
           </SimpleCell>
+
+          {([
+            ['program', 'Программа и расписание'],
+            ['questions', 'Вопросы и рефлексия'],
+            ['tasks', 'Задания'],
+            ['exchange', 'Обмен опытом'],
+            ['points', 'Баллы и рейтинг'],
+          ] as const).map(([key, label]) => (
+            <SimpleCell
+              key={key}
+              Component="label"
+              after={
+                <Switch
+                  checked={notificationPrefs[key]}
+                  disabled={notificationsLoading || !notificationsEnabled}
+                  onChange={(e) => void handleTogglePref(key, e.target.checked)}
+                />
+              }
+            >
+              {label}
+            </SimpleCell>
+          ))}
 
           <Spacing size={16} />
           <Button mode="primary" style={{ backgroundColor: 'var(--vkui--color_background_negative)' }} stretched onClick={() => void handleDeleteAccount()}>
@@ -238,7 +288,9 @@ export function HomePanel() {
               <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📅</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Что далее</div>
-                <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data.upcomingBlock.title}</div>
+                <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
+                  {formatUpcomingSubtitle(data.upcomingBlock)}
+                </div>
               </div>
               <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
             </div>
@@ -263,13 +315,46 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
           
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/exchange')}>
+          <div
+            className="nfo-card"
+            style={{
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              ...(data?.stats.exchangeActiveCycle
+                ? { border: '2px solid var(--nfo-primary)', boxShadow: '0 0 0 1px rgba(79, 62, 192, 0.15)' }
+                : {}),
+            }}
+            onClick={() => navigate('/exchange')}
+          >
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>💡</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активный обмен опытом</div>
-              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data?.stats.activeExchange ?? 0} вопросов · {data?.stats.newExchangeAnswers ?? 0} новых ответа</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
+                {data?.stats.activeExchange ?? 0} вопросов
+                {data?.stats.pendingIncomingAssignments
+                  ? ` · ${data.stats.pendingIncomingAssignments} ждут ответа`
+                  : data?.stats.newExchangeAnswers
+                    ? ` · ${data.stats.newExchangeAnswers} новых ответа`
+                    : ''}
+              </div>
             </div>
-            {data?.stats.newExchangeAnswers ? <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e74c3c' }} /> : null}
+            {(data?.stats.newExchangeAnswers || data?.stats.pendingIncomingAssignments) ? (
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e74c3c' }} />
+            ) : null}
+            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
+          </div>
+
+          <div className="nfo-card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => navigate('/reflection-level')}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>💭</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Уровень рефлексии</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
+                Ур. {user.reflectionLevel} · {user.reflectionPoints} баллов
+                {pointsToNextLevel > 0 && user.reflectionLevel < 5 ? ` · ${pointsToNextLevel} до след.` : ''}
+              </div>
+            </div>
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
@@ -345,7 +430,7 @@ export function HomePanel() {
               <ProgressBar value={user.points} max={200} color="var(--nfo-primary)" />
             </div>
           </div>
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div className="nfo-card" style={{ margin: 0, display: 'flex', flexDirection: 'column', height: '100%', cursor: 'pointer' }} onClick={() => navigate('/reflection-level')}>
             <div style={{ fontSize: 20 }}>💭</div>
             <Headline level="2" weight="2" style={{ marginTop: 'auto' }}>Ур. {user.reflectionLevel}</Headline>
             <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)' }}>рефлексия · {user.reflectionPoints} б.</div>

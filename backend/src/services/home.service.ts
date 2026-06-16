@@ -1,11 +1,13 @@
-import { and, asc, count, desc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   events,
   exchangeAnswers,
+  exchangeAssignments,
   exchangeQuestions,
   reflectionQuestions,
   feedbackMessages,
+  systemSettings,
   taskSubmissions,
   tasks,
   trainerSelfDiagnostics,
@@ -33,6 +35,8 @@ export interface HomeData {
     newExchangeAnswers: number;
     activeQuestions: number;
     activeExchange: number;
+    pendingIncomingAssignments: number;
+    exchangeActiveCycle: boolean;
   };
   focusOfDay: {
     id: number;
@@ -78,7 +82,12 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
 
   const currentEvent =
     eventRows.find((e) => e.startTime <= now && e.endTime >= now) ?? null;
-  const upcomingBlock = eventRows.find((e) => e.isKeyBlock) ?? null;
+  const upcomingBlock =
+    eventRows
+      .filter((e) => e.startTime > now)
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0] ??
+    eventRows.find((e) => e.isKeyBlock && e.startTime > now) ??
+    null;
 
   let trackRank = 0;
   if (user.track) {
@@ -106,12 +115,34 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     .from(tasks)
     .limit(1);
 
+  const [userRow] = await db
+    .select({ lastSeenExchangeAt: users.lastSeenExchangeAt })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1);
+  const lastSeen = userRow?.lastSeenExchangeAt;
+
+  const unreadConditions = [eq(exchangeQuestions.userId, user.id)];
+  if (lastSeen) {
+    unreadConditions.push(gt(exchangeAnswers.createdAt, lastSeen));
+  }
   const [answersResult] = await db
     .select({ value: count() })
     .from(exchangeAnswers)
     .innerJoin(exchangeQuestions, eq(exchangeAnswers.questionId, exchangeQuestions.id))
-    .where(eq(exchangeQuestions.userId, user.id));
+    .where(and(...unreadConditions));
   const newAnswers = answersResult?.value ?? 0;
+
+  const [pendingIncomingResult] = await db
+    .select({ value: count() })
+    .from(exchangeAssignments)
+    .where(
+      and(
+        eq(exchangeAssignments.assignedUserId, user.id),
+        eq(exchangeAssignments.status, 'pending'),
+      ),
+    );
+  const pendingIncoming = pendingIncomingResult?.value ?? 0;
 
   const [activeQuestionsResult] = await db
     .select({ value: count() })
@@ -130,12 +161,25 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     .where(eq(exchangeQuestions.status, 'published'));
   const activeExchange = activeExchangeResult?.value ?? 0;
 
-  const [focusOfDay] = await db
-    .select({ id: tasks.id, title: tasks.title })
-    .from(tasks)
-    .where(eq(tasks.isFocusOfDay, true))
-    .orderBy(desc(tasks.createdAt))
+  const [focusSetting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'daily_focus'))
     .limit(1);
+  const focusValue = (focusSetting?.value ?? {}) as { title?: string; taskId?: number };
+
+  let focusOfDay: { id: number; title: string } | null = null;
+  if (focusValue.title) {
+    focusOfDay = { id: focusValue.taskId ?? 0, title: focusValue.title };
+  } else {
+    const [focusTask] = await db
+      .select({ id: tasks.id, title: tasks.title })
+      .from(tasks)
+      .where(eq(tasks.isFocusOfDay, true))
+      .orderBy(desc(tasks.createdAt))
+      .limit(1);
+    focusOfDay = focusTask ?? null;
+  }
 
   const diagnosticsAvailable = await isTrainerTrack(user.track);
   const TOTAL_DIAGNOSTICS_BLOCKS = 9;
@@ -173,8 +217,10 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
       newExchangeAnswers: newAnswers,
       activeQuestions,
       activeExchange,
+      pendingIncomingAssignments: pendingIncoming,
+      exchangeActiveCycle: pendingIncoming > 0,
     },
-    focusOfDay: focusOfDay ?? null,
+    focusOfDay,
     diagnostics: {
       available: diagnosticsAvailable,
       completedBlocks,

@@ -14,7 +14,13 @@ import {
 } from '../db/schema.js';
 import { assignRandomRespondents } from './exchange.service.js';
 import { awardPoints } from './points.service.js';
+import { notifyUser, notifyUsersForTrack } from './push.service.js';
 import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
+import {
+  nfoDayReflections,
+  reflectionAnswers,
+  userActivityLogs,
+} from '../db/schema.js';
 
 export async function listBroadcasts() {
   return db.select().from(broadcasts).orderBy(desc(broadcasts.createdAt));
@@ -113,6 +119,20 @@ export async function createTask(data: {
       isRandomDistribution: data.isRandomDistribution ?? false,
     })
     .returning();
+
+  if (row.sendNotification) {
+    const now = new Date();
+    const isImmediate = !row.deadline || row.deadline <= now;
+    if (isImmediate) {
+      void notifyUsersForTrack(
+        row.track,
+        `Новое задание: «${row.title}»`,
+        'tasks',
+        '#/tasks',
+      ).catch(console.error);
+    }
+  }
+
   return row;
 }
 
@@ -150,6 +170,15 @@ export async function listPendingExchangeQuestions() {
     .from(exchangeQuestions)
     .where(eq(exchangeQuestions.status, 'pending'))
     .orderBy(desc(exchangeQuestions.createdAt));
+}
+
+export async function hideExchangeQuestion(id: number) {
+  const [row] = await db
+    .update(exchangeQuestions)
+    .set({ status: 'hidden' })
+    .where(and(eq(exchangeQuestions.id, id), eq(exchangeQuestions.status, 'published')))
+    .returning();
+  return row ?? null;
 }
 
 export async function moderateExchangeQuestion(id: number, status: 'approved' | 'rejected', publishTime?: string) {
@@ -192,8 +221,20 @@ export async function moderateExchangeQuestion(id: number, status: 'approved' | 
 
 export async function listPendingSubmissions() {
   return db
-    .select()
+    .select({
+      id: taskSubmissions.id,
+      taskId: taskSubmissions.taskId,
+      userId: taskSubmissions.userId,
+      answerText: taskSubmissions.answerText,
+      photos: taskSubmissions.photos,
+      status: taskSubmissions.status,
+      createdAt: taskSubmissions.createdAt,
+      taskTitle: tasks.title,
+      userName: users.firstName,
+    })
     .from(taskSubmissions)
+    .innerJoin(tasks, eq(taskSubmissions.taskId, tasks.id))
+    .innerJoin(users, eq(taskSubmissions.userId, users.id))
     .where(eq(taskSubmissions.status, 'pending'))
     .orderBy(desc(taskSubmissions.createdAt));
 }
@@ -209,7 +250,19 @@ export async function moderateSubmission(
     .where(eq(taskSubmissions.id, id))
     .returning();
 
-  if (!row || status !== 'approved') return row ?? null;
+  if (!row || status !== 'approved') {
+    if (row && status === 'rejected') {
+      void notifyUser(
+        row.userId,
+        adminComment
+          ? `Задание не принято: ${adminComment}`
+          : 'Задание не принято. Попробуй отправить снова.',
+        'tasks',
+        '#/tasks',
+      ).catch(console.error);
+    }
+    return row ?? null;
+  }
 
   const [task] = await db.select().from(tasks).where(eq(tasks.id, row.taskId)).limit(1);
   if (!task) return row;
@@ -225,6 +278,15 @@ export async function moderateSubmission(
   if (!existingPoints) {
     await awardPoints(row.userId, task.points, 'task_submission', row.id);
   }
+
+  void notifyUser(
+    row.userId,
+    adminComment
+      ? `Задание принято! ${adminComment}`
+      : `Задание «${task.title}» принято! +${task.points} баллов`,
+    'tasks',
+    '#/tasks',
+  ).catch(console.error);
 
   return row;
 }
@@ -256,7 +318,233 @@ export async function createReflectionQuestion(data: {
       track: data.track ?? null,
     })
     .returning();
+
+  const now = new Date();
+  if (row.sendNotification && row.publishTime <= now) {
+    void notifyUsersForTrack(
+      row.track,
+      `Новый вопрос для рефлексии: ${row.text.slice(0, 80)}${row.text.length > 80 ? '…' : ''}`,
+      'questions',
+      '#/questions',
+    ).catch(console.error);
+    await db
+      .update(reflectionQuestions)
+      .set({ notificationSentAt: now })
+      .where(eq(reflectionQuestions.id, row.id));
+  }
+
   return row;
+}
+
+export async function updateReflectionQuestion(
+  id: number,
+  data: Partial<{
+    text: string;
+    type: string;
+    publishTime: string;
+    endTime: string | null;
+    points: number;
+    sendNotification: boolean;
+    groupId: string | null;
+    track: string | null;
+  }>,
+) {
+  const patch: Record<string, unknown> = { ...data };
+  if (data.publishTime != null) patch.publishTime = new Date(data.publishTime);
+  if (data.endTime !== undefined) patch.endTime = data.endTime ? new Date(data.endTime) : null;
+  const [row] = await db
+    .update(reflectionQuestions)
+    .set(patch)
+    .where(eq(reflectionQuestions.id, id))
+    .returning();
+  return row ?? null;
+}
+
+export async function listReflectionAnswers(track?: string, day?: string) {
+  const rows = await db
+    .select({
+      id: reflectionAnswers.id,
+      answerText: reflectionAnswers.answerText,
+      createdAt: reflectionAnswers.createdAt,
+      questionText: reflectionQuestions.text,
+      questionType: reflectionQuestions.type,
+      userName: users.firstName,
+      userLastName: users.lastName,
+      track: users.track,
+    })
+    .from(reflectionAnswers)
+    .innerJoin(reflectionQuestions, eq(reflectionAnswers.questionId, reflectionQuestions.id))
+    .innerJoin(users, eq(reflectionAnswers.userId, users.id))
+    .orderBy(desc(reflectionAnswers.createdAt));
+
+  return rows.filter((r) => {
+    if (track && r.track !== track) return false;
+    if (day && !r.createdAt.toISOString().startsWith(day)) return false;
+    return true;
+  });
+}
+
+export async function getNfoDayStats() {
+  const rows = await db
+    .select({
+      answerText: nfoDayReflections.answerText,
+      factors: nfoDayReflections.factors,
+      date: nfoDayReflections.date,
+      userName: users.firstName,
+      track: users.track,
+    })
+    .from(nfoDayReflections)
+    .innerJoin(users, eq(nfoDayReflections.userId, users.id))
+    .orderBy(desc(nfoDayReflections.createdAt));
+
+  const factorCounts: Record<string, number> = {};
+  for (const r of rows) {
+    for (const f of r.factors) {
+      factorCounts[f] = (factorCounts[f] ?? 0) + 1;
+    }
+  }
+
+  return { answers: rows, factorCounts };
+}
+
+export async function getCheckinSettings() {
+  const [setting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'checkin_settings'))
+    .limit(1);
+  const defaults = {
+    enabledTracks: [] as string[],
+    slots: ['08:30', '13:15', '19:30'],
+  };
+  if (setting?.value && typeof setting.value === 'object') {
+    return { ...defaults, ...(setting.value as object) };
+  }
+  return defaults;
+}
+
+export async function setCheckinSettings(value: {
+  enabledTracks: string[];
+  slots: string[];
+}) {
+  const [existing] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'checkin_settings'))
+    .limit(1);
+  if (existing) {
+    await db
+      .update(systemSettings)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(systemSettings.id, existing.id));
+  } else {
+    await db.insert(systemSettings).values({ key: 'checkin_settings', value });
+  }
+}
+
+export async function getExchangeSlotSettings() {
+  const [setting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'exchange_slots'))
+    .limit(1);
+  return (setting?.value as string[]) ?? ['13:15', '15:00'];
+}
+
+export async function setExchangeSlotSettings(slots: string[]) {
+  const [existing] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'exchange_slots'))
+    .limit(1);
+  if (existing) {
+    await db
+      .update(systemSettings)
+      .set({ value: slots, updatedAt: new Date() })
+      .where(eq(systemSettings.id, existing.id));
+  } else {
+    await db.insert(systemSettings).values({ key: 'exchange_slots', value: slots });
+  }
+}
+
+export async function getNfoDaySettings() {
+  const [setting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'nfo_day_config'))
+    .limit(1);
+  const value = (setting?.value ?? {}) as {
+    publishHour?: number;
+    publishMinute?: number;
+    points?: number;
+  };
+  return {
+    publishHour: value.publishHour ?? 19,
+    publishMinute: value.publishMinute ?? 30,
+    points: value.points ?? 10,
+  };
+}
+
+export async function setNfoDaySettings(value: {
+  publishHour: number;
+  publishMinute: number;
+  points: number;
+}) {
+  const [existing] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'nfo_day_config'))
+    .limit(1);
+  if (existing) {
+    await db
+      .update(systemSettings)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(systemSettings.id, existing.id));
+  } else {
+    await db.insert(systemSettings).values({ key: 'nfo_day_config', value });
+  }
+}
+
+export async function getDailyFocusSettings(): Promise<{ title: string; taskId: number | null }> {
+  const [setting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'daily_focus'))
+    .limit(1);
+  const value = (setting?.value ?? {}) as { title?: string; taskId?: number };
+  return { title: value.title ?? '', taskId: value.taskId ?? null };
+}
+
+export async function setDailyFocusSettings(title: string, taskId?: number | null) {
+  const value = { title, taskId: taskId ?? null };
+  const [existing] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'daily_focus'))
+    .limit(1);
+  if (existing) {
+    await db
+      .update(systemSettings)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(systemSettings.id, existing.id));
+  } else {
+    await db.insert(systemSettings).values({ key: 'daily_focus', value });
+  }
+}
+
+export async function listActivityLogs(limit = 200) {
+  return db
+    .select({
+      id: userActivityLogs.id,
+      action: userActivityLogs.action,
+      createdAt: userActivityLogs.createdAt,
+      userName: users.firstName,
+      track: users.track,
+    })
+    .from(userActivityLogs)
+    .innerJoin(users, eq(userActivityLogs.userId, users.id))
+    .orderBy(desc(userActivityLogs.createdAt))
+    .limit(limit);
 }
 
 export async function deleteReflectionQuestion(id: number) {

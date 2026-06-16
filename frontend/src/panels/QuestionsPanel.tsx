@@ -11,6 +11,16 @@ import {
 } from '../api/reflection';
 import { PanelLayout } from '../components/PanelLayout';
 
+const QUESTION_TYPE_LABELS: Record<string, string> = {
+  entry: 'Входной',
+  daily: 'Вопрос дня',
+  block: 'После блока',
+  evening: 'Вечерний',
+  final: 'Итоговый',
+  state: 'Состояние',
+  track: 'Трек',
+};
+
 export function QuestionsPanel() {
   const [questions, setQuestions] = useState<ReflectionQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -55,8 +65,10 @@ export function QuestionsPanel() {
           return (
             <Div key={key} style={{ padding: '8px 16px' }}>
               <div className="nfo-card" style={{ opacity: anyLocked ? 0.6 : 1, margin: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 6 }}>
-                  {anyLocked ? unlockLabel ?? 'Заблокировано' : allAnswered ? 'Ответ отправлен' : `${totalPoints} баллов`}
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <span>{QUESTION_TYPE_LABELS[group[0]?.type ?? ''] ?? group[0]?.type}</span>
+                  <span>·</span>
+                  <span>{anyLocked ? unlockLabel ?? 'Заблокировано' : allAnswered ? 'Ответ отправлен' : `${totalPoints} баллов`}</span>
                 </div>
                 
                 {group.map((q, index) => (

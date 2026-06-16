@@ -34,6 +34,7 @@ export const users = pgTable(
     }>(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     lastActiveAt: timestamp('last_active_at').notNull().defaultNow(),
+    lastSeenExchangeAt: timestamp('last_seen_exchange_at'),
   },
   (table) => [
     uniqueIndex('users_vk_id_unique').on(table.vkId),
@@ -70,6 +71,7 @@ export const reflectionQuestions = pgTable(
     endTime: timestamp('end_time'),
     points: integer('points').notNull().default(10),
     sendNotification: boolean('send_notification').notNull().default(true),
+    notificationSentAt: timestamp('notification_sent_at'),
     groupId: text('group_id'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
@@ -172,6 +174,7 @@ export const exchangeQuestions = pgTable(
     scope: text('scope').notNull().default('all'),
     status: text('status').notNull().default('pending'),
     publishTime: timestamp('publish_time'),
+    answersCollectedNotifiedAt: timestamp('answers_collected_notified_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
@@ -216,6 +219,17 @@ export const exchangeReactions = pgTable('exchange_reactions', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   reactionType: text('reaction_type').notNull().default('like'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const exchangeReports = pgTable('exchange_reports', {
+  id: serial('id').primaryKey(),
+  answerId: integer('answer_id')
+    .notNull()
+    .references(() => exchangeAnswers.id, { onDelete: 'cascade' }),
+  reporterUserId: integer('reporter_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

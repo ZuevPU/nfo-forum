@@ -9,6 +9,7 @@ import {
   saveAnswer,
   startNewAttempt,
 } from '../services/diagnostics.service.js';
+import { logActivity } from '../services/activity.service.js';
 
 export const diagnosticsRouter = Router();
 
@@ -19,6 +20,7 @@ diagnosticsRouter.get('/blocks', requireUser, async (req: AuthenticatedRequest, 
       return;
     }
     const blocks = await getBlocks();
+    await logActivity(req.user!.id, 'view_diagnostics');
     res.json({ blocks });
   } catch (error) {
     console.error('Diagnostics blocks error:', error);
@@ -43,6 +45,7 @@ diagnosticsRouter.post('/answers', requireUser, async (req: AuthenticatedRequest
       return;
     }
     const answer = await saveAnswer(req.user!, block_id, question_id || 1, score, comment);
+    await logActivity(req.user!.id, 'diagnostics_answer');
     res.status(201).json({ answer });
   } catch (error) {
     console.error('Diagnostics answer error:', error);

@@ -1,7 +1,13 @@
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
 import { broadcasts, users } from '../db/schema.js';
-import { and, eq, inArray } from 'drizzle-orm';
+import {
+  DEFAULT_NOTIFICATION_PREFS,
+  shouldNotify,
+  type NotificationCategory,
+  type NotificationPrefs,
+} from '../constants/notifications.js';
+import { eq, inArray } from 'drizzle-orm';
 
 interface PushPayload {
   text: string;
@@ -10,7 +16,17 @@ interface PushPayload {
   targetTracks?: string[];
   targetUserId?: number;
   scheduledAt?: Date;
+  category?: NotificationCategory;
+  skipBroadcastLog?: boolean;
 }
+
+type UserRow = {
+  id: number;
+  vkId: string;
+  notificationsEnabled: boolean;
+  notificationPrefs: NotificationPrefs | null;
+  track: string | null;
+};
 
 async function sendVkMessage(vkUserIds: number[], message: string, image?: string): Promise<void> {
   if (!env.VK_GROUP_TOKEN) {
@@ -22,7 +38,7 @@ async function sendVkMessage(vkUserIds: number[], message: string, image?: strin
 
   const userIds = vkUserIds.join(',');
   const finalMessage = image ? `${message}\n\n${image}` : message;
-  
+
   const params = new URLSearchParams({
     user_ids: userIds,
     message: finalMessage,
@@ -41,25 +57,41 @@ async function sendVkMessage(vkUserIds: number[], message: string, image?: strin
   }
 }
 
-async function resolveTargetUsers(payload: PushPayload) {
+function filterByCategory(rows: UserRow[], category?: NotificationCategory): UserRow[] {
+  if (!category) return rows.filter((u) => u.notificationsEnabled);
+  return rows.filter((u) =>
+    shouldNotify(u.notificationsEnabled, u.notificationPrefs ?? DEFAULT_NOTIFICATION_PREFS, category),
+  );
+}
+
+async function resolveTargetUsers(payload: PushPayload): Promise<UserRow[]> {
+  const selectFields = {
+    id: users.id,
+    vkId: users.vkId,
+    notificationsEnabled: users.notificationsEnabled,
+    notificationPrefs: users.notificationPrefs,
+    track: users.track,
+  };
+
   if (payload.targetType === 'user' && payload.targetUserId) {
     const [u] = await db
-      .select({ id: users.id, vkId: users.vkId })
+      .select(selectFields)
       .from(users)
-      .where(and(eq(users.id, payload.targetUserId), eq(users.notificationsEnabled, true)))
+      .where(eq(users.id, payload.targetUserId))
       .limit(1);
-    return u ? [u] : [];
+    return u ? filterByCategory([u as UserRow], payload.category) : [];
   }
+
   if (payload.targetType === 'track' && payload.targetTracks?.length) {
-    return db
-      .select({ id: users.id, vkId: users.vkId })
+    const rows = await db
+      .select(selectFields)
       .from(users)
-      .where(and(inArray(users.track, payload.targetTracks), eq(users.notificationsEnabled, true)));
+      .where(inArray(users.track, payload.targetTracks));
+    return filterByCategory(rows as UserRow[], payload.category);
   }
-  return db
-    .select({ id: users.id, vkId: users.vkId })
-    .from(users)
-    .where(eq(users.notificationsEnabled, true));
+
+  const rows = await db.select(selectFields).from(users);
+  return filterByCategory(rows as UserRow[], payload.category);
 }
 
 export async function deliverPush(payload: PushPayload): Promise<number> {
@@ -71,16 +103,20 @@ export async function deliverPush(payload: PushPayload): Promise<number> {
   return vkIds.length;
 }
 
-export async function sendPush(payload: PushPayload): Promise<{ sent: number; scheduled?: boolean }> {
-  await db.insert(broadcasts).values({
-    text: payload.text,
-    image: payload.image ?? null,
-    targetType: payload.targetType,
-    targetTracks: payload.targetTracks ?? null,
-    targetUserId: payload.targetUserId ?? null,
-    scheduledAt: payload.scheduledAt ?? null,
-    sentAt: payload.scheduledAt && payload.scheduledAt > new Date() ? null : new Date(),
-  });
+export async function sendPush(
+  payload: PushPayload,
+): Promise<{ sent: number; scheduled?: boolean }> {
+  if (!payload.skipBroadcastLog) {
+    await db.insert(broadcasts).values({
+      text: payload.text,
+      image: payload.image ?? null,
+      targetType: payload.targetType,
+      targetTracks: payload.targetTracks ?? null,
+      targetUserId: payload.targetUserId ?? null,
+      scheduledAt: payload.scheduledAt ?? null,
+      sentAt: payload.scheduledAt && payload.scheduledAt > new Date() ? null : new Date(),
+    });
+  }
 
   if (payload.scheduledAt && payload.scheduledAt > new Date()) {
     return { sent: 0, scheduled: true };
@@ -88,4 +124,44 @@ export async function sendPush(payload: PushPayload): Promise<{ sent: number; sc
 
   const sent = await deliverPush(payload);
   return { sent };
+}
+
+export async function notifyUsersForTrack(
+  track: string | null,
+  text: string,
+  category: NotificationCategory,
+  hash?: string,
+) {
+  const message = hash ? `${text}\n${hash}` : text;
+  if (track) {
+    return sendPush({
+      text: message,
+      targetType: 'track',
+      targetTracks: [track],
+      category,
+      skipBroadcastLog: true,
+    });
+  }
+  return sendPush({
+    text: message,
+    targetType: 'all',
+    category,
+    skipBroadcastLog: true,
+  });
+}
+
+export async function notifyUser(
+  userId: number,
+  text: string,
+  category: NotificationCategory,
+  hash?: string,
+) {
+  const message = hash ? `${text}\n${hash}` : text;
+  return sendPush({
+    text: message,
+    targetType: 'user',
+    targetUserId: userId,
+    category,
+    skipBroadcastLog: true,
+  });
 }

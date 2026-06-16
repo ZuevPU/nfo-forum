@@ -1,7 +1,7 @@
 import { apiRequest } from './client';
 
-export function fetchExchangeFeed() {
-  return apiRequest<{ feed: ExchangeFeedItem[] }>('/api/exchange/feed');
+export function fetchExchangeFeed(scope: 'all' | 'track' = 'all') {
+  return apiRequest<{ feed: ExchangeFeedItem[] }>(`/api/exchange/feed?scope=${scope}`);
 }
 
 export function createExchangeQuestion(text: string, scope: 'all' | 'track') {
@@ -37,6 +37,13 @@ export function addReaction(answerId: number, reactionType: string = 'like') {
   });
 }
 
+export function reportExchangeAnswer(answerId: number) {
+  return apiRequest('/api/exchange/reports', {
+    method: 'POST',
+    body: { answer_id: answerId },
+  });
+}
+
 export interface ExchangeFeedItem {
   id: number;
   text: string;
@@ -56,5 +63,12 @@ export interface IncomingQuestion {
 
 export interface QuestionDetail {
   question: { id: number; text: string; isMine: boolean };
-  answers: { id: number; answerText: string; isMine: boolean; createdAt: string }[];
+  answers: {
+    id: number;
+    answerText: string;
+    isMine: boolean;
+    createdAt: string;
+    reactionCount: number;
+    likedByMe: boolean;
+  }[];
 }

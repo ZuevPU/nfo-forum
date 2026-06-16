@@ -3,6 +3,7 @@ import { rateLimit } from '../middleware/rateLimit.js';
 import type { AuthenticatedRequest } from '../middleware/requireUser.js';
 import { requireUser } from '../middleware/requireUser.js';
 import { applyNetworking, getDailyFocus, getTask, getTasks, submitTask } from '../services/tasks.service.js';
+import { logActivity } from '../services/activity.service.js';
 
 export const tasksRouter = Router();
 
@@ -71,6 +72,7 @@ tasksRouter.post('/:id/submit', requireUser, submitRateLimit, async (req: Authen
       answer_text,
       photos,
     );
+    await logActivity(req.user!.id, 'submit_task');
     res.status(201).json({ submission: result });
   } catch (error) {
     console.error('Task submit error:', error);

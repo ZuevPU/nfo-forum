@@ -16,6 +16,7 @@ import {
   createExchangeAnswer,
   fetchQuestionDetail,
   addReaction,
+  reportExchangeAnswer,
   type QuestionDetail,
 } from '../api/exchange';
 import { PanelTitle } from '../components/PanelTitle';
@@ -53,10 +54,18 @@ export function ExchangeDetailPanel() {
     }
   };
 
+  const handleReport = async (answerId: number) => {
+    try {
+      await reportExchangeAnswer(answerId);
+      window.alert('Жалоба отправлена модераторам');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleReaction = async (answerId: number) => {
     try {
       await addReaction(answerId, 'like');
-      // Optimistically update the UI or refetch
       const updated = await fetchQuestionDetail(Number(id));
       setDetail(updated);
     } catch (e) {
@@ -102,11 +111,17 @@ export function ExchangeDetailPanel() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>{new Date(a.createdAt).toLocaleString('ru-RU')}</div>
                     {!a.isMine && (
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <Button mode="tertiary" size="s" onClick={() => window.alert('Жалоба отправлена модераторам')}>Пожаловаться</Button>
-                        <IconButton onClick={() => void handleReaction(a.id)}>
-                          <Icon28LikeOutline width={20} height={20} />
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <Button mode="tertiary" size="s" onClick={() => void handleReport(a.id)}>Пожаловаться</Button>
+                        <IconButton
+                          onClick={() => void handleReaction(a.id)}
+                          style={{ opacity: a.likedByMe ? 1 : 0.6 }}
+                        >
+                          <Icon28LikeOutline width={20} height={20} fill={a.likedByMe ? 'var(--nfo-accent)' : undefined} />
                         </IconButton>
+                        {a.reactionCount > 0 && (
+                          <span style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>{a.reactionCount}</span>
+                        )}
                       </div>
                     )}
                   </div>

@@ -15,6 +15,7 @@ import {
   listReflectionQuestions,
   listTasks,
   moderateExchangeQuestion,
+  hideExchangeQuestion,
   moderateSubmission,
   updateEvent,
   updateTask,
@@ -25,7 +26,20 @@ import {
   generateDiagnosticsCSV,
   getPointsSettings,
   setPointsSettings,
+  listReflectionAnswers,
+  updateReflectionQuestion,
+  getNfoDayStats,
+  getCheckinSettings,
+  setCheckinSettings,
+  getExchangeSlotSettings,
+  setExchangeSlotSettings,
+  getNfoDaySettings,
+  setNfoDaySettings,
+  getDailyFocusSettings,
+  setDailyFocusSettings,
+  listActivityLogs,
 } from '../services/admin.service.js';
+import { getExchangeActivity } from '../services/exchange.service.js';
 import {
   adjustUserPoints,
   generateCheckinsCSV,
@@ -35,6 +49,8 @@ import {
   generateRatingCSV,
   generateReflectionCSV,
   generateTasksCSV,
+  generateActivityCSV,
+  generateExportXlsx,
   listFeedbackMessages,
   listUsers,
 } from '../services/export.service.js';
@@ -112,6 +128,15 @@ adminRouter.post('/exchange/:id/moderate', async (req, res) => {
   res.json({ question });
 });
 
+adminRouter.post('/exchange/:id/hide', async (req, res) => {
+  const question = await hideExchangeQuestion(Number(req.params.id));
+  if (!question) {
+    res.status(404).json({ error: 'Question not found or not published' });
+    return;
+  }
+  res.json({ question });
+});
+
 adminRouter.get('/submissions/pending', async (_req, res) => {
   const submissions = await listPendingSubmissions();
   res.json({ submissions });
@@ -128,6 +153,89 @@ adminRouter.post('/submissions/:id/moderate', async (req, res) => {
   }
   const submission = await moderateSubmission(Number(req.params.id), status, admin_comment);
   res.json({ submission });
+});
+
+adminRouter.get('/reflection-answers', async (req, res) => {
+  const track = req.query.track as string | undefined;
+  const day = req.query.day as string | undefined;
+  const answers = await listReflectionAnswers(track, day);
+  res.json({ answers });
+});
+
+adminRouter.patch('/reflection-questions/:id', async (req, res) => {
+  const question = await updateReflectionQuestion(Number(req.params.id), req.body);
+  if (!question) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  res.json({ question });
+});
+
+adminRouter.get('/nfo-day/stats', async (_req, res) => {
+  const stats = await getNfoDayStats();
+  res.json(stats);
+});
+
+adminRouter.get('/settings/checkin', async (_req, res) => {
+  res.json(await getCheckinSettings());
+});
+
+adminRouter.post('/settings/checkin', async (req, res) => {
+  await setCheckinSettings(req.body as { enabledTracks: string[]; slots: string[] });
+  res.json({ ok: true });
+});
+
+adminRouter.get('/settings/exchange-slots', async (_req, res) => {
+  res.json({ slots: await getExchangeSlotSettings() });
+});
+
+adminRouter.post('/settings/exchange-slots', async (req, res) => {
+  const { slots } = req.body as { slots: string[] };
+  if (!Array.isArray(slots)) {
+    res.status(400).json({ error: 'slots must be an array' });
+    return;
+  }
+  await setExchangeSlotSettings(slots);
+  res.json({ ok: true });
+});
+
+adminRouter.get('/settings/nfo-day', async (_req, res) => {
+  res.json(await getNfoDaySettings());
+});
+
+adminRouter.post('/settings/nfo-day', async (req, res) => {
+  const { publishHour, publishMinute, points } = req.body as {
+    publishHour?: number;
+    publishMinute?: number;
+    points?: number;
+  };
+  await setNfoDaySettings({
+    publishHour: publishHour ?? 19,
+    publishMinute: publishMinute ?? 30,
+    points: points ?? 10,
+  });
+  res.json({ ok: true });
+});
+
+adminRouter.get('/settings/daily-focus', async (_req, res) => {
+  res.json(await getDailyFocusSettings());
+});
+
+adminRouter.post('/settings/daily-focus', async (req, res) => {
+  const { title, taskId } = req.body as { title?: string; taskId?: number | null };
+  await setDailyFocusSettings(title ?? '', taskId);
+  res.json({ ok: true });
+});
+
+adminRouter.get('/activity', async (req, res) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 200;
+  const logs = await listActivityLogs(limit);
+  res.json({ logs });
+});
+
+adminRouter.get('/exchange/activity', async (_req, res) => {
+  const activity = await getExchangeActivity();
+  res.json({ activity });
 });
 
 adminRouter.get('/reflection-questions', async (_req, res) => {
@@ -260,4 +368,22 @@ adminRouter.get('/export/nfo-day', async (_req, res) => {
 
 adminRouter.get('/export/points-history', async (_req, res) => {
   sendCsv(res, 'points-history.csv', await generatePointsHistoryCSV());
+});
+
+adminRouter.get('/export/activity', async (_req, res) => {
+  sendCsv(res, 'activity.csv', await generateActivityCSV());
+});
+
+adminRouter.get('/export/:type/xlsx', async (req, res) => {
+  const buf = await generateExportXlsx(req.params.type);
+  if (!buf) {
+    res.status(404).json({ error: 'Unknown export type' });
+    return;
+  }
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  res.setHeader('Content-Disposition', `attachment; filename="${req.params.type}.xlsx"`);
+  res.send(buf);
 });

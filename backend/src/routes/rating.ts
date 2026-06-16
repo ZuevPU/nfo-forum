@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { AuthenticatedRequest } from '../middleware/requireUser.js';
 import { requireUser } from '../middleware/requireUser.js';
 import { logActivity } from '../services/activity.service.js';
-import { getPointsHistory, getRating } from '../services/rating.service.js';
+import { getPointsHistory, getRating, getReflectionLevelHistory } from '../services/rating.service.js';
 
 export const ratingRouter = Router();
 
@@ -32,6 +32,25 @@ ratingRouter.get('/history', requireUser, async (req: AuthenticatedRequest, res)
     });
   } catch (error) {
     console.error('Points history error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+ratingRouter.get('/reflection-level', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const history = await getReflectionLevelHistory(req.user!.id);
+    res.json({
+      level: req.user!.reflectionLevel,
+      reflectionPoints: req.user!.reflectionPoints,
+      history: history.map((h) => ({
+        id: h.id,
+        oldLevel: h.oldLevel,
+        newLevel: h.newLevel,
+        createdAt: h.createdAt.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error('Reflection level error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

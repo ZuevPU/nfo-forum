@@ -212,4 +212,14 @@ CREATE TABLE IF NOT EXISTS task_networking_queue (
   status text NOT NULL DEFAULT 'waiting',
   created_at timestamp NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_task_networking_task_status ON task_networking_queue (task_id, status);
+ALTER TABLE reflection_questions ADD COLUMN IF NOT EXISTS notification_sent_at timestamp;
+
+CREATE TABLE IF NOT EXISTS exchange_reports (
+  id serial PRIMARY KEY,
+  answer_id integer NOT NULL REFERENCES exchange_answers(id) ON DELETE CASCADE,
+  reporter_user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_exchange_at timestamp;
+ALTER TABLE exchange_questions ADD COLUMN IF NOT EXISTS answers_collected_notified_at timestamp;

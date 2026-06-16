@@ -34,6 +34,7 @@ reflectionRouter.post('/answers', requireUser, async (req: AuthenticatedRequest,
       return;
     }
     const answer = await submitAnswer(req.user!, question_id, answer_text);
+    await logActivity(req.user!.id, 'answer_reflection');
     res.status(201).json({ answer });
   } catch (error) {
     console.error('Reflection answer error:', error);
@@ -72,6 +73,7 @@ reflectionRouter.post('/nfo-day', requireUser, async (req: AuthenticatedRequest,
       return;
     }
     const reflection = await submitNfoDayReflection(req.user!, answer_text, factors);
+    await logActivity(req.user!.id, 'nfo_day_submit');
     res.status(201).json({ reflection });
   } catch (error) {
     console.error('NFO day reflection error:', error);

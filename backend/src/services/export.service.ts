@@ -1,4 +1,5 @@
 import { desc, eq } from 'drizzle-orm';
+import ExcelJS from 'exceljs';
 import { db } from '../db/index.js';
 import {
   exchangeAnswers,
@@ -11,6 +12,7 @@ import {
   stateCheckins,
   taskSubmissions,
   tasks,
+  userActivityLogs,
   users,
 } from '../db/schema.js';
 
@@ -217,6 +219,30 @@ export async function generatePointsHistoryCSV(userId?: number): Promise<string>
   );
 }
 
+export async function generateActivityCSV(): Promise<string> {
+  const rows = await db
+    .select({
+      userName: users.firstName,
+      track: users.track,
+      action: userActivityLogs.action,
+      createdAt: userActivityLogs.createdAt,
+    })
+    .from(userActivityLogs)
+    .innerJoin(users, eq(userActivityLogs.userId, users.id))
+    .orderBy(desc(userActivityLogs.createdAt))
+    .limit(5000);
+
+  return toCsv(
+    ['Участник', 'Трек', 'Действие', 'Время'],
+    rows.map((r) => [
+      r.userName,
+      r.track ?? '',
+      r.action,
+      new Date(r.createdAt).toISOString(),
+    ]),
+  );
+}
+
 export async function listFeedbackMessages() {
   const rows = await db
     .select({
@@ -264,4 +290,59 @@ export async function adjustUserPoints(userId: number, points: number, comment: 
     .where(eq(users.id, userId));
 
   return { newPoints: user.points + points };
+}
+
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      result.push(cur);
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+export async function csvStringToXlsxBuffer(csv: string): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Export');
+  const lines = csv.replace(/^\uFEFF/, '').split('\n').filter((l) => l.trim());
+  for (const line of lines) {
+    sheet.addRow(parseCsvLine(line));
+  }
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
+import { generateDiagnosticsCSV } from './admin.service.js';
+
+const EXPORT_GENERATORS: Record<string, () => Promise<string>> = {
+  reflection: generateReflectionCSV,
+  tasks: generateTasksCSV,
+  exchange: generateExchangeCSV,
+  rating: generateRatingCSV,
+  checkins: generateCheckinsCSV,
+  'nfo-day': generateNfoDayCSV,
+  'points-history': generatePointsHistoryCSV,
+  activity: generateActivityCSV,
+  diagnostics: generateDiagnosticsCSV,
+};
+
+export async function generateExportXlsx(type: string): Promise<Buffer | null> {
+  const gen = EXPORT_GENERATORS[type];
+  if (!gen) return null;
+  const csv = await gen();
+  return csvStringToXlsxBuffer(csv);
 }

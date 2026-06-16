@@ -4,12 +4,19 @@ import {
   FormItem,
   Group,
   Input,
+  ModalPage,
+  ModalPageHeader,
+  ModalRoot,
+  PanelHeaderButton,
   SimpleCell,
   Switch,
+  Textarea,
 } from '@vkontakte/vkui';
+import { Icon24Dismiss } from '@vkontakte/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updateNotificationPrefs, updateProfile } from '../api/auth';
+import { submitFeedback } from '../api/home';
 import { PanelLayout } from '../components/PanelLayout';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -30,6 +37,9 @@ export function SettingsPanel() {
   });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -58,63 +68,116 @@ export function SettingsPanel() {
     await refreshUser();
   };
 
+  const handleFeedbackSubmit = async () => {
+    if (!feedbackText.trim()) return;
+    setFeedbackSubmitting(true);
+    try {
+      await submitFeedback(feedbackText.trim());
+      setFeedbackText('');
+      setActiveModal(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
   if (!user) return null;
 
   return (
-    <PanelLayout id="settings" title="Настройки" loading={loading}>
-      <Group header="Профиль">
-        <FormItem top="Имя">
-          <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-        </FormItem>
-        <FormItem top="Фамилия">
-          <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-        </FormItem>
-        <SimpleCell subtitle="Направление">{user.track ?? '—'}</SimpleCell>
-        {user.createdAt && (
-          <SimpleCell subtitle="Дата регистрации">
-            {new Date(user.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </SimpleCell>
-        )}
-        <SimpleCell subtitle={`Уровень рефлексии: ${REFLECTION_LEVEL_NAMES[user.reflectionLevel] ?? user.reflectionLevel}`}>
-          {user.reflectionPoints} баллов рефлексии
-        </SimpleCell>
-        <Div>
-          <Button size="m" stretched loading={saving} onClick={() => void handleSaveProfile()}>
-            Сохранить профиль
-          </Button>
-        </Div>
-      </Group>
-
-      <Group header="Уведомления">
-        {([
-          ['program', 'Программа и расписание'],
-          ['questions', 'Вопросы и рефлексия'],
-          ['tasks', 'Задания'],
-          ['exchange', 'Обмен опытом'],
-          ['points', 'Баллы и рейтинг'],
-        ] as const).map(([key, label]) => (
+    <>
+      <PanelLayout id="settings" title="Настройки" loading={loading}>
+        <Group header="Профиль">
+          <FormItem top="Имя">
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          </FormItem>
+          <FormItem top="Фамилия">
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          </FormItem>
+          <SimpleCell subtitle="Направление">{user.track ?? '—'}</SimpleCell>
+          {user.createdAt && (
+            <SimpleCell subtitle="Дата регистрации">
+              {new Date(user.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </SimpleCell>
+          )}
           <SimpleCell
-            key={key}
-            Component="label"
-            after={<Switch checked={prefs[key]} onChange={(e) => void handleTogglePref(key, e.target.checked)} />}
+            subtitle={`Уровень рефлексии: ${REFLECTION_LEVEL_NAMES[user.reflectionLevel] ?? user.reflectionLevel}`}
+            onClick={() => navigate('/reflection-level')}
           >
-            {label}
+            {user.reflectionPoints} баллов рефлексии
           </SimpleCell>
-        ))}
-      </Group>
+          <Div>
+            <Button size="m" stretched loading={saving} onClick={() => void handleSaveProfile()}>
+              Сохранить профиль
+            </Button>
+          </Div>
+        </Group>
 
-      <Group header="О приложении">
-        <SimpleCell subtitle="Версия">{APP_VERSION}</SimpleCell>
-        <SimpleCell subtitle="Поддержка">forum-nfo@vk.com</SimpleCell>
-        <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Button mode="secondary" stretched onClick={() => navigate('/home')}>
-            На главную
-          </Button>
-          <Button mode="secondary" stretched onClick={() => void deleteUserAccount()}>
-            Удалить аккаунт
-          </Button>
-        </Div>
-      </Group>
-    </PanelLayout>
+        <Group header="Уведомления">
+          {([
+            ['program', 'Программа и расписание'],
+            ['questions', 'Вопросы и рефлексия'],
+            ['tasks', 'Задания'],
+            ['exchange', 'Обмен опытом'],
+            ['points', 'Баллы и рейтинг'],
+          ] as const).map(([key, label]) => (
+            <SimpleCell
+              key={key}
+              Component="label"
+              after={<Switch checked={prefs[key]} onChange={(e) => void handleTogglePref(key, e.target.checked)} />}
+            >
+              {label}
+            </SimpleCell>
+          ))}
+        </Group>
+
+        <Group header="Связь">
+          <Div>
+            <Button mode="secondary" stretched onClick={() => setActiveModal('feedback')}>
+              Написать организатору
+            </Button>
+          </Div>
+        </Group>
+
+        <Group header="О приложении">
+          <SimpleCell subtitle="Версия">{APP_VERSION}</SimpleCell>
+          <SimpleCell subtitle="Поддержка">forum-nfo@vk.com</SimpleCell>
+          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Button mode="secondary" stretched onClick={() => navigate('/home')}>
+              На главную
+            </Button>
+            <Button mode="secondary" stretched onClick={() => void deleteUserAccount()}>
+              Удалить аккаунт
+            </Button>
+          </Div>
+        </Group>
+      </PanelLayout>
+
+      <ModalRoot activeModal={activeModal}>
+        <ModalPage
+          id="feedback"
+          header={
+            <ModalPageHeader
+              before={<PanelHeaderButton onClick={() => setActiveModal(null)}><Icon24Dismiss /></PanelHeaderButton>}
+            >
+              Связь с организаторами
+            </ModalPageHeader>
+          }
+        >
+          <FormItem top="Твоё сообщение">
+            <Textarea
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              placeholder="Напиши вопрос или предложение..."
+            />
+          </FormItem>
+          <Div>
+            <Button size="l" stretched loading={feedbackSubmitting} onClick={() => void handleFeedbackSubmit()}>
+              Отправить
+            </Button>
+          </Div>
+        </ModalPage>
+      </ModalRoot>
+    </>
   );
 }

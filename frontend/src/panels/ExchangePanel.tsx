@@ -22,6 +22,7 @@ export function ExchangePanel() {
   const navigate = useNavigate();
   const [feed, setFeed] = useState<ExchangeFeedItem[]>([]);
   const [incoming, setIncoming] = useState<IncomingQuestion[]>([]);
+  const [feedScope, setFeedScope] = useState<'all' | 'track'>('all');
   const [text, setText] = useState('');
   const [scope, setScope] = useState<'all' | 'track'>('all');
   const [loading, setLoading] = useState(true);
@@ -31,7 +32,7 @@ export function ExchangePanel() {
   const load = () => {
     setLoading(true);
     setError(null);
-    Promise.all([fetchExchangeFeed(), fetchIncomingQuestions()])
+    Promise.all([fetchExchangeFeed(feedScope), fetchIncomingQuestions()])
       .then(([f, i]) => {
         setFeed(f.feed);
         setIncoming(i.incoming);
@@ -40,7 +41,7 @@ export function ExchangePanel() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [feedScope]);
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
@@ -104,6 +105,16 @@ export function ExchangePanel() {
         <Placeholder>{error}</Placeholder>
       ) : (
         <Group header="Лента вопросов">
+          <Div style={{ padding: '0 16px 12px' }}>
+            <SegmentedControl
+              value={feedScope}
+              onChange={(v) => setFeedScope(v as 'all' | 'track')}
+              options={[
+                { label: 'Все треки', value: 'all' },
+                { label: 'Мой трек', value: 'track' },
+              ]}
+            />
+          </Div>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
           {feed.map((item) => (
             <div key={item.id} className="nfo-card" style={{ margin: 0 }} onClick={() => navigate(`/exchange/${item.id}`)}>

@@ -22,11 +22,13 @@ export function RegisterPanel() {
   const { vkUserInfo, registerUser, error, status } = useAuthContext();
   const navigate = useNavigate();
   const [selectedTrack, setSelectedTrack] = useState<Track>('НФО и образование');
+  const [firstName, setFirstName] = useState(vkUserInfo?.first_name ?? '');
+  const [lastName, setLastName] = useState(vkUserInfo?.last_name ?? '');
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const handleRegister = async () => {
-    if (!termsAccepted) return;
-    await registerUser(selectedTrack);
+    if (!termsAccepted || !firstName.trim()) return;
+    await registerUser(selectedTrack, { firstName: firstName.trim(), lastName: lastName.trim() || undefined });
     navigate('/home');
   };
 
@@ -46,10 +48,10 @@ export function RegisterPanel() {
       <GradientHeader title="Регистрация" subtitle="Шаг 1 из 2 — данные участника" />
       <Group>
         <FormItem top="Фамилия">
-          <Input value={vkUserInfo?.last_name ?? ''} readOnly />
+          <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
         </FormItem>
         <FormItem top="Имя">
-          <Input value={vkUserInfo?.first_name ?? ''} readOnly />
+          <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
         </FormItem>
         <FormItem top="Направление участия">
           <div className="nfo-track-grid">
@@ -80,7 +82,7 @@ export function RegisterPanel() {
           </Checkbox>
         </FormItem>
         <Div>
-          <Button size="l" stretched disabled={!termsAccepted} onClick={() => void handleRegister()}>
+          <Button size="l" stretched disabled={!termsAccepted || !firstName.trim()} onClick={() => void handleRegister()}>
             Зарегистрироваться
           </Button>
         </Div>

@@ -26,6 +26,8 @@ on:
           - trainer-diagnostics
           - event-reminders
           - scheduled-broadcasts
+          - reflection-publish
+          - dynamic-slots
 
 jobs:
   morning-greeting:
@@ -98,4 +100,20 @@ jobs:
     steps:
       - run: |
           curl -sf -X POST "${{ secrets.API_URL }}/api/cron/scheduled-broadcasts" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+
+  reflection-publish:
+    if: github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'reflection-publish')
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/reflection-publish" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+
+  dynamic-slots:
+    if: github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'dynamic-slots')
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/dynamic-slots" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"

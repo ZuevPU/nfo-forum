@@ -10,7 +10,7 @@ interface UseAuthResult {
   user: UserDto | null;
   vkUserInfo: VkUserInfo | null;
   error: string | null;
-  registerUser: (track: Track) => Promise<void>;
+  registerUser: (track: Track, profile?: { firstName?: string; lastName?: string }) => Promise<void>;
   deleteUserAccount: () => Promise<void>;
   refreshUser: () => Promise<void>;
   retry: () => void;
@@ -72,7 +72,7 @@ export function useAuth(): UseAuthResult {
   }, [authenticate, attempt]);
 
   const registerUser = useCallback(
-    async (track: Track) => {
+    async (track: Track, profile?: { firstName?: string; lastName?: string }) => {
       setStatus('loading');
       setError(null);
 
@@ -94,8 +94,8 @@ export function useAuth(): UseAuthResult {
 
         const { user: created } = await register({
           vkId,
-          firstName: info.first_name,
-          lastName: info.last_name,
+          firstName: profile?.firstName?.trim() || info.first_name,
+          lastName: profile?.lastName?.trim() || info.last_name,
           track,
         });
 

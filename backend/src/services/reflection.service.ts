@@ -4,7 +4,8 @@ import { NFO_DAY_FACTORS, NFO_DAY_QUESTION } from '../constants/nfoFactors.js';
 import { nfoDayReflections, pointsHistory, reflectionAnswers, reflectionQuestions, systemSettings } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import { moscowDateString } from '../utils/moscowTime.js';
-import { awardPoints } from './points.service.js';
+import { isNfoDayTimeOpen } from '../utils/slotMatching.js';
+import { awardPointsForSource } from './pointsConfig.service.js';
 
 export async function getQuestions(user: UserDto) {
   const now = new Date();
@@ -63,7 +64,14 @@ export async function submitAnswer(user: UserDto, questionId: number, answerText
     .values({ userId: user.id, questionId, answerText })
     .returning();
 
-  await awardPoints(user.id, question.points, 'reflection_answer', created.id, undefined, question.points);
+  await awardPointsForSource(
+    user.id,
+    'reflection_answer',
+    created.id,
+    undefined,
+    question.points,
+    question.points,
+  );
   return created;
 }
 
@@ -86,12 +94,15 @@ export async function getNfoDayConfig() {
     .limit(1);
 
   const value = (setting?.value ?? {}) as { publishHour?: number; publishMinute?: number; points?: number };
+  const publishHour = value.publishHour ?? 19;
+  const publishMinute = value.publishMinute ?? 30;
   return {
     question: NFO_DAY_QUESTION,
     factors: [...NFO_DAY_FACTORS],
-    publishHour: value.publishHour ?? 19,
-    publishMinute: value.publishMinute ?? 30,
+    publishHour,
+    publishMinute,
     points: value.points ?? 10,
+    isOpen: isNfoDayTimeOpen(publishHour, publishMinute),
   };
 }
 
@@ -117,6 +128,10 @@ export async function submitNfoDayReflection(
   if (existing) throw new Error('Already submitted today');
 
   const config = await getNfoDayConfig();
+  if (!isNfoDayTimeOpen(config.publishHour, config.publishMinute)) {
+    throw new Error('NFO day reflection is not open yet');
+  }
+
   const [created] = await db
     .insert(nfoDayReflections)
     .values({
@@ -134,7 +149,14 @@ export async function submitNfoDayReflection(
     .limit(1);
 
   if (!existingPoints) {
-    await awardPoints(user.id, config.points, 'nfo_day_reflection', created.id, undefined, config.points);
+    await awardPointsForSource(
+      user.id,
+      'nfo_day_reflection',
+      created.id,
+      undefined,
+      config.points,
+      config.points,
+    );
   }
   return created;
 }

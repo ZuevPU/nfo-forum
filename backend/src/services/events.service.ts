@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, lte, or, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { events } from '../db/schema.js';
+import { moscowDayBounds } from '../utils/moscowTime.js';
 
 export interface EventDto {
   id: number;
@@ -38,10 +39,7 @@ export async function getEvents(track?: string | null, day?: string): Promise<Ev
   if (trackFilter) conditions.push(trackFilter);
 
   if (day) {
-    const start = new Date(day);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(day);
-    end.setHours(23, 59, 59, 999);
+    const { start, end } = moscowDayBounds(day);
     conditions.push(gte(events.startTime, start));
     conditions.push(lte(events.startTime, end));
   }

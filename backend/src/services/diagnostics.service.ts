@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { systemSettings, trainerSelfDiagnostics } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
-import { awardPoints } from './points.service.js';
+import { awardPointsForSource } from './pointsConfig.service.js';
 
 export async function getEnabledTracks(): Promise<string[]> {
   const [setting] = await db
@@ -113,7 +113,7 @@ export async function completeAttempt(userId: number) {
   if (answers.length >= 9) {
     // Check if they already got points for this attempt
     // Points sourceId can be combination of userId and attemptNumber or just award it
-    await awardPoints(userId, 100, 'diagnostics_complete', currentAttempt);
+    await awardPointsForSource(userId, 'diagnostics_complete', currentAttempt);
     
     // Start a new attempt for next time
     // We do this by just incrementing the attempt number if they choose to start over.

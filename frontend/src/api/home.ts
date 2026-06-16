@@ -12,6 +12,8 @@ export interface HomeData {
     newExchangeAnswers: number;
     activeQuestions: number;
     activeExchange: number;
+    pendingIncomingAssignments: number;
+    exchangeActiveCycle: boolean;
   };
   focusOfDay: {
     id: number;

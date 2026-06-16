@@ -60,6 +60,7 @@ export function NfoDayPanel() {
   };
 
   const factors = config?.factors ?? [];
+  const isLocked = config && config.isOpen === false && !existing;
 
   return (
     <PanelLayout
@@ -71,9 +72,9 @@ export function NfoDayPanel() {
     >
       <Group>
         <Div style={{ padding: '12px 16px' }}>
-          <div className="nfo-card" style={{ margin: 0 }}>
+          <div className="nfo-card" style={{ margin: 0, opacity: isLocked ? 0.6 : 1 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 8 }}>
-              {existing ? '✅ Отвечено' : `${config?.points ?? 10} баллов`}
+              {existing ? '✅ Отвечено' : isLocked ? `🔒 Откроется в ${String(config?.publishHour ?? 19).padStart(2, '0')}:${String(config?.publishMinute ?? 30).padStart(2, '0')}` : `${config?.points ?? 10} баллов`}
             </div>
             <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.4, marginBottom: 12 }}>
               {config?.question ?? NFO_DAY_QUESTION}
@@ -83,7 +84,7 @@ export function NfoDayPanel() {
               rows={4}
               placeholder="Поделись своими мыслями..."
               value={answer}
-              readOnly={!!existing}
+              readOnly={!!existing || !!isLocked}
               onChange={(e) => setAnswer(e.target.value)}
             />
           </div>
@@ -98,7 +99,7 @@ export function NfoDayPanel() {
               <button
                 key={factor}
                 type="button"
-                disabled={!!existing}
+                disabled={!!existing || !!isLocked}
                 onClick={() => toggleFactor(factor)}
                 style={{
                   padding: '8px 12px',
@@ -118,7 +119,7 @@ export function NfoDayPanel() {
         </Div>
       </Group>
 
-      {!existing && (
+      {!existing && !isLocked && (
         <Group>
           <Div style={{ padding: '0 16px 16px' }}>
             <Button

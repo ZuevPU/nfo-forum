@@ -24,6 +24,7 @@ import {
   deleteAdminEvent,
   deleteAdminTask,
   deleteReflectionQuestion,
+  updateReflectionQuestion,
   fetchAdminEvents,
   fetchAdminTasks,
   fetchBroadcasts,
@@ -31,6 +32,7 @@ import {
   fetchPendingSubmissions,
   fetchReflectionQuestions,
   moderateExchange,
+  hideExchangeQuestion,
   moderateSubmission,
   sendAdminPush,
   updateAdminEvent,
@@ -39,6 +41,8 @@ import {
   saveDiagnosticsSettings,
   fetchDiagnosticsResults,
   getDiagnosticsExportUrl,
+  fetchExchangeActivity,
+  type ExchangeActivityRow,
   type AdminEvent,
   type AdminTask,
   type Broadcast,
@@ -47,13 +51,13 @@ import {
   type ReflectionQuestion,
   type DiagnosticResult,
 } from '../api/admin';
-import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab } from './AdminManagementTabs';
+import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab, AdminReflectionAnswersTab, AdminNfoStatsTab, AdminActivityTab } from './AdminManagementTabs';
 import { PanelTitle } from '../components/PanelTitle';
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
 import { uploadFiles } from '../lib/vk-bridge';
 
-type Tab = 'events' | 'tasks' | 'exchange' | 'submissions' | 'reflection' | 'push' | 'diagnostics' | 'users' | 'feedback' | 'settings';
+type Tab = 'events' | 'tasks' | 'exchange' | 'submissions' | 'reflection' | 'push' | 'diagnostics' | 'users' | 'feedback' | 'settings' | 'reflection-answers' | 'nfo-stats' | 'activity';
 
 export function AdminPanel() {
   const { user } = useAuthContext();
@@ -68,6 +72,8 @@ export function AdminPanel() {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [diagTracks, setDiagTracks] = useState<string[]>([]);
   const [diagResults, setDiagResults] = useState<DiagnosticResult[]>([]);
+  const [exchangeActivity, setExchangeActivity] = useState<ExchangeActivityRow[]>([]);
+  const [submissionComments, setSubmissionComments] = useState<Record<number, string>>({});
 
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDesc, setNewEventDesc] = useState('');
@@ -75,12 +81,14 @@ export function AdminPanel() {
   const [newEventStartTime, setNewEventStartTime] = useState('');
   const [newEventEndTime, setNewEventEndTime] = useState('');
   const [newEventPlace, setNewEventPlace] = useState('');
+  const [newEventIsKeyBlock, setNewEventIsKeyBlock] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [editEventTitle, setEditEventTitle] = useState('');
   const [editEventDesc, setEditEventDesc] = useState('');
   const [editEventStartTime, setEditEventStartTime] = useState('');
   const [editEventEndTime, setEditEventEndTime] = useState('');
   const [editEventPlace, setEditEventPlace] = useState('');
+  const [editEventIsKeyBlock, setEditEventIsKeyBlock] = useState(false);
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
@@ -92,6 +100,7 @@ export function AdminPanel() {
   const [newTaskIsFocusOfDay, setNewTaskIsFocusOfDay] = useState(false);
   const [newTaskIsRandomDistribution, setNewTaskIsRandomDistribution] = useState(false);
   const [newTaskAutoApprove, setNewTaskAutoApprove] = useState(false);
+  const [newTaskTrack, setNewTaskTrack] = useState('');
   
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
@@ -110,12 +119,19 @@ export function AdminPanel() {
   const [newReflectionPoints, setNewReflectionPoints] = useState('10');
   const [newReflectionSendNotification, setNewReflectionSendNotification] = useState(true);
   const [newReflectionGroupId, setNewReflectionGroupId] = useState('');
+  const [newReflectionTrack, setNewReflectionTrack] = useState('');
+
+  const [editingReflectionId, setEditingReflectionId] = useState<number | null>(null);
+  const [editReflectionText, setEditReflectionText] = useState('');
+  const [editReflectionPublishTime, setEditReflectionPublishTime] = useState('');
+  const [editReflectionEndTime, setEditReflectionEndTime] = useState('');
+  const [editReflectionPoints, setEditReflectionPoints] = useState('10');
 
   const [pushText, setPushText] = useState('');
   const [pushImage, setPushImage] = useState<string | null>(null);
   const [pushUploading, setPushUploading] = useState(false);
   const [pushTarget, setPushTarget] = useState<'all' | 'track' | 'user'>('all');
-  const [pushTrack, setPushTrack] = useState<string>(TRACKS[0]);
+  const [pushTracks, setPushTracks] = useState<string[]>([TRACKS[0]]);
   const [pushUserId, setPushUserId] = useState('');
   const [pushScheduledAt, setPushScheduledAt] = useState('');
 
@@ -144,8 +160,9 @@ export function AdminPanel() {
       fetchBroadcasts(),
       fetchDiagnosticsSettings(),
       fetchDiagnosticsResults(),
+      fetchExchangeActivity(),
     ])
-      .then(([e, t, q, s, r, b, ds, dr]) => {
+      .then(([e, t, q, s, r, b, ds, dr, ea]) => {
         setEvents(e.events);
         setTasks(t.tasks);
         setQuestions(q.questions);
@@ -154,6 +171,7 @@ export function AdminPanel() {
         setBroadcasts(b.broadcasts);
         setDiagTracks(ds.tracks);
         setDiagResults(dr.results);
+        setExchangeActivity(ea.activity);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -198,6 +216,9 @@ export function AdminPanel() {
               { label: 'Диагностика', value: 'diagnostics' },
               { label: 'Участники', value: 'users' },
               { label: 'Inbox', value: 'feedback' },
+              { label: 'Рефл. ответы', value: 'reflection-answers' },
+              { label: 'НФО день', value: 'nfo-stats' },
+              { label: 'Активность', value: 'activity' },
               { label: 'Настройки', value: 'settings' },
             ]}
           />
@@ -228,6 +249,11 @@ export function AdminPanel() {
               {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
             </NativeSelect>
           </FormItem>
+          <FormItem top="Ключевой блок (напоминания + «Что далее»)">
+            <Checkbox checked={newEventIsKeyBlock} onChange={(e) => setNewEventIsKeyBlock(e.target.checked)}>
+              Ключевой блок
+            </Checkbox>
+          </FormItem>
           <Div>
             <Button
               size="m"
@@ -238,13 +264,15 @@ export function AdminPanel() {
                 endTime: newEventEndTime ? new Date(newEventEndTime).toISOString() : new Date().toISOString(),
                 place: newEventPlace || undefined,
                 track: newEventTrack || null,
+                isKeyBlock: newEventIsKeyBlock,
               }).then(() => { 
                 setNewEventTitle(''); 
                 setNewEventDesc(''); 
                 setNewEventPlace('');
                 setNewEventStartTime('');
                 setNewEventEndTime('');
-                load(); 
+                setNewEventIsKeyBlock(false);
+                load();
               })}
             >
               Добавить
@@ -267,6 +295,7 @@ export function AdminPanel() {
                       setEditEventPlace(ev.place ?? '');
                       setEditEventStartTime(new Date(ev.startTime).toISOString().slice(0, 16));
                       setEditEventEndTime(new Date(ev.endTime).toISOString().slice(0, 16));
+                      setEditEventIsKeyBlock(ev.isKeyBlock ?? false);
                     }}
                   >
                     Изм.
@@ -282,6 +311,9 @@ export function AdminPanel() {
                   <FormItem top="Место"><Input value={editEventPlace} onChange={(e) => setEditEventPlace(e.target.value)} /></FormItem>
                   <FormItem top="Начало"><Input type="datetime-local" value={editEventStartTime} onChange={(e) => setEditEventStartTime(e.target.value)} /></FormItem>
                   <FormItem top="Окончание"><Input type="datetime-local" value={editEventEndTime} onChange={(e) => setEditEventEndTime(e.target.value)} /></FormItem>
+                  <FormItem top="Ключевой блок">
+                    <Checkbox checked={editEventIsKeyBlock} onChange={(e) => setEditEventIsKeyBlock(e.target.checked)}>Ключевой блок</Checkbox>
+                  </FormItem>
                   <Button
                     size="s"
                     onClick={() => void updateAdminEvent(ev.id, {
@@ -290,6 +322,7 @@ export function AdminPanel() {
                       place: editEventPlace,
                       startTime: new Date(editEventStartTime).toISOString(),
                       endTime: new Date(editEventEndTime).toISOString(),
+                      isKeyBlock: editEventIsKeyBlock,
                     }).then(() => { setEditingEventId(null); load(); })}
                   >
                     Сохранить
@@ -343,6 +376,12 @@ export function AdminPanel() {
               <option value="yes">Да</option>
             </NativeSelect>
           </FormItem>
+          <FormItem top="Трек">
+            <NativeSelect value={newTaskTrack} onChange={(e) => setNewTaskTrack(e.target.value)}>
+              <option value="">Все</option>
+              {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </NativeSelect>
+          </FormItem>
           <FormItem top="Отправить push-уведомление">
             <NativeSelect value={newTaskSendNotification ? 'yes' : 'no'} onChange={(e) => setNewTaskSendNotification(e.target.value === 'yes')}>
               <option value="yes">Да</option>
@@ -363,6 +402,7 @@ export function AdminPanel() {
                 isFocusOfDay: newTaskIsFocusOfDay,
                 isRandomDistribution: newTaskIsRandomDistribution,
                 autoApprove: newTaskAutoApprove,
+                track: newTaskTrack || null,
               }).then(() => {
                 setNewTaskTitle(''); 
                 setNewTaskDesc(''); 
@@ -436,6 +476,7 @@ export function AdminPanel() {
           ))}
         </Group>
       ) : tab === 'exchange' ? (
+        <>
         <Group header="Модерация вопросов">
           {questions.length === 0 ? (
             <Placeholder>Нет вопросов на модерации</Placeholder>
@@ -463,25 +504,51 @@ export function AdminPanel() {
             ))
           )}
         </Group>
+        <Group header="Активность по вопросам">
+          {exchangeActivity.map((a) => (
+            <Div key={a.id} style={{ padding: '8px 16px' }}>
+              <div className="nfo-card" style={{ margin: 0 }}>
+                <SimpleCell subtitle={`${a.status} · ${a.answerCount} ответов · ${a.assignmentCount} назначений`} multiline>
+                  {a.text}
+                </SimpleCell>
+                {a.status === 'published' && (
+                  <Button size="s" mode="secondary" stretched onClick={() => void hideExchangeQuestion(a.id).then(load)}>
+                    Скрыть вопрос
+                  </Button>
+                )}
+              </div>
+            </Div>
+          ))}
+          {!exchangeActivity.length && <Placeholder>Нет опубликованных вопросов</Placeholder>}
+        </Group>
+        </>
       ) : tab === 'submissions' ? (
         <Group header="Модерация заданий">
           {submissions.length === 0 ? (
             <Placeholder>Нет ответов на проверке</Placeholder>
           ) : (
             submissions.map((s) => (
-              <SimpleCell
-                key={s.id}
-                multiline
-                subtitle={s.answerText ?? undefined}
-                after={
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <Button size="s" onClick={() => void moderateSubmission(s.id, 'approved').then(load)}>✓</Button>
-                    <Button size="s" mode="outline" onClick={() => void moderateSubmission(s.id, 'rejected').then(load)}>✕</Button>
+              <Div key={s.id} style={{ padding: '8px 16px' }}>
+                <div className="nfo-card" style={{ margin: 0 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{s.taskTitle ?? `Задание #${s.taskId}`}</div>
+                  <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: 8 }}>{s.userName ?? 'Участник'}</div>
+                  <div style={{ marginBottom: 8 }}>{s.answerText}</div>
+                  {s.photos?.map((url, i) => (
+                    <img key={i} src={url} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8 }} />
+                  ))}
+                  <FormItem top="Комментарий при отклонении">
+                    <Input
+                      value={submissionComments[s.id] ?? ''}
+                      onChange={(e) => setSubmissionComments((c) => ({ ...c, [s.id]: e.target.value }))}
+                      placeholder="Необязательно"
+                    />
+                  </FormItem>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="m" stretched onClick={() => void moderateSubmission(s.id, 'approved').then(load)}>✓ Принять</Button>
+                    <Button size="m" mode="secondary" stretched onClick={() => void moderateSubmission(s.id, 'rejected', submissionComments[s.id]).then(load)}>✕ Отклонить</Button>
                   </div>
-                }
-              >
-                Задание #{s.taskId}
-              </SimpleCell>
+                </div>
+              </Div>
             ))
           )}
         </Group>
@@ -496,6 +563,9 @@ export function AdminPanel() {
               <option value="state">Состояние (чек-ин)</option>
               <option value="block">После блока</option>
               <option value="track">Трек</option>
+              <option value="entry">Входной</option>
+              <option value="daily">Ежедневный</option>
+              <option value="final">Финальный</option>
             </NativeSelect>
           </FormItem>
           <FormItem top="Время публикации">
@@ -516,6 +586,12 @@ export function AdminPanel() {
           <FormItem top="ID группы (для подвопросов, необязательно)">
             <Input value={newReflectionGroupId} onChange={(e) => setNewReflectionGroupId(e.target.value)} placeholder="Например: evening-day1" />
           </FormItem>
+          <FormItem top="Трек">
+            <NativeSelect value={newReflectionTrack} onChange={(e) => setNewReflectionTrack(e.target.value)}>
+              <option value="">Все</option>
+              {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </NativeSelect>
+          </FormItem>
           <Div>
             <Button
               size="m"
@@ -527,6 +603,7 @@ export function AdminPanel() {
                 points: Number(newReflectionPoints) || 10,
                 sendNotification: newReflectionSendNotification,
                 groupId: newReflectionGroupId || null,
+                track: newReflectionTrack || null,
               }).then(() => { 
                 setNewReflectionText(''); 
                 setNewReflectionPublishTime('');
@@ -539,19 +616,53 @@ export function AdminPanel() {
             </Button>
           </Div>
           {reflections.map((r) => (
-            <SimpleCell
-              key={r.id}
-              multiline
-              subtitle={`${r.type} · ${new Date(r.publishTime).toLocaleString('ru-RU')} ${r.endTime ? ` - ${new Date(r.endTime).toLocaleString('ru-RU')}` : ''} · ${r.points} б.`}
-              after={
-                <Button size="s" mode="outline" onClick={() => void deleteReflectionQuestion(r.id).then(load)}>
-                  Удалить
-                </Button>
-              }
-            >
-              {r.groupId ? <Badge mode="prominent" style={{ display: 'inline-block', marginRight: 8 }}>Группа {r.groupId}</Badge> : null}
-              {r.text}
-            </SimpleCell>
+            <Div key={r.id} style={{ padding: '8px 16px' }}>
+              {editingReflectionId === r.id ? (
+                <div className="nfo-card" style={{ margin: 0 }}>
+                  <FormItem top="Текст"><Textarea value={editReflectionText} onChange={(e) => setEditReflectionText(e.target.value)} /></FormItem>
+                  <FormItem top="Публикация"><Input type="datetime-local" value={editReflectionPublishTime} onChange={(e) => setEditReflectionPublishTime(e.target.value)} /></FormItem>
+                  <FormItem top="Закрытие"><Input type="datetime-local" value={editReflectionEndTime} onChange={(e) => setEditReflectionEndTime(e.target.value)} /></FormItem>
+                  <FormItem top="Баллы"><Input type="number" value={editReflectionPoints} onChange={(e) => setEditReflectionPoints(e.target.value)} /></FormItem>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="m" onClick={() => void updateReflectionQuestion(r.id, {
+                      text: editReflectionText,
+                      publishTime: new Date(editReflectionPublishTime).toISOString(),
+                      endTime: editReflectionEndTime ? new Date(editReflectionEndTime).toISOString() : null,
+                      points: Number(editReflectionPoints) || 10,
+                    }).then(() => { setEditingReflectionId(null); load(); })}>Сохранить</Button>
+                    <Button size="m" mode="secondary" onClick={() => setEditingReflectionId(null)}>Отмена</Button>
+                  </div>
+                </div>
+              ) : (
+                <SimpleCell
+                  multiline
+                  subtitle={`${r.type} · ${new Date(r.publishTime).toLocaleString('ru-RU')} ${r.endTime ? ` - ${new Date(r.endTime).toLocaleString('ru-RU')}` : ''} · ${r.points} б.`}
+                  after={
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Button
+                        size="s"
+                        mode="outline"
+                        onClick={() => {
+                          setEditingReflectionId(r.id);
+                          setEditReflectionText(r.text);
+                          setEditReflectionPublishTime(new Date(r.publishTime).toISOString().slice(0, 16));
+                          setEditReflectionEndTime(r.endTime ? new Date(r.endTime).toISOString().slice(0, 16) : '');
+                          setEditReflectionPoints(String(r.points));
+                        }}
+                      >
+                        Изм.
+                      </Button>
+                      <Button size="s" mode="outline" onClick={() => void deleteReflectionQuestion(r.id).then(load)}>
+                        Удалить
+                      </Button>
+                    </div>
+                  }
+                >
+                  {r.groupId ? <Badge mode="prominent" style={{ display: 'inline-block', marginRight: 8 }}>Группа {r.groupId}</Badge> : null}
+                  {r.text}
+                </SimpleCell>
+              )}
+            </Div>
           ))}
         </Group>
       ) : tab === 'push' ? (
@@ -586,10 +697,22 @@ export function AdminPanel() {
             </NativeSelect>
           </FormItem>
           {pushTarget === 'track' && (
-            <FormItem top="Трек">
-              <NativeSelect value={pushTrack} onChange={(e) => setPushTrack(e.target.value)}>
-                {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </NativeSelect>
+            <FormItem top="Треки">
+              {TRACKS.map((t) => (
+                <Checkbox
+                  key={t}
+                  checked={pushTracks.includes(t)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setPushTracks([...pushTracks, t]);
+                    } else {
+                      setPushTracks(pushTracks.filter((tr) => tr !== t));
+                    }
+                  }}
+                >
+                  {t}
+                </Checkbox>
+              ))}
             </FormItem>
           )}
           {pushTarget === 'user' && (
@@ -608,7 +731,7 @@ export function AdminPanel() {
                 text: pushText,
                 image: pushImage || undefined,
                 target_type: pushTarget,
-                target_tracks: pushTarget === 'track' ? [pushTrack] : undefined,
+                target_tracks: pushTarget === 'track' && pushTracks.length ? pushTracks : undefined,
                 target_user_id: pushTarget === 'user' ? Number(pushUserId) : undefined,
                 scheduled_at: pushScheduledAt ? new Date(pushScheduledAt).toISOString() : undefined,
               }).then(() => { 
@@ -690,6 +813,12 @@ export function AdminPanel() {
         <AdminUsersTab />
       ) : tab === 'feedback' ? (
         <AdminFeedbackTab />
+      ) : tab === 'reflection-answers' ? (
+        <AdminReflectionAnswersTab />
+      ) : tab === 'nfo-stats' ? (
+        <AdminNfoStatsTab />
+      ) : tab === 'activity' ? (
+        <AdminActivityTab />
       ) : tab === 'settings' ? (
         <AdminSettingsTab />
       ) : null}

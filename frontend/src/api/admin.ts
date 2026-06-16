@@ -40,12 +40,19 @@ export function moderateExchange(id: number, status: 'approved' | 'rejected', pu
   return apiRequest(`/api/admin/exchange/${id}/moderate`, { method: 'POST', body: { status, publishTime } });
 }
 
+export function hideExchangeQuestion(id: number) {
+  return apiRequest(`/api/admin/exchange/${id}/hide`, { method: 'POST' });
+}
+
 export function fetchPendingSubmissions() {
   return apiRequest<{ submissions: PendingSubmission[] }>('/api/admin/submissions/pending');
 }
 
-export function moderateSubmission(id: number, status: 'approved' | 'rejected') {
-  return apiRequest(`/api/admin/submissions/${id}/moderate`, { method: 'POST', body: { status } });
+export function moderateSubmission(id: number, status: 'approved' | 'rejected', adminComment?: string) {
+  return apiRequest(`/api/admin/submissions/${id}/moderate`, {
+    method: 'POST',
+    body: { status, admin_comment: adminComment },
+  });
 }
 
 export function fetchReflectionQuestions() {
@@ -168,6 +175,98 @@ export function getAdminExportUrl(type: string) {
   return `/api/admin/export/${type}`;
 }
 
+export function getAdminExportXlsxUrl(type: string) {
+  return `/api/admin/export/${type}/xlsx`;
+}
+
+export function fetchNfoDaySettings() {
+  return apiRequest<{ publishHour: number; publishMinute: number; points: number }>('/api/admin/settings/nfo-day');
+}
+
+export function saveNfoDaySettings(data: { publishHour: number; publishMinute: number; points: number }) {
+  return apiRequest('/api/admin/settings/nfo-day', { method: 'POST', body: data });
+}
+
+export function fetchDailyFocusSettings() {
+  return apiRequest<{ title: string; taskId: number | null }>('/api/admin/settings/daily-focus');
+}
+
+export function saveDailyFocusSettings(title: string, taskId?: number | null) {
+  return apiRequest('/api/admin/settings/daily-focus', { method: 'POST', body: { title, taskId } });
+}
+
+export function fetchReflectionAnswers(track?: string, day?: string) {
+  const params = new URLSearchParams();
+  if (track) params.set('track', track);
+  if (day) params.set('day', day);
+  const q = params.toString() ? `?${params}` : '';
+  return apiRequest<{ answers: ReflectionAnswerRow[] }>(`/api/admin/reflection-answers${q}`);
+}
+
+export function updateReflectionQuestion(id: number, data: Partial<ReflectionQuestion>) {
+  return apiRequest(`/api/admin/reflection-questions/${id}`, { method: 'PATCH', body: data });
+}
+
+export function fetchNfoDayStats() {
+  return apiRequest<NfoDayStats>('/api/admin/nfo-day/stats');
+}
+
+export function fetchCheckinSettings() {
+  return apiRequest<{ enabledTracks: string[]; slots: string[] }>('/api/admin/settings/checkin');
+}
+
+export function saveCheckinSettings(data: { enabledTracks: string[]; slots: string[] }) {
+  return apiRequest('/api/admin/settings/checkin', { method: 'POST', body: data });
+}
+
+export function fetchExchangeSlots() {
+  return apiRequest<{ slots: string[] }>('/api/admin/settings/exchange-slots');
+}
+
+export function saveExchangeSlots(slots: string[]) {
+  return apiRequest('/api/admin/settings/exchange-slots', { method: 'POST', body: { slots } });
+}
+
+export function fetchActivityLogs(limit = 200) {
+  return apiRequest<{ logs: ActivityLogRow[] }>(`/api/admin/activity?limit=${limit}`);
+}
+
+export function fetchExchangeActivity() {
+  return apiRequest<{ activity: ExchangeActivityRow[] }>('/api/admin/exchange/activity');
+}
+
+export interface ReflectionAnswerRow {
+  id: number;
+  answerText: string;
+  createdAt: string;
+  questionText: string;
+  questionType: string;
+  userName: string;
+  userLastName: string | null;
+  track: string | null;
+}
+
+export interface NfoDayStats {
+  answers: { answerText: string; factors: string[]; date: string; userName: string; track: string | null }[];
+  factorCounts: Record<string, number>;
+}
+
+export interface ActivityLogRow {
+  id: number;
+  action: string;
+  createdAt: string;
+  userName: string;
+  track: string | null;
+}
+
+export interface ExchangeActivityRow {
+  id: number;
+  text: string;
+  status: string;
+  answerCount: number;
+  assignmentCount: number;
+}
+
 export interface Broadcast {
   id: number;
   text: string;
@@ -211,7 +310,10 @@ export interface PendingQuestion {
 export interface PendingSubmission {
   id: number;
   taskId: number;
+  taskTitle?: string;
+  userName?: string;
   answerText: string | null;
+  photos?: string[] | null;
   status: string;
 }
 

@@ -60,6 +60,8 @@ export async function awardPoints(
         text: `Поздравляем! Твой уровень рефлексии повышен до ${newLevel}! 🎉`,
         targetType: 'user',
         targetUserId: userId,
+        category: 'points',
+        skipBroadcastLog: true,
       }).catch(console.error);
     }
   }

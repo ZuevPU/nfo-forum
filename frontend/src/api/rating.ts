@@ -8,6 +8,16 @@ export function fetchPointsHistory() {
   return apiRequest<{ history: PointsHistoryItem[] }>('/api/rating/history');
 }
 
+export function fetchReflectionLevel() {
+  return apiRequest<ReflectionLevelData>('/api/rating/reflection-level');
+}
+
+export interface ReflectionLevelData {
+  level: number;
+  reflectionPoints: number;
+  history: { id: number; oldLevel: number; newLevel: number; createdAt: string }[];
+}
+
 export interface PointsHistoryItem {
   id: number;
   points: number;
