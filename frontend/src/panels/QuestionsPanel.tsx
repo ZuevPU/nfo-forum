@@ -4,6 +4,7 @@ import {
   Group,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   fetchReflectionQuestions,
   submitReflectionAnswer,
@@ -23,6 +24,7 @@ const QUESTION_TYPE_LABELS: Record<string, string> = {
 };
 
 export function QuestionsPanel() {
+  const { questionId } = useParams<{ questionId?: string }>();
   const [questions, setQuestions] = useState<ReflectionQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
@@ -39,6 +41,16 @@ export function QuestionsPanel() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!questionId || loading) return;
+    const el = document.getElementById(`question-${questionId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.outline = '2px solid var(--nfo-primary)';
+      el.style.borderRadius = '12px';
+    }
+  }, [questionId, loading, questions]);
 
   useEffect(() => {
     if (!successMessage) return;
@@ -109,7 +121,7 @@ export function QuestionsPanel() {
                 </div>
                 
                 {group.map((q, index) => (
-                  <div key={q.id} style={{ marginBottom: index === group.length - 1 ? 0 : 16 }}>
+                  <div key={q.id} id={`question-${q.id}`} style={{ marginBottom: index === group.length - 1 ? 0 : 16 }}>
                     <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, lineHeight: 1.4 }}>
                       {anyLocked ? '🔒 ' : q.isAnswered ? '✅ ' : ''}{q.text}
                     </div>

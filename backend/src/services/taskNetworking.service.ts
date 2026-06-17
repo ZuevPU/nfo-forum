@@ -2,6 +2,7 @@ import { and, eq, ne } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { taskNetworkingQueue, users } from '../db/schema.js';
 import { sendPush } from './push.service.js';
+import { entityLink } from '../utils/appLinks.js';
 
 export async function joinNetworkingQueue(taskId: number, userId: number): Promise<{
   status: 'waiting' | 'paired';
@@ -59,14 +60,16 @@ export async function joinNetworkingQueue(taskId: number, userId: number): Promi
 
     void sendPush({
       text: 'Тебе назначен партнёр для нетворкинг-задания! Открой раздел «Задания».',
-      hash: '#/tasks',
+      hash: entityLink('tasks', taskId),
+      linkHash: entityLink('tasks', taskId),
       targetType: 'user',
       targetUserId: userId,
     }).catch(console.error);
 
     void sendPush({
       text: 'Тебе назначен партнёр для нетворкинг-задания! Открой раздел «Задания».',
-      hash: '#/tasks',
+      hash: entityLink('tasks', taskId),
+      linkHash: entityLink('tasks', taskId),
       targetType: 'user',
       targetUserId: waitingPartner.userId,
     }).catch(console.error);

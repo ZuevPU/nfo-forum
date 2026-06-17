@@ -6,6 +6,7 @@ import {
   PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { pickImage } from '../lib/vk-bridge';
 import { EmptyState } from '../components/EmptyState';
 import { PanelLayout } from '../components/PanelLayout';
@@ -21,6 +22,7 @@ import {
 } from '../api/tasks';
 
 export function TasksPanel() {
+  const { taskId } = useParams<{ taskId?: string }>();
   const { setBackHandler } = useLayout();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
@@ -47,6 +49,14 @@ export function TasksPanel() {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
+    if (!taskId || tasks.length === 0 || selectedTask) return;
+    const id = Number(taskId);
+    if (Number.isNaN(id)) return;
+    const task = tasks.find((t) => t.id === id);
+    if (task) setSelectedTask(task);
+  }, [taskId, tasks, selectedTask]);
+
+  useEffect(() => {
     if (!taskSuccess) return;
     const timer = window.setTimeout(() => setTaskSuccess(null), 4000);
     return () => window.clearTimeout(timer);
@@ -71,9 +81,9 @@ export function TasksPanel() {
     setUploading(true);
     setUploadError(null);
     try {
-      const dataUrl = await pickImage();
-      if (dataUrl) {
-        setPhotos((prev) => [...prev, dataUrl].slice(0, 3));
+      const picked = await pickImage();
+      if (picked) {
+        setPhotos((prev) => [...prev, picked.url].slice(0, 3));
       } else {
         setUploadError('Не удалось выбрать фото. Попробуй JPG или PNG до 10 МБ.');
       }

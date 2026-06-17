@@ -11,6 +11,7 @@ import {
 import type { UserDto } from '../types/api.js';
 import { awardPointsForSource } from './pointsConfig.service.js';
 import { notifyUser } from './push.service.js';
+import { entityLink } from '../utils/appLinks.js';
 
 export async function createQuestion(
   user: UserDto,
@@ -104,7 +105,8 @@ export async function createAnswer(user: UserDto, questionId: number, answerText
       question.userId,
       `Новый ответ на твой вопрос в «Обмене опытом»`,
       'exchange',
-      `#/exchange/${questionId}`,
+      entityLink('exchange', questionId),
+      'Открыть вопрос',
     ).catch(console.error);
   }
 
@@ -129,7 +131,8 @@ export async function createAnswer(user: UserDto, questionId: number, answerText
       updatedQuestion.userId,
       `Собрано ${answerCount} ответа на твой вопрос в «Обмене опытом»!`,
       'exchange',
-      `#/exchange/${questionId}`,
+      entityLink('exchange', questionId),
+      'Открыть вопрос',
     ).catch(console.error);
   }
 
@@ -333,7 +336,8 @@ export async function assignRandomRespondents(
       user.id,
       'Тебе назначен вопрос для «Обмена опытом»! Открой раздел и ответь.',
       'exchange',
-      '#/exchange',
+      entityLink('exchange'),
+      'Открыть обмен',
     ).catch(console.error);
   }
 

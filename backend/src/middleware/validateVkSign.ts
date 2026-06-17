@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config/env.js';
 import type { VkSignedRequest } from './vkLaunchParams.js';
 
-const EXEMPT_PATHS = ['/api/health', '/api/cron'];
+const EXEMPT_PATHS = ['/api/health', '/api/cron', '/api/media'];
 
 function buildSignString(params: Record<string, string>): string {
   return Object.keys(params)

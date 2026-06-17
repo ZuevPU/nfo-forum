@@ -15,6 +15,7 @@ import {
 import { assignRandomRespondents } from './exchange.service.js';
 import { awardPoints } from './points.service.js';
 import { notifyUser, notifyUsersForTrack } from './push.service.js';
+import { entityLink } from '../utils/appLinks.js';
 import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
 import {
   nfoDayReflections,
@@ -128,7 +129,8 @@ export async function createTask(data: {
         row.track,
         `Новое задание: «${row.title}»`,
         'tasks',
-        '#/tasks',
+        entityLink('tasks', row.id),
+        'Открыть задание',
       ).catch(console.error);
     }
   }
@@ -258,7 +260,8 @@ export async function moderateSubmission(
           ? `Задание не принято: ${adminComment}`
           : 'Задание не принято. Попробуй отправить снова.',
         'tasks',
-        '#/tasks',
+        entityLink('tasks', row.taskId),
+        'Открыть задание',
       ).catch(console.error);
     }
     return row ?? null;
@@ -285,7 +288,8 @@ export async function moderateSubmission(
       ? `Задание принято! ${adminComment}`
       : `Задание «${task.title}» принято! +${task.points} баллов`,
     'tasks',
-    '#/tasks',
+    entityLink('tasks', row.taskId),
+    'Открыть задание',
   ).catch(console.error);
 
   return row;
@@ -325,7 +329,8 @@ export async function createReflectionQuestion(data: {
       row.track,
       `Новый вопрос для рефлексии: ${row.text.slice(0, 80)}${row.text.length > 80 ? '…' : ''}`,
       'questions',
-      '#/questions',
+      entityLink('questions', row.id),
+      'Открыть вопрос',
     ).catch(console.error);
     await db
       .update(reflectionQuestions)

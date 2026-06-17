@@ -17,6 +17,8 @@
 | `VK_GROUP_TOKEN` | токен сообщества |
 | `VK_GROUP_ID` | ID сообщества |
 | `CRON_SECRET` | случайная строка 32+ символов |
+| `API_PUBLIC_URL` | публичный URL backend на Timeweb, напр. `https://zuevpu-nfo-forum-d400.twc1.net` (для ссылок на фото в рассылках) |
+| `VITE_API_URL` | тот же URL — только при сборке frontend |
 
 ### Docker
 

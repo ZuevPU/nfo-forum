@@ -40,8 +40,8 @@
 
 1. Откройте https://vk.com/app54627015 под аккаунтом администратора
 2. Splash должен исчезнуть в течение 30 секунд (`VKWebAppInit`)
-3. VK DevTools → Network: запросы к `nfo-backend-production.up.railway.app` без CORS-ошибок
-4. Backend: `curl https://nfo-backend-production.up.railway.app/api/health`
+3. VK DevTools → Network: запросы к `zuevpu-nfo-forum-d400.twc1.net` без CORS-ошибок
+4. Backend: `curl https://zuevpu-nfo-forum-d400.twc1.net/api/health`
 
 ## 5. Локальная отладка
 
@@ -74,6 +74,7 @@ npm run tunnel:local
 - [ ] Управление → **Сообщения** → сообщения сообщества **включены**
 - [ ] Дополнительно → Работа с API → ключ с правом **«Разрешить приложению доступ к сообщениям сообщества»**
 - [ ] Этот ключ = `VK_GROUP_TOKEN` на сервере (Timeweb)
+- [ ] `API_PUBLIC_URL=https://zuevpu-nfo-forum-d400.twc1.net` на backend (Timeweb → переменные окружения) — для загрузки фото в рассылках
 
 ### Frontend env
 

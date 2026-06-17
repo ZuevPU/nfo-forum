@@ -258,9 +258,11 @@ adminRouter.delete('/reflection-questions/:id', async (req, res) => {
 });
 
 adminRouter.post('/push/send', async (req: AuthenticatedRequest, res) => {
-  const { text, image, target_type, target_tracks, target_user_id, scheduled_at } = req.body as {
+  const { text, image, image_media_id, link_hash, target_type, target_tracks, target_user_id, scheduled_at } = req.body as {
     text?: string;
     image?: string;
+    image_media_id?: string;
+    link_hash?: string;
     target_type?: 'all' | 'track' | 'user';
     target_tracks?: string[];
     target_user_id?: number;
@@ -278,6 +280,8 @@ adminRouter.post('/push/send', async (req: AuthenticatedRequest, res) => {
   const result = await sendPush({
     text,
     image,
+    imageMediaId: image_media_id,
+    linkHash: link_hash,
     targetType: target_type,
     targetTracks: target_tracks,
     targetUserId: target_user_id,

@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm';
 import {
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -10,7 +11,29 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from 'drizzle-orm/pg-core';
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return 'bytea';
+  },
+  toDriver(value: Buffer) {
+    return value;
+  },
+  fromDriver(value: unknown) {
+    return value as Buffer;
+  },
+});
+
+export const mediaFiles = pgTable('media_files', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  mimeType: text('mime_type').notNull(),
+  data: bytea('data').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  source: text('source'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
 
 export const users = pgTable(
   'users',
@@ -276,6 +299,8 @@ export const broadcasts = pgTable('broadcasts', {
   id: serial('id').primaryKey(),
   text: text('text').notNull(),
   image: text('image'),
+  imageMediaId: uuid('image_media_id').references(() => mediaFiles.id, { onDelete: 'set null' }),
+  linkHash: text('link_hash'),
   targetType: text('target_type').notNull(),
   targetTracks: text('target_tracks').array(),
   targetUserId: integer('target_user_id').references(() => users.id, { onDelete: 'cascade' }),

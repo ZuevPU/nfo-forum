@@ -9,10 +9,14 @@ import {
 } from '../constants/notifications.js';
 import { appendAppLink } from '../utils/appLinks.js';
 import { eq, inArray } from 'drizzle-orm';
+import { getMedia, resolveMediaIdFromImageInput } from './media.service.js';
+import { uploadPhotoForMessage } from './vkPhoto.service.js';
 
 interface PushPayload {
   text: string;
   image?: string;
+  imageMediaId?: string;
+  linkHash?: string;
   targetType: 'all' | 'track' | 'user';
   targetTracks?: string[];
   targetUserId?: number;
@@ -39,7 +43,7 @@ const PEER_IDS_BATCH_SIZE = 100;
 async function sendVkMessageBatch(
   vkUserIds: number[],
   message: string,
-  image?: string,
+  attachment?: string,
 ): Promise<VkApiError | null> {
   if (!env.VK_GROUP_TOKEN) {
     const err = { error_code: 0, error_msg: 'VK_GROUP_TOKEN not set' };
@@ -48,15 +52,18 @@ async function sendVkMessageBatch(
   }
 
   const peerIds = vkUserIds.join(',');
-  const finalMessage = image ? `${message}\n\n${image}` : message;
 
   const params = new URLSearchParams({
     peer_ids: peerIds,
-    message: finalMessage,
+    message,
     random_id: String(Math.floor(Math.random() * 1e9)),
     access_token: env.VK_GROUP_TOKEN,
     v: '5.199',
   });
+
+  if (attachment) {
+    params.set('attachment', attachment);
+  }
 
   const response = await fetch(`https://api.vk.com/method/messages.send?${params}`, {
     method: 'POST',
@@ -79,17 +86,33 @@ async function sendVkMessageBatch(
 async function sendVkMessage(
   vkUserIds: number[],
   message: string,
-  image?: string,
+  attachment?: string,
 ): Promise<VkApiError | null> {
   if (vkUserIds.length === 0) return null;
 
   let lastError: VkApiError | null = null;
   for (let i = 0; i < vkUserIds.length; i += PEER_IDS_BATCH_SIZE) {
     const batch = vkUserIds.slice(i, i + PEER_IDS_BATCH_SIZE);
-    const err = await sendVkMessageBatch(batch, message, image);
+    const err = await sendVkMessageBatch(batch, message, attachment);
     if (err) lastError = err;
   }
   return lastError;
+}
+
+async function resolvePhotoAttachment(payload: PushPayload): Promise<string | undefined> {
+  const mediaId = payload.imageMediaId ?? (await resolveMediaIdFromImageInput(payload.image, undefined));
+  if (!mediaId) return undefined;
+
+  const media = await getMedia(mediaId);
+  if (!media) return undefined;
+
+  const ext = media.mimeType.includes('png') ? 'png' : 'jpg';
+  const result = await uploadPhotoForMessage(media.buffer, `photo.${ext}`);
+  if ('error' in result) {
+    console.error('[push] VK photo upload failed:', result.error);
+    return undefined;
+  }
+  return result.attachment;
 }
 
 function filterByCategory(rows: UserRow[], category?: NotificationCategory): UserRow[] {
@@ -132,8 +155,9 @@ async function resolveTargetUsers(payload: PushPayload): Promise<UserRow[]> {
 }
 
 function buildMessage(payload: PushPayload): string {
-  if (payload.hash) {
-    return appendAppLink(payload.text, payload.hash, payload.linkLabel);
+  const hash = payload.linkHash ?? payload.hash;
+  if (hash) {
+    return appendAppLink(payload.text, hash, payload.linkLabel);
   }
   return payload.text;
 }
@@ -149,17 +173,24 @@ export async function deliverPush(
   }
 
   const message = buildMessage(payload);
-  const vkError = await sendVkMessage(vkIds, message, payload.image);
+  const attachment = await resolvePhotoAttachment(payload);
+  const vkError = await sendVkMessage(vkIds, message, attachment);
   return { sent: vkError ? 0 : vkIds.length, vkError };
 }
 
 export async function sendPush(
   payload: PushPayload,
 ): Promise<{ sent: number; scheduled?: boolean; vkError?: VkApiError | null }> {
+  const resolvedMediaId = payload.image || payload.imageMediaId
+    ? await resolveMediaIdFromImageInput(payload.image, payload.imageMediaId)
+    : null;
+
   if (!payload.skipBroadcastLog) {
     await db.insert(broadcasts).values({
       text: payload.text,
       image: payload.image ?? null,
+      imageMediaId: resolvedMediaId,
+      linkHash: payload.linkHash ?? payload.hash?.replace(/^#\/?/, '') ?? null,
       targetType: payload.targetType,
       targetTracks: payload.targetTracks ?? null,
       targetUserId: payload.targetUserId ?? null,
@@ -172,7 +203,12 @@ export async function sendPush(
     return { sent: 0, scheduled: true };
   }
 
-  const { sent, vkError } = await deliverPush(payload);
+  const deliverPayload: PushPayload = {
+    ...payload,
+    imageMediaId: resolvedMediaId ?? payload.imageMediaId,
+  };
+
+  const { sent, vkError } = await deliverPush(deliverPayload);
   return { sent, vkError };
 }
 
@@ -183,10 +219,12 @@ export async function notifyUsersForTrack(
   hash?: string,
   linkLabel?: string,
 ) {
+  const normalizedHash = hash?.replace(/^#\/?/, '');
   if (track) {
     return sendPush({
       text,
-      hash,
+      hash: normalizedHash,
+      linkHash: normalizedHash,
       linkLabel,
       targetType: 'track',
       targetTracks: [track],
@@ -196,7 +234,8 @@ export async function notifyUsersForTrack(
   }
   return sendPush({
     text,
-    hash,
+    hash: normalizedHash,
+    linkHash: normalizedHash,
     linkLabel,
     targetType: 'all',
     category,
@@ -211,9 +250,11 @@ export async function notifyUser(
   hash?: string,
   linkLabel?: string,
 ) {
+  const normalizedHash = hash?.replace(/^#\/?/, '');
   return sendPush({
     text,
-    hash,
+    hash: normalizedHash,
+    linkHash: normalizedHash,
     linkLabel,
     targetType: 'user',
     targetUserId: userId,

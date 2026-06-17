@@ -15,6 +15,8 @@ import { reflectionRouter } from './routes/reflection.js';
 import { stateRouter } from './routes/state.js';
 import { tasksRouter } from './routes/tasks.js';
 import { adminRouter } from './routes/admin.js';
+import { uploadsRouter } from './routes/uploads.js';
+import { mediaRouter } from './routes/media.js';
 
 const VK_HOSTING_ORIGIN = /^https:\/\/[\w-]+\.vk-apps\.com$/;
 const VERCEL_ORIGIN = /^https:\/\/.*\.vercel\.app$/;
@@ -47,6 +49,7 @@ export function createApp() {
   );
 
   app.use(express.json({ limit: '12mb' }));
+  app.use('/api/media', mediaRouter);
   app.use(validateVkSign);
 
   app.get('/api/health', async (_req, res) => {
@@ -71,6 +74,7 @@ export function createApp() {
   app.use('/api/diagnostics', diagnosticsRouter);
   app.use('/api/cron', cronRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/uploads', uploadsRouter);
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error:', err);

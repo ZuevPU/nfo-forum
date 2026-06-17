@@ -54,6 +54,7 @@ import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab, AdminReflectionAnswe
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
 import { pickImage } from '../lib/vk-bridge';
+import { uploadImageFromUrl } from '../api/uploads';
 
 export function AdminPanel() {
   const { user } = useAuthContext();
@@ -125,9 +126,12 @@ export function AdminPanel() {
 
   const [pushText, setPushText] = useState('');
   const [pushImage, setPushImage] = useState<string | null>(null);
+  const [pushMediaId, setPushMediaId] = useState<string | null>(null);
   const [pushImageUrl, setPushImageUrl] = useState('');
   const [pushImageError, setPushImageError] = useState<string | null>(null);
   const [pushUploading, setPushUploading] = useState(false);
+  const [pushLinkType, setPushLinkType] = useState('home');
+  const [pushLinkId, setPushLinkId] = useState('');
   const [pushTarget, setPushTarget] = useState<'all' | 'track' | 'user'>('all');
   const [pushTracks, setPushTracks] = useState<string[]>([TRACKS[0]]);
   const [pushUserId, setPushUserId] = useState('');
@@ -142,11 +146,12 @@ export function AdminPanel() {
         setPushImageError('Не удалось выбрать фото. Попробуй JPG или PNG до 10 МБ.');
         return;
       }
-      if (picked.startsWith('data:')) {
-        setPushImageError('Для рассылки нужна ссылка на изображение. На десктопе вставьте URL в поле ниже.');
+      if (picked.url.startsWith('data:')) {
+        setPushImageError('Не удалось загрузить фото на сервер. Проверь соединение или вставьте ссылку ниже.');
         return;
       }
-      setPushImage(picked);
+      setPushImage(picked.url);
+      setPushMediaId(picked.mediaId ?? null);
       setPushImageUrl('');
     } catch (e) {
       console.error('Upload failed:', e);
@@ -156,16 +161,32 @@ export function AdminPanel() {
     }
   };
 
-  const resolvePushImage = (): string | undefined => {
-    const uploaded = pushImage?.trim();
-    if (uploaded && (uploaded.startsWith('http://') || uploaded.startsWith('https://'))) {
-      return uploaded;
+  const handleIngestPushImageUrl = async () => {
+    const url = pushImageUrl.trim();
+    if (!url || !/^https?:\/\//i.test(url)) {
+      setPushImageError('Укажите корректную ссылку на изображение (https://...)');
+      return;
     }
-    const manual = pushImageUrl.trim();
-    if (manual && (manual.startsWith('http://') || manual.startsWith('https://'))) {
-      return manual;
+    setPushUploading(true);
+    setPushImageError(null);
+    try {
+      const result = await uploadImageFromUrl(url);
+      setPushImage(result.url);
+      setPushMediaId(result.mediaId);
+      setPushImageUrl('');
+    } catch (e) {
+      console.error('Ingest failed:', e);
+      setPushImageError('Не удалось загрузить изображение по ссылке.');
+    } finally {
+      setPushUploading(false);
     }
-    return undefined;
+  };
+
+  const buildPushLinkHash = (): string | undefined => {
+    const id = pushLinkId.trim();
+    if (pushLinkType === 'home') return id ? `home/${id}` : 'home';
+    if (id) return `${pushLinkType}/${id}`;
+    return pushLinkType;
   };
 
   const load = () => {
@@ -712,7 +733,7 @@ export function AdminPanel() {
                   type="button"
                   className="nfo-admin-btn-danger"
                   style={{ position: 'absolute', top: 4, right: 4, padding: '2px 8px', fontSize: 11 }}
-                  onClick={() => { setPushImage(null); setPushImageError(null); }}
+                  onClick={() => { setPushImage(null); setPushMediaId(null); setPushImageError(null); }}
                 >
                   ✕
                 </button>
@@ -726,16 +747,42 @@ export function AdminPanel() {
               <div style={{ marginTop: 8, fontSize: 12, color: '#e74c3c' }}>{pushImageError}</div>
             )}
           </FormItem>
-          <FormItem top="Или ссылка на изображение (https)">
-            <Input
-              value={pushImageUrl}
-              placeholder="https://..."
-              onChange={(e) => {
-                setPushImageUrl(e.target.value);
-                setPushImageError(null);
-              }}
-            />
+          <FormItem top="Или загрузить по ссылке (https)">
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Input
+                value={pushImageUrl}
+                placeholder="https://..."
+                onChange={(e) => {
+                  setPushImageUrl(e.target.value);
+                  setPushImageError(null);
+                }}
+              />
+              <Button mode="secondary" loading={pushUploading} onClick={() => void handleIngestPushImageUrl()}>
+                Загрузить
+              </Button>
+            </div>
           </FormItem>
+          <FormItem top="Куда ведёт ссылка «Открыть приложение»">
+            <NativeSelect value={pushLinkType} onChange={(e) => setPushLinkType(e.target.value)}>
+              <option value="home">Главная</option>
+              <option value="tasks">Задания</option>
+              <option value="questions">Вопросы</option>
+              <option value="exchange">Обмен опытом</option>
+              <option value="schedule">Программа</option>
+              <option value="checkin">Чек-ин</option>
+              <option value="nfo-day">Рефлексия дня</option>
+            </NativeSelect>
+          </FormItem>
+          {['tasks', 'questions', 'exchange'].includes(pushLinkType) && (
+            <FormItem top="ID (необязательно — конкретная сущность)">
+              <Input
+                type="number"
+                value={pushLinkId}
+                placeholder="Например, ID задания"
+                onChange={(e) => setPushLinkId(e.target.value)}
+              />
+            </FormItem>
+          )}
           <FormItem top="Аудитория">
             <NativeSelect value={pushTarget} onChange={(e) => setPushTarget(e.target.value as 'all' | 'track' | 'user')}>
               <option value="all">Все</option>
@@ -774,14 +821,11 @@ export function AdminPanel() {
             type="button"
             className="nfo-admin-btn-primary stretched"
             onClick={() => {
-              const image = resolvePushImage();
-              if (pushImageUrl.trim() && !image) {
-                setPushImageError('Укажите корректную ссылку, начинающуюся с https://');
-                return;
-              }
               void sendAdminPush({
               text: pushText,
-              image,
+              image: pushImage || undefined,
+              image_media_id: pushMediaId || undefined,
+              link_hash: buildPushLinkHash(),
               target_type: pushTarget,
               target_tracks: pushTarget === 'track' && pushTracks.length ? pushTracks : undefined,
               target_user_id: pushTarget === 'user' ? Number(pushUserId) : undefined,
@@ -789,8 +833,10 @@ export function AdminPanel() {
             }).then(() => {
               setPushText('');
               setPushImage(null);
+              setPushMediaId(null);
               setPushImageUrl('');
               setPushImageError(null);
+              setPushLinkId('');
               setPushUserId('');
               setPushScheduledAt('');
               load();

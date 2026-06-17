@@ -7,3 +7,5 @@ dist/
 .cursor/
 frontend-dist.zip
 frontend/dist.zip
+uploads/
+backend/uploads/

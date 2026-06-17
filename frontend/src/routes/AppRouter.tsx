@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { Tabbar } from '../components/Tabbar';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useLayout } from '../contexts/LayoutContext';
+import { useDeepLink } from '../hooks/useDeepLink';
 import { useVkBackNavigation } from '../hooks/useVkBackNavigation';
 import { AdminPanel } from '../panels/AdminPanel';
 import { DiagnosticsPanel } from '../panels/DiagnosticsPanel';
@@ -22,7 +23,11 @@ import { StateCheckinPanel } from '../panels/StateCheckinPanel';
 import { TasksPanel } from '../panels/TasksPanel';
 import { WelcomePanel } from '../panels/WelcomePanel';
 
-const MAIN_ROUTES = ['/home', '/schedule', '/questions', '/exchange', '/tasks', '/rating', '/checkin', '/diagnostics', '/nfo-day', '/settings'];
+const MAIN_ROUTE_PREFIXES = ['/home', '/schedule', '/questions', '/exchange', '/tasks', '/rating', '/checkin', '/diagnostics', '/nfo-day', '/settings'];
+
+function isMainRoute(pathname: string) {
+  return MAIN_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
 function HashRedirect() {
   const navigate = useNavigate();
@@ -46,9 +51,10 @@ export function AppRouter() {
   const { status } = useAuthContext();
   const { tabbarHidden } = useLayout();
   const location = useLocation();
-  const showTabbar = MAIN_ROUTES.includes(location.pathname) && !tabbarHidden;
+  const showTabbar = isMainRoute(location.pathname) && !tabbarHidden;
 
   useVkBackNavigation();
+  useDeepLink();
 
   if (status === 'loading') {
     return (
@@ -75,10 +81,12 @@ export function AppRouter() {
           <Route path="/register" element={<RegisterPanel />} />
           <Route path="/home" element={<HomePanel />} />
           <Route path="/schedule" element={<SchedulePanel />} />
+          <Route path="/questions/:questionId" element={<QuestionsPanel />} />
           <Route path="/questions" element={<QuestionsPanel />} />
           <Route path="/exchange" element={<ExchangePanel />} />
           <Route path="/exchange/incoming/:assignmentId" element={<ExchangeIncomingPanel />} />
           <Route path="/exchange/:id" element={<ExchangeDetailPanel />} />
+          <Route path="/tasks/:taskId" element={<TasksPanel />} />
           <Route path="/tasks" element={<TasksPanel />} />
           <Route path="/rating" element={<RatingPanel />} />
           <Route path="/checkin" element={<StateCheckinPanel />} />

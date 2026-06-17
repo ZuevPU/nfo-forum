@@ -7,7 +7,7 @@ import { getEnabledTracks } from './diagnostics.service.js';
 import { getCheckinSettings, getExchangeSlotSettings } from './admin.service.js';
 import { getNfoDayConfig } from './reflection.service.js';
 import { isInSlotWindow, slotDedupKey } from '../utils/slotMatching.js';
-import { appendAppLink } from '../utils/appLinks.js';
+import { appendAppLink, entityLink } from '../utils/appLinks.js';
 import type { VkApiError } from './push.service.js';
 
 const CRON_JOBS: Record<
@@ -26,35 +26,35 @@ const CRON_JOBS: Record<
     text: 'Доброе утро! Сегодня отличный день на Форуме НФО. Открой расписание своего трека.',
     hour: 8,
     minute: 0,
-    hash: '#/schedule',
+    hash: entityLink('schedule'),
     category: 'program',
   },
   'morning-checkin': {
     text: 'Утренний чек-ин: как ты себя чувствуешь? Займи 30 секунд.',
     hour: 8,
     minute: 30,
-    hash: '#/checkin',
+    hash: entityLink('checkin'),
     category: 'program',
   },
   'daily-tasks': {
     text: 'Задания дня обновлены! Посмотри, что ждёт тебя сегодня.',
     hour: 9,
     minute: 0,
-    hash: '#/tasks',
+    hash: entityLink('tasks'),
     category: 'tasks',
   },
   'lunch-exchange': {
     text: 'Обед — время обмена опытом! Задай вопрос или ответь коллегам.',
     hour: 13,
     minute: 15,
-    hash: '#/exchange',
+    hash: entityLink('exchange'),
     category: 'exchange',
   },
   'evening-reflection': {
     text: 'Вечерняя рефлексия открыта. Поделись мыслями о прошедшем дне.',
     hour: 19,
     minute: 30,
-    hash: '#/nfo-day',
+    hash: entityLink('nfo-day'),
     category: 'questions',
   },
   goodnight: {
@@ -67,7 +67,7 @@ const CRON_JOBS: Record<
     text: 'Время оценить свои компетенции! Пройди самодиагностику тренера.',
     hour: 14,
     minute: 0,
-    hash: '#/diagnostics',
+    hash: entityLink('diagnostics'),
     isDiagnostics: true,
     category: 'tasks',
   },
@@ -102,7 +102,7 @@ async function runEventReminders(): Promise<number> {
     const result = event.track
       ? await sendPush({
           text,
-          hash: '#/schedule',
+          hash: entityLink('schedule'),
           targetType: 'track',
           targetTracks: [event.track],
           category: 'program',
@@ -141,6 +141,8 @@ async function runScheduledBroadcasts(): Promise<number> {
     const { sent: sentCount, vkError } = await deliverPush({
       text: b.text,
       image: b.image ?? undefined,
+      imageMediaId: b.imageMediaId ?? undefined,
+      linkHash: b.linkHash ?? undefined,
       targetType: b.targetType as 'all' | 'track' | 'user',
       targetTracks: b.targetTracks ?? undefined,
       targetUserId: b.targetUserId ?? undefined,
@@ -173,7 +175,7 @@ async function runReflectionPublish(): Promise<number> {
   let sent = 0;
   for (const q of due) {
     const text = `Новый вопрос для рефлексии: ${q.text.slice(0, 80)}${q.text.length > 80 ? '…' : ''}`;
-    const result = await notifyUsersForTrack(q.track, text, 'questions', '#/questions');
+    const result = await notifyUsersForTrack(q.track, text, 'questions', entityLink('questions', q.id), 'Открыть вопрос');
     await db
       .update(reflectionQuestions)
       .set({ notificationSentAt: now })
@@ -263,7 +265,7 @@ async function runDynamicSlots(): Promise<number> {
     if (!isInSlotWindow(slot, now)) continue;
     const payload = {
       text: 'Чек-ин: как ты себя чувствуешь? Займи 30 секунд.',
-      hash: '#/checkin',
+      hash: entityLink('checkin'),
       category: 'program' as NotificationCategory,
     };
     if (checkin.enabledTracks.length > 0) {
@@ -278,7 +280,7 @@ async function runDynamicSlots(): Promise<number> {
     if (!isInSlotWindow(slot, now)) continue;
     sent += await sendIfSlotNotSent('exchange', slot, {
       text: 'Время обмена опытом! Задай вопрос или ответь коллегам.',
-      hash: '#/exchange',
+      hash: entityLink('exchange'),
       category: 'exchange',
     });
   }
@@ -288,7 +290,7 @@ async function runDynamicSlots(): Promise<number> {
   if (isInSlotWindow(nfoSlot, now)) {
     sent += await sendIfSlotNotSent('nfo-day', nfoSlot, {
       text: 'Вечерняя рефлексия открыта. Поделись мыслями о прошедшем дне.',
-      hash: '#/nfo-day',
+      hash: entityLink('nfo-day'),
       category: 'questions',
     });
   }
@@ -334,6 +336,7 @@ export async function runCronJob(
     const result = await sendPush({
       text,
       hash: job.hash,
+      linkHash: job.hash,
       targetType: 'track',
       targetTracks: enabledTracks,
       category: job.category,
@@ -345,6 +348,7 @@ export async function runCronJob(
   const result = await sendPush({
     text,
     hash: job.hash,
+    linkHash: job.hash,
     targetType: 'all',
     category: job.category,
     skipBroadcastLog: true,
