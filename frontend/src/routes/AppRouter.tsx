@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { Tabbar } from '../components/Tabbar';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useLayout } from '../contexts/LayoutContext';
+import { useVkBackNavigation } from '../hooks/useVkBackNavigation';
 import { AdminPanel } from '../panels/AdminPanel';
 import { DiagnosticsPanel } from '../panels/DiagnosticsPanel';
 import { ExchangeDetailPanel } from '../panels/ExchangeDetailPanel';
@@ -46,6 +47,8 @@ export function AppRouter() {
   const { tabbarHidden } = useLayout();
   const location = useLocation();
   const showTabbar = MAIN_ROUTES.includes(location.pathname) && !tabbarHidden;
+
+  useVkBackNavigation();
 
   if (status === 'loading') {
     return (

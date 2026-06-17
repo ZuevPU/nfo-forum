@@ -155,7 +155,7 @@ export async function initVkBridge(): Promise<{
     }
   }
 
-  if (bridge.isWebView()) {
+  if (!isDevMode()) {
     void requestVkMessagesFromGroup(false).catch(() => {});
   }
 
@@ -166,7 +166,7 @@ export async function initVkBridge(): Promise<{
 }
 
 export async function requestVkMessagesFromGroup(force = false): Promise<boolean> {
-  if (isDevMode() || !bridge.isWebView()) return false;
+  if (isDevMode()) return false;
   if (!force && localStorage.getItem(MESSAGES_PERMISSION_KEY) === '1') return false;
   if (!VK_GROUP_ID) {
     console.warn('[push] VITE_VK_GROUP_ID is not set');
@@ -230,6 +230,31 @@ export function getVkSignHeaders(): Record<string, string> {
   }
 
   return headers;
+}
+
+export function pickImageAsDataUrl(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/jpg';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        console.warn('[upload] File exceeds 10 MB');
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  });
 }
 
 export async function uploadFiles(count = 1): Promise<string[]> {

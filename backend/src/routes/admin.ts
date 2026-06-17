@@ -39,6 +39,10 @@ import {
   setDailyFocusSettings,
   listActivityLogs,
 } from '../services/admin.service.js';
+import {
+  getReflectionLevelSettings,
+  setReflectionLevelSettings,
+} from '../services/reflectionLevelSettings.service.js';
 import { getExchangeActivity } from '../services/exchange.service.js';
 import {
   adjustUserPoints,
@@ -334,6 +338,21 @@ adminRouter.get('/settings/points', async (_req, res) => {
 adminRouter.post('/settings/points', async (req, res) => {
   await setPointsSettings(req.body as Record<string, number>);
   res.json({ ok: true });
+});
+
+adminRouter.get('/settings/reflection-levels', async (_req, res) => {
+  const settings = await getReflectionLevelSettings();
+  res.json(settings);
+});
+
+adminRouter.post('/settings/reflection-levels', async (req, res) => {
+  const { thresholds } = req.body as { thresholds?: number[] };
+  if (!Array.isArray(thresholds)) {
+    res.status(400).json({ error: 'thresholds array is required' });
+    return;
+  }
+  const settings = await setReflectionLevelSettings(thresholds);
+  res.json(settings);
 });
 
 function sendCsv(res: import('express').Response, filename: string, csv: string) {

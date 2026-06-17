@@ -5,6 +5,7 @@ import {
   fetchAdminUsers,
   fetchFeedbackMessages,
   fetchPointsSettings,
+  fetchReflectionLevelSettings,
   fetchReflectionAnswers,
   fetchNfoDayStats,
   fetchCheckinSettings,
@@ -19,6 +20,7 @@ import {
   getAdminExportUrl,
   getAdminExportXlsxUrl,
   savePointsSettings,
+  saveReflectionLevelSettings,
   type AdminUser,
   type FeedbackMessage,
   type ReflectionAnswerRow,
@@ -205,6 +207,7 @@ export function AdminActivityTab() {
 
 export function AdminSettingsTab() {
   const [config, setConfig] = useState<Record<string, number>>({});
+  const [reflectionThresholds, setReflectionThresholds] = useState<number[]>([0, 30, 70, 120, 200]);
   const [checkin, setCheckin] = useState<{ enabledTracks: string[]; slots: string[] }>({ enabledTracks: [], slots: [] });
   const [exchangeSlots, setExchangeSlots] = useState<string[]>([]);
   const [nfoDay, setNfoDay] = useState({ publishHour: 19, publishMinute: 30, points: 10 });
@@ -212,6 +215,7 @@ export function AdminSettingsTab() {
 
   useEffect(() => {
     fetchPointsSettings().then((r) => setConfig(r.config)).catch(console.error);
+    fetchReflectionLevelSettings().then((r) => setReflectionThresholds(r.thresholds)).catch(console.error);
     fetchCheckinSettings().then(setCheckin).catch(console.error);
     fetchExchangeSlots().then((r) => setExchangeSlots(r.slots)).catch(console.error);
     fetchNfoDaySettings().then(setNfoDay).catch(console.error);
@@ -233,6 +237,30 @@ export function AdminSettingsTab() {
         ))}
         <button type="button" className="nfo-admin-btn-primary" onClick={() => void savePointsSettings(config)}>
           Сохранить баллы
+        </button>
+      </div>
+
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Пороги уровней рефлексии</div>
+      <div className="nfo-admin-form-card">
+        {reflectionThresholds.slice(1).map((value, index) => (
+          <FormItem key={index + 2} top={`Уровень ${index + 2} — минимум баллов рефлексии`}>
+            <Input
+              type="number"
+              value={String(value)}
+              onChange={(e) => {
+                const next = [...reflectionThresholds];
+                next[index + 1] = Number(e.target.value);
+                setReflectionThresholds(next);
+              }}
+            />
+          </FormItem>
+        ))}
+        <button
+          type="button"
+          className="nfo-admin-btn-primary"
+          onClick={() => void saveReflectionLevelSettings(reflectionThresholds)}
+        >
+          Сохранить пороги рефлексии
         </button>
       </div>
 

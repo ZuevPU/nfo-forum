@@ -70,6 +70,7 @@ export function NfoDayPanel() {
       loading={loading}
       error={error}
       useGradient
+      backToHome
     >
       <Group>
         <Div style={{ padding: '12px 16px' }}>

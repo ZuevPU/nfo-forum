@@ -15,6 +15,7 @@ export function fetchReflectionLevel() {
 export interface ReflectionLevelData {
   level: number;
   reflectionPoints: number;
+  thresholds?: number[];
   history: { id: number; oldLevel: number; newLevel: number; createdAt: string }[];
 }
 

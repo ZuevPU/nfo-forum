@@ -26,6 +26,7 @@ export function QuestionsPanel() {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -38,15 +39,34 @@ export function QuestionsPanel() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
   const handleSubmit = async (q: ReflectionQuestion) => {
     const text = answers[q.id]?.trim();
     if (!text) return;
     await submitReflectionAnswer(q.id, text);
+    setAnswers((prev) => {
+      const next = { ...prev };
+      delete next[q.id];
+      return next;
+    });
+    setSuccessMessage('Ответ сохранён');
     load();
   };
 
   return (
-    <PanelLayout id="questions" title="Активные вопросы" subtitle="Вопросы трека" loading={loading} error={error} useGradient>
+    <PanelLayout id="questions" title="Активные вопросы" subtitle="Вопросы трека" loading={loading} error={error} useGradient backToHome>
+      {successMessage && (
+        <Div style={{ padding: '8px 16px 0' }}>
+          <div style={{ padding: '10px 12px', borderRadius: 10, background: '#e8f8ef', color: '#1e7e34', fontSize: 13, fontWeight: 600 }}>
+            ✅ {successMessage}
+          </div>
+        </Div>
+      )}
       <Group header={<div className="nfo-sec-title">Вопросы трека</div>}>
         {Object.entries(
           questions.reduce((acc, q) => {
@@ -115,11 +135,20 @@ export function QuestionsPanel() {
                     stretched 
                     style={{ marginTop: 12 }} 
                     onClick={() => {
-                      group.filter(q => !q.isAnswered).forEach(q => {
-                        if (answers[q.id]?.trim()) {
-                          void handleSubmit(q);
+                      void (async () => {
+                        const pending = group.filter((q) => !q.isAnswered && answers[q.id]?.trim());
+                        if (pending.length === 0) return;
+                        for (const q of pending) {
+                          await submitReflectionAnswer(q.id, answers[q.id].trim());
                         }
-                      });
+                        setAnswers((prev) => {
+                          const next = { ...prev };
+                          pending.forEach((q) => delete next[q.id]);
+                          return next;
+                        });
+                        setSuccessMessage('Ответы сохранены');
+                        load();
+                      })();
                     }}
                   >
                     Отправить ответы

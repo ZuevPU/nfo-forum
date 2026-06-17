@@ -59,7 +59,7 @@ export function SchedulePanel() {
 
   return (
     <Panel id="schedule">
-      <GradientHeader title="Расписание" subtitle={offline ? 'Офлайн — показан кеш' : 'Программа форума'}>
+      <GradientHeader title="Расписание" subtitle={offline ? 'Офлайн — показан кеш' : 'Программа форума'} backToHome>
         <div style={{ display: 'flex', gap: 4, marginTop: 10, overflowX: 'auto' }}>
           {FORUM_DAYS.map((tab) => (
             <button

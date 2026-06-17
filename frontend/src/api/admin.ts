@@ -171,6 +171,14 @@ export function savePointsSettings(config: Record<string, number>) {
   return apiRequest('/api/admin/settings/points', { method: 'POST', body: config });
 }
 
+export function fetchReflectionLevelSettings() {
+  return apiRequest<{ thresholds: number[] }>('/api/admin/settings/reflection-levels');
+}
+
+export function saveReflectionLevelSettings(thresholds: number[]) {
+  return apiRequest('/api/admin/settings/reflection-levels', { method: 'POST', body: { thresholds } });
+}
+
 export function getAdminExportUrl(type: string) {
   return `/api/admin/export/${type}`;
 }

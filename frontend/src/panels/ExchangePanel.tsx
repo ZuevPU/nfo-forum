@@ -78,7 +78,7 @@ export function ExchangePanel() {
 
   return (
     <Panel id="exchange">
-      <GradientHeader title="Обмен опытом 💡" subtitle={subtitle} />
+      <GradientHeader title="Обмен опытом 💡" subtitle={subtitle} backToHome />
 
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
         <div className="nfo-bg">

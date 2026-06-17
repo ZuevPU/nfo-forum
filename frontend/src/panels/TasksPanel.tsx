@@ -7,8 +7,9 @@ import {
   PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
-import { uploadFiles } from '../lib/vk-bridge';
+import { pickImageAsDataUrl } from '../lib/vk-bridge';
 import { PanelLayout } from '../components/PanelLayout';
+import { useLayout } from '../contexts/LayoutContext';
 import {
   applyNetworkingTask,
   fetchDailyFocus,
@@ -19,6 +20,7 @@ import {
 } from '../api/tasks';
 
 export function TasksPanel() {
+  const { setBackHandler } = useLayout();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
@@ -28,6 +30,8 @@ export function TasksPanel() {
   const [loading, setLoading] = useState(true);
   const [networkingLoading, setNetworkingLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const load = () => {
     Promise.all([fetchTasks(), fetchDailyFocus()])
@@ -41,16 +45,40 @@ export function TasksPanel() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (!selectedTask) {
+      setBackHandler(null);
+      return;
+    }
+    setBackHandler(() => {
+      setSelectedTask(null);
+      setAnswer('');
+      setPhotos([]);
+      return true;
+    });
+    return () => setBackHandler(null);
+  }, [selectedTask, setBackHandler]);
+
   const handleUploadPhoto = async () => {
     if (photos.length >= 3) return;
     setUploading(true);
+    setUploadError(null);
     try {
-      const urls = await uploadFiles(1);
-      if (urls.length > 0) {
-        setPhotos((prev) => [...prev, urls[0]].slice(0, 3));
+      const dataUrl = await pickImageAsDataUrl();
+      if (dataUrl) {
+        setPhotos((prev) => [...prev, dataUrl].slice(0, 3));
+      } else {
+        setUploadError('Не удалось выбрать фото. Попробуй JPG или PNG до 10 МБ.');
       }
     } catch (e) {
       console.error('Upload failed:', e);
+      setUploadError('Не удалось прикрепить фото.');
     } finally {
       setUploading(false);
     }
@@ -80,9 +108,11 @@ export function TasksPanel() {
       setSelectedTask(null);
       setAnswer('');
       setPhotos([]);
+      setSuccessMessage('Задание отправлено');
       load();
     } catch (e) {
       console.error(e);
+      alert('Не удалось отправить задание. Попробуй ещё раз.');
     } finally {
       setSubmitting(false);
     }
@@ -97,11 +127,18 @@ export function TasksPanel() {
   };
 
   return (
-    <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient>
+    <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient backToHome>
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
+      {successMessage && (
+        <Div style={{ padding: '8px 16px 0' }}>
+          <div style={{ padding: '10px 12px', borderRadius: 10, background: '#e8f8ef', color: '#1e7e34', fontSize: 13, fontWeight: 600 }}>
+            ✅ {successMessage}
+          </div>
+        </Div>
+      )}
       {focus && (
         <Group>
-          <Div className="nfo-gradient-green" style={{ borderRadius: 12, margin: 12, padding: 12 }}>
+          <Div className="nfo-gradient-green" style={{ borderRadius: 12, margin: 12, padding: 12, cursor: 'default' }}>
             <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, textTransform: 'uppercase' }}>Фокус дня</div>
             <Headline level="2" weight="2" style={{ color: '#fff', marginTop: 4 }}>{focus.title}</Headline>
             <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>{focus.description}</div>
@@ -139,12 +176,15 @@ export function TasksPanel() {
               📷 Добавить фото ({photos.length}/3)
             </Button>
             {photos.map((url, i) => (
-              <img key={url} src={url} alt={`Фото ${i + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover' }} />
+              <img key={`${i}-${url.slice(0, 32)}`} src={url} alt={`Фото ${i + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover' }} />
             ))}
           </Div>
+          {uploadError && (
+            <Div style={{ padding: '0 16px 12px', fontSize: 12, color: '#e74c3c' }}>{uploadError}</Div>
+          )}
           <Div style={{ display: 'flex', gap: 8 }}>
             <Button size="l" stretched loading={submitting} onClick={() => void handleSubmit()}>Отправить</Button>
-            <Button size="l" mode="secondary" onClick={() => { setSelectedTask(null); setPhotos([]); }}>Назад</Button>
+            <Button size="l" mode="secondary" onClick={() => { setSelectedTask(null); setPhotos([]); setAnswer(''); }}>Назад</Button>
           </Div>
         </Group>
       ) : (

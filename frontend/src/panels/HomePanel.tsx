@@ -20,6 +20,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchHome, submitFeedback, type HomeData } from '../api/home';
+import { fetchReflectionLevel } from '../api/rating';
 import { updateNotifications, updateNotificationPrefs, updateMessagesPermission } from '../api/auth';
 import type { NotificationPrefs } from '../types/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
@@ -30,6 +31,7 @@ import { UserProfileCard } from '../components/UserProfileCard';
 import { useAuthContext } from '../contexts/AuthContext';
 import { requestVkMessagesFromGroup } from '../lib/vk-bridge';
 import { FORUM_DAYS } from '../constants/nfoFactors';
+import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
 
 function getProgramDayInfo() {
   const mskDate = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
@@ -65,6 +67,7 @@ export function HomePanel() {
     },
   );
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [reflectionThresholds, setReflectionThresholds] = useState<number[]>(DEFAULT_REFLECTION_THRESHOLDS);
 
   const load = () => {
     setLoading(true);
@@ -76,6 +79,11 @@ export function HomePanel() {
 
   useEffect(() => {
     load();
+    fetchReflectionLevel()
+      .then((data) => {
+        if (data.thresholds?.length) setReflectionThresholds(data.thresholds);
+      })
+      .catch(console.error);
   }, []);
 
   if (loading || !user) {
@@ -92,11 +100,11 @@ export function HomePanel() {
   const event = data?.currentEvent ?? null;
   const { dateStr, programDay } = getProgramDayInfo();
 
-  const REFLECTION_THRESHOLDS = [0, 30, 70, 120, 200];
-  const nextLevelPoints = REFLECTION_THRESHOLDS[user.reflectionLevel] ?? 200;
-  const prevLevelPoints = REFLECTION_THRESHOLDS[user.reflectionLevel - 1] ?? 0;
-  const reflectionProgress = Math.min(100, Math.max(0, ((user.reflectionPoints - prevLevelPoints) / (nextLevelPoints - prevLevelPoints)) * 100)) || 0;
-  const pointsToNextLevel = Math.max(0, nextLevelPoints - user.reflectionPoints);
+  const { progress: reflectionProgress, pointsToNextLevel, nextLevel } = getReflectionProgress(
+    user.reflectionLevel,
+    user.reflectionPoints,
+    reflectionThresholds,
+  );
 
   const handleFeedbackSubmit = async () => {
     if (!feedbackText.trim()) return;
@@ -275,7 +283,7 @@ export function HomePanel() {
       {data?.focusOfDay && (
         <Group>
           <Div style={{ padding: '0 16px' }}>
-            <div className="nfo-gradient-green" style={{ borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }} onClick={() => navigate('/tasks')}>
+            <div className="nfo-gradient-green" style={{ borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 8, cursor: 'default' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 16 }}>🎯</span>
                 <Text weight="2" style={{ color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', fontSize: 12 }}>Фокус дня</Text>
@@ -286,11 +294,15 @@ export function HomePanel() {
         </Group>
       )}
 
-      {event && (
-        <Group>
+      <Group header={<div className="nfo-sec-title">Сейчас в программе</div>}>
+        {event ? (
           <CurrentBlockCard event={event} />
-        </Group>
-      )}
+        ) : (
+          <Div style={{ padding: '0 16px 12px', fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>
+            Сейчас нет активного блока по расписанию. Загляни в «Что далее» ниже или открой программу.
+          </Div>
+        )}
+      </Group>
 
       <Group header={<div className="nfo-sec-title">Активности</div>}>
         <Div style={{ padding: '12px 16px' }}>
@@ -348,18 +360,6 @@ export function HomePanel() {
             {(data?.stats.newExchangeAnswers || data?.stats.pendingIncomingAssignments) ? (
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e74c3c' }} />
             ) : null}
-            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
-          </div>
-
-          <div className="nfo-hcard" onClick={() => navigate('/reflection-level')}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>💭</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Уровень рефлексии</div>
-              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
-                Ур. {user.reflectionLevel} · {user.reflectionPoints} баллов
-                {pointsToNextLevel > 0 && user.reflectionLevel < 5 ? ` · ${pointsToNextLevel} до след.` : ''}
-              </div>
-            </div>
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
@@ -421,7 +421,16 @@ export function HomePanel() {
         </Div>
       </Group>
 
-      <Group header={<div className="nfo-sec-title">Путь участника</div>}>
+      <Group
+        header={
+          <div>
+            <div className="nfo-sec-title">Путь участника</div>
+            <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', padding: '0 16px 8px', lineHeight: 1.4 }}>
+              Расписание активностей бота в течение дня — когда приходят уведомления и что доступно в приложении
+            </div>
+          </div>
+        }
+      >
         <ParticipantJourney />
       </Group>
 
@@ -442,9 +451,9 @@ export function HomePanel() {
             <div style={{ marginTop: 8 }}>
               <ProgressBar value={reflectionProgress} max={100} />
             </div>
-            {pointsToNextLevel > 0 && user.reflectionLevel < 5 && (
+            {pointsToNextLevel > 0 && nextLevel != null && (
               <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>
-                {pointsToNextLevel} б. до {user.reflectionLevel + 1} ур.
+                {pointsToNextLevel} б. до {nextLevel} ур.
               </div>
             )}
           </div>

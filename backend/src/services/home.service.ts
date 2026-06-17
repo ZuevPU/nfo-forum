@@ -6,6 +6,7 @@ import {
   exchangeAssignments,
   exchangeQuestions,
   reflectionQuestions,
+  reflectionAnswers,
   feedbackMessages,
   systemSettings,
   taskSubmissions,
@@ -151,16 +152,24 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     );
   const pendingIncoming = pendingIncomingResult?.value ?? 0;
 
-  const [activeQuestionsResult] = await db
-    .select({ value: count() })
+  const publishedQuestions = await db
+    .select({ id: reflectionQuestions.id })
     .from(reflectionQuestions)
     .where(
       and(
         lte(reflectionQuestions.publishTime, now),
-        or(isNull(reflectionQuestions.track), eq(reflectionQuestions.track, user.track ?? ''))
-      )
+        or(isNull(reflectionQuestions.endTime), gt(reflectionQuestions.endTime, now)),
+        or(isNull(reflectionQuestions.track), eq(reflectionQuestions.track, user.track ?? '')),
+      ),
     );
-  const activeQuestions = activeQuestionsResult?.value ?? 0;
+
+  const answeredRows = await db
+    .select({ questionId: reflectionAnswers.questionId })
+    .from(reflectionAnswers)
+    .where(eq(reflectionAnswers.userId, user.id));
+
+  const answeredIds = new Set(answeredRows.map((r) => r.questionId));
+  const activeQuestions = publishedQuestions.filter((q) => !answeredIds.has(q.id)).length;
 
   const [activeExchangeResult] = await db
     .select({ value: count() })

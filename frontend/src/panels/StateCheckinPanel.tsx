@@ -75,7 +75,7 @@ export function StateCheckinPanel() {
   };
 
   return (
-    <PanelLayout id="checkin" title="Как ты сейчас?" subtitle="30 секунд" useGradient>
+    <PanelLayout id="checkin" title="Как ты сейчас?" subtitle="30 секунд" useGradient backToHome>
       <Group header="Энергия (0-10)">
         <Div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto' }}>
           {ENERGY_LEVELS.map((e) => (

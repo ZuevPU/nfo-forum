@@ -41,7 +41,7 @@ export function RatingPanel() {
     : 0;
 
   return (
-    <PanelLayout id="rating" title="Рейтинг" subtitle="Мой трек и общий зачёт" loading={loading} error={error} useGradient>
+    <PanelLayout id="rating" title="Рейтинг" subtitle="Мой трек и общий зачёт" loading={loading} error={error} useGradient backToHome>
       {data && me && (
         <Group>
           <Div style={{ padding: '12px 16px' }}>

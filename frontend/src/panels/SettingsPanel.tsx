@@ -110,7 +110,7 @@ export function SettingsPanel() {
 
   return (
     <>
-      <PanelLayout id="settings" title="Настройки" loading={loading} useGradient>
+      <PanelLayout id="settings" title="Настройки" loading={loading} useGradient backToHome>
         <Group header="Профиль">
           <FormItem top="Имя">
             <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />

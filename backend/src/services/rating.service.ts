@@ -1,11 +1,11 @@
 import { desc, eq } from 'drizzle-orm';
+import { DEFAULT_REFLECTION_THRESHOLDS } from '../constants/reflectionLevels.js';
+import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors.js';
 import { db } from '../db/index.js';
 import { pointsHistory, reflectionLevelHistory, users } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
+import { getReflectionLevelSettings } from './reflectionLevelSettings.service.js';
 import { getTrackRank } from './points.service.js';
-import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors.js';
-
-const REFLECTION_THRESHOLDS = [0, 30, 70, 120, 200];
 
 export async function getRating(scope: 'track' | 'all', user: UserDto) {
   let rows;
@@ -30,6 +30,7 @@ export async function getRating(scope: 'track' | 'all', user: UserDto) {
   }));
 
   const myRank = await getTrackRank(user.id, user.track);
+  const { thresholds } = await getReflectionLevelSettings();
 
   return {
     list,
@@ -39,7 +40,8 @@ export async function getRating(scope: 'track' | 'all', user: UserDto) {
       reflectionLevel: user.reflectionLevel,
       reflectionPoints: user.reflectionPoints,
       reflectionLevelName: REFLECTION_LEVEL_NAMES[user.reflectionLevel] ?? '',
-      nextLevelPoints: user.reflectionLevel < 5 ? REFLECTION_THRESHOLDS[user.reflectionLevel] : null,
+      nextLevelPoints: user.reflectionLevel < thresholds.length ? thresholds[user.reflectionLevel] : null,
+      reflectionThresholds: thresholds,
     },
   };
 }

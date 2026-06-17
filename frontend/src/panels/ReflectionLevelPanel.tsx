@@ -13,9 +13,8 @@ import { useNavigate } from 'react-router-dom';
 import { fetchReflectionLevel, type ReflectionLevelData } from '../api/rating';
 import { GradientHeader } from '../components/GradientHeader';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
+import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
 import { useAuthContext } from '../contexts/AuthContext';
-
-const REFLECTION_THRESHOLDS = [0, 30, 70, 120, 200];
 
 export function ReflectionLevelPanel() {
   const navigate = useNavigate();
@@ -35,13 +34,8 @@ export function ReflectionLevelPanel() {
 
   const level = data?.level ?? user.reflectionLevel;
   const reflectionPoints = data?.reflectionPoints ?? user.reflectionPoints;
-  const nextThreshold = REFLECTION_THRESHOLDS[level] ?? 200;
-  const prevThreshold = REFLECTION_THRESHOLDS[level - 1] ?? 0;
-  const progress =
-    level >= 5
-      ? 100
-      : ((reflectionPoints - prevThreshold) / (nextThreshold - prevThreshold)) * 100;
-  const pointsToNext = level >= 5 ? 0 : Math.max(0, nextThreshold - reflectionPoints);
+  const thresholds = data?.thresholds?.length ? data.thresholds : DEFAULT_REFLECTION_THRESHOLDS;
+  const { progress, pointsToNextLevel, nextLevel } = getReflectionProgress(level, reflectionPoints, thresholds);
 
   return (
     <Panel id="reflection-level">
@@ -69,9 +63,17 @@ export function ReflectionLevelPanel() {
                 </div>
                 <div style={{ fontSize: 13, marginTop: 8, color: 'var(--vkui--color_text_secondary)' }}>
                   {reflectionPoints} баллов рефлексии
-                  {pointsToNext > 0 && ` · ${pointsToNext} до ${level + 1} ур.`}
+                  {pointsToNextLevel > 0 && nextLevel != null && ` · ${pointsToNextLevel} до ${nextLevel} ур.`}
                 </div>
               </Div>
+            </Group>
+
+            <Group header={<div className="nfo-sec-title">Пороги уровней</div>}>
+              {thresholds.slice(1).map((threshold, index) => (
+                <SimpleCell key={threshold} subtitle={`от ${threshold} баллов рефлексии`}>
+                  Уровень {index + 2}: {REFLECTION_LEVEL_NAMES[index + 2] ?? ''}
+                </SimpleCell>
+              ))}
             </Group>
 
             <Group header={<div className="nfo-sec-title">История повышения уровня</div>}>

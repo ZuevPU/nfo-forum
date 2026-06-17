@@ -1,20 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
+import { calcReflectionLevel } from '../constants/reflectionLevels.js';
 import { db } from '../db/index.js';
 import { pointsHistory, reflectionLevelHistory, users } from '../db/schema.js';
+import { getReflectionLevelSettings } from './reflectionLevelSettings.service.js';
 import { sendPush } from './push.service.js';
-
-const REFLECTION_THRESHOLDS = [0, 30, 70, 120, 200];
-
-function calcReflectionLevel(points: number): number {
-  let level = 1;
-  for (let i = REFLECTION_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (points >= REFLECTION_THRESHOLDS[i]) {
-      level = i + 1;
-      break;
-    }
-  }
-  return Math.min(level, 5);
-}
 
 export async function awardPoints(
   userId: number,
@@ -37,7 +26,8 @@ export async function awardPoints(
 
   const newPoints = user.points + points;
   const newReflectionPoints = user.reflectionPoints + reflectionPoints;
-  const newLevel = calcReflectionLevel(newReflectionPoints);
+  const { thresholds } = await getReflectionLevelSettings();
+  const newLevel = calcReflectionLevel(newReflectionPoints, thresholds);
 
   await db
     .update(users)

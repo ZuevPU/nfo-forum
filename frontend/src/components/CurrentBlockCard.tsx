@@ -21,7 +21,7 @@ export function CurrentBlockCard({ event }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span className="nfo-pulse-dot" />
         <Footnote style={{ color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>
-          Сейчас идёт
+          Сейчас в программе
         </Footnote>
       </div>
       <Headline level="2" weight="2" style={{ color: '#fff', marginTop: 4 }}>
