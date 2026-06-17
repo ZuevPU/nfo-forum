@@ -1,6 +1,6 @@
 import { Panel } from '@vkontakte/vkui';
-import { useEffect } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { resolveActiveDeepLinkRoute } from '../lib/deepLink';
 import { Tabbar } from '../components/Tabbar';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useLayout } from '../contexts/LayoutContext';
@@ -30,21 +30,16 @@ function isMainRoute(pathname: string) {
 }
 
 function HashRedirect() {
-  const navigate = useNavigate();
   const { status } = useAuthContext();
+  const deepLink = resolveActiveDeepLinkRoute();
 
-  useEffect(() => {
-    const hash = window.location.hash.replace(/^#\/?/, '/');
-    if (hash && hash !== '/' && hash !== window.location.pathname) {
-      navigate(hash, { replace: true });
-    }
-  }, [navigate]);
+  if (deepLink && status === 'authenticated') {
+    return <Navigate to={deepLink} replace />;
+  }
 
-  return (
-    status === 'needs_registration'
-      ? <Navigate to="/welcome" replace />
-      : <Navigate to="/home" replace />
-  );
+  return status === 'needs_registration'
+    ? <Navigate to="/welcome" replace />
+    : <Navigate to="/home" replace />;
 }
 
 export function AppRouter() {

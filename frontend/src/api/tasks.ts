@@ -9,7 +9,37 @@ export function fetchDailyFocus() {
 }
 
 export function fetchTask(id: number) {
-  return apiRequest(`/api/tasks/${id}`);
+  return apiRequest<TaskDetailResponse>(`/api/tasks/${id}`);
+}
+
+interface TaskDetailResponse {
+  task: {
+    id: number;
+    title: string;
+    description: string;
+    points: number;
+    deadline: string | null;
+    requiresPhoto: boolean;
+    isRandomDistribution: boolean;
+  };
+  submissions: Array<{ status: string }>;
+}
+
+export function taskFromDetail(data: TaskDetailResponse): TaskItem {
+  const latest = data.submissions[data.submissions.length - 1];
+  const deadline = data.task.deadline;
+  return {
+    id: data.task.id,
+    title: data.task.title,
+    description: data.task.description,
+    points: data.task.points,
+    deadline,
+    status: latest?.status ?? 'new',
+    submissionCount: data.submissions.length,
+    isPastDeadline: deadline ? new Date() > new Date(deadline) : false,
+    requiresPhoto: data.task.requiresPhoto,
+    isRandomDistribution: data.task.isRandomDistribution,
+  };
 }
 
 export function applyNetworkingTask(id: number) {

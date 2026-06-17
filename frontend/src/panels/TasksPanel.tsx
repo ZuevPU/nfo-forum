@@ -15,8 +15,10 @@ import { useLayout } from '../contexts/LayoutContext';
 import {
   applyNetworkingTask,
   fetchDailyFocus,
+  fetchTask,
   fetchTasks,
   submitTask,
+  taskFromDetail,
   type DailyFocus,
   type TaskItem,
 } from '../api/tasks';
@@ -49,12 +51,29 @@ export function TasksPanel() {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
-    if (!taskId || tasks.length === 0 || selectedTask) return;
+    if (!taskId || selectedTask) return;
     const id = Number(taskId);
     if (Number.isNaN(id)) return;
-    const task = tasks.find((t) => t.id === id);
-    if (task) setSelectedTask(task);
-  }, [taskId, tasks, selectedTask]);
+
+    const fromList = tasks.find((t) => t.id === id);
+    if (fromList) {
+      setSelectedTask(fromList);
+      return;
+    }
+
+    if (loading) return;
+
+    let cancelled = false;
+    fetchTask(id)
+      .then((data) => {
+        if (!cancelled) setSelectedTask(taskFromDetail(data));
+      })
+      .catch(console.error);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId, tasks, selectedTask, loading]);
 
   useEffect(() => {
     if (!taskSuccess) return;

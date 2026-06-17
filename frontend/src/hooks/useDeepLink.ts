@@ -1,34 +1,54 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
+import {
+  capturePendingDeepLink,
+  consumePendingDeepLink,
+  resolveDeepLinkRoute,
+  routeFromFragment,
+} from '../lib/deepLink';
+import { bridge } from '../lib/vk-bridge';
 
-function parseDeepLinkHash(raw: string): string | null {
-  const cleaned = raw.replace(/^#\/?/, '').trim();
-  return cleaned || null;
-}
-
-function routeFromDeepLink(fragment: string): string | null {
-  const path = fragment.startsWith('/') ? fragment : `/${fragment}`;
-  const allowed = /^\/(home|schedule|questions|exchange|tasks|rating|checkin|diagnostics|nfo-day|settings|admin)(\/\d+)?(\/incoming\/\d+)?$/;
-  if (!allowed.test(path)) return null;
-  return path;
+function routeFromLocationPayload(location: string): string | null {
+  const fragment = location.replace(/^#\/?/, '').trim();
+  if (!fragment) return null;
+  return routeFromFragment(fragment);
 }
 
 export function useDeepLink() {
   const navigate = useNavigate();
   const { status } = useAuthContext();
-  const handled = useRef(false);
+
+  const applyDeepLink = useCallback(() => {
+    if (status !== 'authenticated') return;
+
+    const pending = consumePendingDeepLink();
+    if (pending) {
+      navigate(pending, { replace: true });
+      return;
+    }
+
+    const route = resolveDeepLinkRoute();
+    if (route) navigate(route, { replace: true });
+  }, [status, navigate]);
 
   useEffect(() => {
-    if (status !== 'authenticated' || handled.current) return;
+    applyDeepLink();
+  }, [applyDeepLink]);
 
-    const fragment = parseDeepLinkHash(window.location.hash);
-    if (!fragment) return;
+  useEffect(() => {
+    if (status !== 'authenticated') return;
 
-    const route = routeFromDeepLink(fragment);
-    if (!route) return;
+    const handler = (event: { detail?: { type?: string; data?: unknown } }) => {
+      if (event.detail?.type !== 'VKWebAppLocationChanged') return;
 
-    handled.current = true;
-    navigate(route, { replace: true });
+      capturePendingDeepLink();
+
+      const data = event.detail.data as { location?: string } | undefined;
+      const route = data?.location ? routeFromLocationPayload(data.location) : resolveDeepLinkRoute();
+      if (route) navigate(route, { replace: true });
+    };
+
+    bridge.subscribe(handler);
   }, [status, navigate]);
 }

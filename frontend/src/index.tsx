@@ -1,7 +1,9 @@
 import { createRoot } from 'react-dom/client';
+import { capturePendingDeepLink } from './lib/deepLink';
 import { initVkBridge } from './lib/vk-bridge';
 
 async function bootstrap() {
+  capturePendingDeepLink();
   await initVkBridge();
 
   const { App } = await import('./App');
