@@ -469,13 +469,13 @@ export function HomePanel() {
 
       <Group>
         <div className="nfo-home-footer-btns">
-          <Button mode="secondary" stretched onClick={() => setActiveModal('feedback')}>
+          <Button size="l" stretched onClick={() => setActiveModal('feedback')}>
             Связь с организаторами
           </Button>
-          <Button mode="secondary" stretched onClick={() => navigate('/settings')}>
+          <Button size="l" stretched onClick={() => navigate('/settings')}>
             Настройки
           </Button>
-          <Button mode="secondary" stretched onClick={() => setActiveModal('info')}>
+          <Button size="l" stretched onClick={() => setActiveModal('info')}>
             О приложении
           </Button>
         </div>

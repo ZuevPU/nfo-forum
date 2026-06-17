@@ -173,7 +173,7 @@ export function SettingsPanel() {
 
         <Group header="Связь">
           <Div>
-            <Button mode="secondary" stretched onClick={() => setActiveModal('feedback')}>
+            <Button size="l" stretched onClick={() => setActiveModal('feedback')}>
               Написать организатору
             </Button>
           </Div>
@@ -183,10 +183,16 @@ export function SettingsPanel() {
           <SimpleCell subtitle="Версия">{APP_VERSION}</SimpleCell>
           <SimpleCell subtitle="Поддержка">forum-nfo@vk.com</SimpleCell>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Button mode="secondary" stretched onClick={() => navigate('/home')}>
+            <Button size="l" stretched onClick={() => navigate('/home')}>
               На главную
             </Button>
-            <Button mode="secondary" stretched onClick={() => void deleteUserAccount()}>
+            <Button
+              size="l"
+              stretched
+              mode="outline"
+              className="nfo-btn-danger-outline"
+              onClick={() => void deleteUserAccount()}
+            >
               Удалить аккаунт
             </Button>
           </Div>

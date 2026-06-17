@@ -87,8 +87,7 @@ export function AppRouter() {
           <Route path="/exchange" element={<ExchangePanel />} />
           <Route path="/exchange/incoming/:assignmentId" element={<ExchangeIncomingPanel />} />
           <Route path="/exchange/:id" element={<ExchangeDetailPanel />} />
-          <Route path="/tasks/:taskId" element={<TasksPanel />} />
-          <Route path="/tasks" element={<TasksPanel />} />
+          <Route path="/tasks/:taskId?" element={<TasksPanel />} />
           <Route path="/rating" element={<RatingPanel />} />
           <Route path="/checkin" element={<StateCheckinPanel />} />
           <Route path="/diagnostics" element={<DiagnosticsPanel />} />

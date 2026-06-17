@@ -83,7 +83,7 @@ export function ExchangeIncomingPanel() {
             <Button size="l" stretched loading={submitting} onClick={() => void handleSubmit()}>
               Отправить ответ
             </Button>
-            <Button size="l" mode="secondary" stretched loading={submitting} onClick={() => void handleSkip()}>
+            <Button size="l" mode="outline" stretched loading={submitting} onClick={() => void handleSkip()}>
               Пропустить вопрос
             </Button>
           </Div>

@@ -53,7 +53,7 @@ export function App() {
       hasCustomPanelHeaderAfter
     >
       <AdaptivityProvider {...adaptivity}>
-        <AppRoot mode="full">
+        <AppRoot mode="full" className="nfo-app">
           <BrowserRouter>
             <AuthProvider>
               <LayoutProvider>

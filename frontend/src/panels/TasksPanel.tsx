@@ -5,7 +5,7 @@ import {
   Spinner,
   PullToRefresh,
 } from '@vkontakte/vkui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { pickImage } from '../lib/vk-bridge';
 import { EmptyState } from '../components/EmptyState';
@@ -39,6 +39,7 @@ export function TasksPanel() {
   const [taskSuccess, setTaskSuccess] = useState<{ points?: number; pendingReview?: boolean } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [resolvingTask, setResolvingTask] = useState(Boolean(taskId));
+  const prevTaskIdRef = useRef(taskId);
 
   const load = () => {
     Promise.all([fetchTasks(), fetchDailyFocus()])
@@ -52,25 +53,44 @@ export function TasksPanel() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (prevTaskIdRef.current && !taskId) {
+      setSelectedTask(null);
+      setAnswer('');
+      setPhotos([]);
+    }
+    prevTaskIdRef.current = taskId;
+    if (!taskId) setResolvingTask(false);
+  }, [taskId]);
+
   const closeTaskDetail = useCallback(() => {
     setSelectedTask(null);
     setAnswer('');
     setPhotos([]);
-    if (taskId) navigate('/tasks', { replace: true });
-  }, [taskId, navigate]);
+    navigate('/tasks', { replace: true });
+  }, [navigate]);
+
+  const openTask = useCallback((task: TaskItem) => {
+    setSelectedTask(task);
+    setAnswer('');
+    setPhotos([]);
+    setResolvingTask(false);
+    navigate(`/tasks/${task.id}`);
+  }, [navigate]);
 
   useEffect(() => {
     if (!taskId) {
       setResolvingTask(false);
       return;
     }
-    if (selectedTask) {
+
+    const id = Number(taskId);
+    if (Number.isNaN(id)) {
       setResolvingTask(false);
       return;
     }
 
-    const id = Number(taskId);
-    if (Number.isNaN(id)) {
+    if (selectedTask?.id === id) {
       setResolvingTask(false);
       return;
     }
@@ -99,7 +119,7 @@ export function TasksPanel() {
     return () => {
       cancelled = true;
     };
-  }, [taskId, tasks, selectedTask, loading]);
+  }, [taskId, tasks, selectedTask?.id, loading]);
 
   useEffect(() => {
     if (!taskSuccess) return;
@@ -238,7 +258,7 @@ export function TasksPanel() {
           )}
           <Div style={{ display: 'flex', gap: 8 }}>
             <Button size="l" stretched loading={submitting} onClick={() => void handleSubmit()}>Отправить</Button>
-            <Button size="l" mode="secondary" onClick={closeTaskDetail}>Назад</Button>
+            <Button size="l" mode="outline" onClick={closeTaskDetail}>Назад</Button>
           </Div>
         </Group>
       ) : tasks.length === 0 ? (
@@ -247,11 +267,24 @@ export function TasksPanel() {
         <Group>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
           {tasks.map((t) => (
-            <div key={t.id} className="nfo-card" style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }} onClick={() => {
-              if (t.status === 'approved') return;
-              if (t.isRandomDistribution && !t.networkingStatus) return;
-              navigate(`/tasks/${t.id}`);
-            }}>
+            <div
+              key={t.id}
+              className="nfo-card"
+              role="button"
+              tabIndex={0}
+              style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }}
+              onClick={() => {
+                if (t.status === 'approved') return;
+                if (t.isRandomDistribution && !t.networkingStatus) return;
+                openTask(t);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                if (t.status === 'approved') return;
+                if (t.isRandomDistribution && !t.networkingStatus) return;
+                openTask(t);
+              }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nfo-primary)' }}>{t.points} б.</div>

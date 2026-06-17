@@ -1,15 +1,26 @@
 :root,
-.vkui--vkBase--light {
+.vkui--vkBase--light,
+.vkui--ios--light,
+.vkui--android--light,
+.vkui--vkcom--light {
   --nfo-primary: #3b4ec0;
   --nfo-accent: #3bbfa0;
   --nfo-green: #0f6e56;
   --nfo-green-light: #1a9070;
   --nfo-bg: #f2f3f9;
   --vkui--color_background_accent_themed: #3b4ec0;
+  --vkui--color_background_accent_themed--hover: #4f5ed4;
+  --vkui--color_background_accent_themed--active: #2f3da8;
   --vkui--color_text_accent_themed: #ffffff;
   --vkui--color_icon_accent_themed: #ffffff;
   --vkui--color_stroke_accent_themed: #3b4ec0;
   --vkui--color_background_content: #f2f3f9;
+  --vkui--color_background_secondary: #f5f6ff;
+  --vkui--color_background_secondary_alpha: #f5f6ff;
+  --vkui--color_text_contrast_themed: #3b4ec0;
+  --vkui--color_text_link: #3b4ec0;
+  --vkui--color_text_link--hover: #4f5ed4;
+  --vkui--color_text_link--visited: #3b4ec0;
 }
 
 body {
@@ -705,6 +716,85 @@ body {
 .nfo-journey-tag--green { background: #e0f5ef; color: var(--nfo-green); }
 .nfo-journey-tag--orange { background: #fff4e0; color: #c27000; }
 .nfo-journey-tag--gray { background: #f0f2f5; color: #999; }
+
+/* App-wide VKUI buttons — синие тона как в «Обмене» */
+.nfo-app .vkuiButton--mode-primary:not(.vkuiButton--mode-link) {
+  background: linear-gradient(135deg, var(--nfo-primary) 0%, #6b5ecf 100%) !important;
+  color: #fff !important;
+}
+
+.nfo-app .vkuiButton--mode-primary:not(.vkuiButton--mode-link) .vkuiButton__content,
+.nfo-app .vkuiButton--mode-primary:not(.vkuiButton--mode-link) .vkuiText {
+  color: #fff !important;
+}
+
+.nfo-app .vkuiButton--mode-secondary {
+  background: #f5f6ff !important;
+  color: var(--nfo-primary) !important;
+  box-shadow: inset 0 0 0 1px #d0d4ff !important;
+}
+
+.nfo-app .vkuiButton--mode-secondary .vkuiButton__content,
+.nfo-app .vkuiButton--mode-secondary .vkuiText {
+  color: var(--nfo-primary) !important;
+}
+
+.nfo-app .vkuiButton--mode-outline {
+  background: #fff !important;
+  color: var(--nfo-primary) !important;
+  box-shadow: inset 0 0 0 1px #d0d4ff !important;
+}
+
+.nfo-app .vkuiButton--mode-outline .vkuiButton__content,
+.nfo-app .vkuiButton--mode-outline .vkuiText {
+  color: var(--nfo-primary) !important;
+}
+
+.nfo-app .vkuiButton--mode-tertiary {
+  color: var(--nfo-primary) !important;
+}
+
+.nfo-app .vkuiButton--mode-tertiary .vkuiButton__content,
+.nfo-app .vkuiButton--mode-tertiary .vkuiText {
+  color: var(--nfo-primary) !important;
+}
+
+.nfo-app .vkuiButton[disabled] {
+  opacity: 0.5;
+}
+
+.nfo-gradient-header .nfo-admin-btn-outline,
+.nfo-gradient-header .vkuiButton--mode-tertiary {
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.nfo-gradient-header .vkuiButton--mode-tertiary .vkuiButton__content,
+.nfo-gradient-header .vkuiButton--mode-tertiary .vkuiText {
+  color: #fff !important;
+}
+
+#welcome .vkuiButton--mode-outline {
+  background: transparent !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7) !important;
+}
+
+#welcome .vkuiButton--mode-outline .vkuiButton__content,
+#welcome .vkuiButton--mode-outline .vkuiText {
+  color: #fff !important;
+}
+
+.nfo-app .nfo-btn-danger-outline.vkuiButton--mode-outline {
+  color: #e74c3c !important;
+  box-shadow: inset 0 0 0 1px #f5c6c6 !important;
+}
+
+.nfo-app .nfo-btn-danger-outline.vkuiButton--mode-outline .vkuiButton__content,
+.nfo-app .nfo-btn-danger-outline.vkuiButton--mode-outline .vkuiText {
+  color: #e74c3c !important;
+}
 
 /* Admin panel */
 .nfo-admin {
