@@ -185,7 +185,7 @@ export function HomePanel() {
             <li>Следить за расписанием и узнавать, что сейчас идет в программе</li>
             <li>Выполнять задания и получать за них баллы</li>
             <li>Делиться опытом с другими участниками</li>
-            <li>Проходить чек-ины состояния и вечернюю рефлексию</li>
+            <li>Проходить вопросы, чек-ины и вечернюю рефлексию во вкладке «Вопросы»</li>
             <li>Следить за своим местом в рейтинге трека</li>
           </ul>
           <p>За активное участие ты получаешь баллы, которые помогут тебе подняться в рейтинге!</p>
@@ -206,8 +206,6 @@ export function HomePanel() {
       </ModalPage>
     </ModalRoot>
   );
-
-  const checkinInfo = data?.checkin ?? { available: true, activeSlot: null, slotLabel: null, canSubmit: false, nextSlotAt: null };
 
   return (
     <>
@@ -265,8 +263,10 @@ export function HomePanel() {
           <div className="nfo-hcard" onClick={() => navigate('/questions')}>
             <ActivityIcon emoji="💬" variant="questions" />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Активные вопросы</div>
-              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data?.stats.activeQuestions ?? 0} доступно</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Вопросы</div>
+              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
+                {data?.stats.activeQuestions ?? 0} не отвечено · чек-ины и рефлексия
+              </div>
             </div>
             {data?.stats.activeQuestions ? <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e74c3c' }} /> : null}
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
@@ -311,31 +311,6 @@ export function HomePanel() {
             ) : null}
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
-
-          <div className="nfo-hcard" onClick={() => navigate('/nfo-day')}>
-            <ActivityIcon emoji="🌅" variant="neutral" />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Каким было НФО сегодня?</div>
-              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>Вечерняя рефлексия дня</div>
-            </div>
-            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
-          </div>
-
-          {checkinInfo.available && (
-          <div className="nfo-hcard" onClick={() => navigate('/checkin')}>
-            <ActivityIcon emoji="😊" variant="questions" />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Как ты сейчас?</div>
-              <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
-                {checkinInfo.slotLabel ?? 'Чек-ин состояния'}
-              </div>
-            </div>
-            {checkinInfo.canSubmit ? (
-              <span className="nfo-hcard-badge">Перейти</span>
-            ) : null}
-            <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
-          </div>
-          )}
 
           {data?.diagnostics.available && (
             <div className="nfo-hcard" style={{ background: 'linear-gradient(135deg, #4f3ec0, #7b5ecf)', color: '#fff' }} onClick={() => navigate('/diagnostics')}>

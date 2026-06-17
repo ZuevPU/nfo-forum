@@ -19,6 +19,7 @@ import type { EventDto } from './events.service.js';
 import { isTrainerTrack } from './diagnostics.service.js';
 import { getCheckinStatus } from './state.service.js';
 import { getTasks } from './tasks.service.js';
+import { getNfoDayConfig, getNfoDayReflectionToday } from './reflection.service.js';
 
 export async function submitFeedback(userId: number, text: string) {
   await db.insert(feedbackMessages).values({
@@ -172,7 +173,14 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     .where(eq(reflectionAnswers.userId, user.id));
 
   const answeredIds = new Set(answeredRows.map((r) => r.questionId));
-  const activeQuestions = publishedQuestions.filter((q) => !answeredIds.has(q.id)).length;
+  let activeQuestions = publishedQuestions.filter((q) => !answeredIds.has(q.id)).length;
+
+  const checkinStatus = await getCheckinStatus(user);
+  if (checkinStatus.canSubmit) activeQuestions += 1;
+
+  const nfoConfig = await getNfoDayConfig();
+  const nfoToday = await getNfoDayReflectionToday(user.id);
+  if (nfoConfig.isOpen && !nfoToday) activeQuestions += 1;
 
   const [activeExchangeResult] = await db
     .select({ value: count() })
@@ -224,8 +232,6 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
       );
     completedBlocks = progressResult?.value ?? 0;
   }
-
-  const checkinStatus = await getCheckinStatus(user);
 
   const userTasks = await getTasks(user);
   const firstAvailableTask = userTasks.find((t) => {

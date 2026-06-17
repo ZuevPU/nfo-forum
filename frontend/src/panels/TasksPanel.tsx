@@ -2,7 +2,9 @@ import {
   Button,
   Div,
   Group,
-  Placeholder,
+  ModalPage,
+  ModalPageHeader,
+  ModalRoot,
   Spinner,
   PullToRefresh,
 } from '@vkontakte/vkui';
@@ -63,24 +65,16 @@ export function TasksPanel() {
   const { setBackHandler, setTabbarHidden } = useLayout();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
-  const [fetchedTask, setFetchedTask] = useState<TaskItem | null>(null);
+  const [modalTask, setModalTask] = useState<TaskItem | null>(null);
   const [answer, setAnswer] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
   const [networkingLoading, setNetworkingLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [taskSuccess, setTaskSuccess] = useState<{ points?: number; pendingReview?: boolean } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const activeTaskId = taskId ? Number(taskId) : null;
-  const isDetailOpen = activeTaskId != null && !Number.isNaN(activeTaskId);
-  const activeTask =
-    isDetailOpen && activeTaskId != null
-      ? findTaskById(tasks, activeTaskId) ?? fetchedTask
-      : null;
 
   const load = useCallback(() => {
     setLoading(true);
@@ -95,61 +89,61 @@ export function TasksPanel() {
 
   useEffect(() => { load(); }, [load]);
 
-  const closeTaskDetail = useCallback(() => {
-    setAnswer('');
-    setPhotos([]);
-    setDetailError(null);
-    navigate('/tasks', { replace: true });
-  }, [navigate]);
-
-  const openTask = useCallback((task: TaskItem) => {
+  const closeTaskModal = useCallback(() => {
+    setModalTask(null);
     setAnswer('');
     setPhotos([]);
     setUploadError(null);
-    setDetailError(null);
-    navigate(`/tasks/${task.id}`);
-  }, [navigate]);
+    if (taskId) navigate('/tasks', { replace: true });
+  }, [navigate, taskId]);
 
+  const openTask = useCallback((task: TaskItem) => {
+    setModalTask(task);
+    setAnswer('');
+    setPhotos([]);
+    setUploadError(null);
+    if (String(task.id) !== taskId) {
+      navigate(`/tasks/${task.id}`, { replace: true });
+    }
+  }, [navigate, taskId]);
+
+  // Прямой заход по ссылке /tasks/:id — открываем модалку
   useEffect(() => {
-    if (!taskId) {
-      setFetchedTask(null);
-      setDetailError(null);
-      return;
-    }
-
+    if (!taskId || loading) return;
     const id = Number(taskId);
-    if (Number.isNaN(id)) {
-      navigate('/tasks', { replace: true });
+    if (Number.isNaN(id)) return;
+
+    const fromList = findTaskById(tasks, id);
+    if (fromList) {
+      setModalTask(fromList);
       return;
     }
-
-    if (findTaskById(tasks, id)) {
-      setFetchedTask(null);
-      setDetailError(null);
-      return;
-    }
-
-    if (loading) return;
 
     let cancelled = false;
-    setDetailLoading(true);
-    setDetailError(null);
+    setModalLoading(true);
     fetchTask(id)
       .then((data) => {
-        if (!cancelled) setFetchedTask(taskFromDetail(data));
+        if (!cancelled) setModalTask(taskFromDetail(data));
       })
       .catch((e) => {
         console.error(e);
-        if (!cancelled) setDetailError('Задание не найдено');
+        if (!cancelled) navigate('/tasks', { replace: true });
       })
       .finally(() => {
-        if (!cancelled) setDetailLoading(false);
+        if (!cancelled) setModalLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
   }, [taskId, tasks, loading, navigate]);
+
+  // Синхронизируем данные модалки при обновлении списка
+  useEffect(() => {
+    if (!modalTask) return;
+    const fresh = findTaskById(tasks, Number(modalTask.id));
+    if (fresh) setModalTask(fresh);
+  }, [tasks, modalTask?.id]);
 
   useEffect(() => {
     if (!taskSuccess) return;
@@ -158,21 +152,21 @@ export function TasksPanel() {
   }, [taskSuccess]);
 
   useEffect(() => {
-    setTabbarHidden(isDetailOpen);
+    setTabbarHidden(modalTask != null);
     return () => setTabbarHidden(false);
-  }, [isDetailOpen, setTabbarHidden]);
+  }, [modalTask, setTabbarHidden]);
 
   useEffect(() => {
-    if (!isDetailOpen) {
+    if (!modalTask) {
       setBackHandler(null);
       return;
     }
     setBackHandler(() => {
-      closeTaskDetail();
+      closeTaskModal();
       return true;
     });
     return () => setBackHandler(null);
-  }, [isDetailOpen, setBackHandler, closeTaskDetail]);
+  }, [modalTask, setBackHandler, closeTaskModal]);
 
   const handleUploadPhoto = async () => {
     if (photos.length >= 3) return;
@@ -199,9 +193,8 @@ export function TasksPanel() {
       await applyNetworkingTask(task.id);
       const updated = await fetchTasks();
       setTasks(updated.tasks);
-      if (isDetailOpen && activeTaskId === task.id) {
-        setFetchedTask(null);
-      }
+      const fresh = findTaskById(updated.tasks, task.id);
+      if (fresh) setModalTask((prev) => (prev?.id === task.id ? fresh : prev));
     } catch (e) {
       console.error(e);
     } finally {
@@ -210,20 +203,20 @@ export function TasksPanel() {
   };
 
   const handleSubmit = async () => {
-    if (!activeTask) return;
-    if (activeTask.requiresPhoto && photos.length === 0) {
+    if (!modalTask) return;
+    if (modalTask.requiresPhoto && photos.length === 0) {
       alert('Для этого задания необходимо прикрепить фото');
       return;
     }
     setSubmitting(true);
     try {
-      const result = await submitTask(activeTask.id, answer, photos.length ? photos : undefined);
+      const result = await submitTask(modalTask.id, answer, photos.length ? photos : undefined);
       const status = result.submission?.status;
       setTaskSuccess({
-        points: status === 'approved' ? activeTask.points : undefined,
+        points: status === 'approved' ? modalTask.points : undefined,
         pendingReview: status === 'pending',
       });
-      closeTaskDetail();
+      closeTaskModal();
       load();
     } catch (e) {
       console.error(e);
@@ -241,7 +234,7 @@ export function TasksPanel() {
     return null;
   };
 
-  const renderTaskDetail = (task: TaskItem) => {
+  const renderTaskModalContent = (task: TaskItem) => {
     const blockedNetworking =
       task.isRandomDistribution &&
       task.networkingStatus !== 'paired' &&
@@ -249,67 +242,60 @@ export function TasksPanel() {
 
     if (blockedNetworking) {
       return (
-        <Group>
+        <>
           <Div style={{ padding: '12px 16px' }}>
-            <div className="nfo-card" style={{ margin: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{task.title}</div>
-              <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>
-                {task.description}
-              </div>
-              <div style={{ marginTop: 12, fontSize: 13, color: '#f39c12', lineHeight: 1.45 }}>
-                {!task.networkingStatus
-                  ? isMultiNetworking(task)
-                    ? `Подай заявку — назначим ${contactsRequired(task)} участников для знакомства.`
-                    : 'Сначала подай заявку на нетворкинг — после назначения партнёра откроется форма задания.'
-                  : isMultiNetworking(task)
-                    ? `Назначено ${task.partners?.length ?? 0} из ${contactsRequired(task)}. «Выполнить» откроется, когда все будут готовы.`
-                    : 'Ожидаем партнёра. Как только пара будет готова, нажми «Выполнить» в списке заданий.'}
-              </div>
-              {task.partners && task.partners.length > 0 && (
-                <NetworkingPartnersList
-                  partners={task.partners}
-                  title={isMultiNetworking(task) ? 'Участники для знакомства:' : 'Твой партнёр:'}
-                />
-              )}
-              {!task.networkingStatus && (
-                <Button
-                  size="m"
-                  mode="primary"
-                  style={{ marginTop: 12 }}
-                  loading={networkingLoading}
-                  onClick={() => void handleApplyNetworking(task)}
-                >
-                  {isMultiNetworking(task) ? 'Получить участников' : 'Подать заявку на нетворкинг'}
-                </Button>
-              )}
+            <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.4 }}>
+              {task.description}
             </div>
+            <div style={{ marginTop: 12, fontSize: 13, color: '#f39c12', lineHeight: 1.45 }}>
+              {!task.networkingStatus
+                ? isMultiNetworking(task)
+                  ? `Подай заявку — назначим ${contactsRequired(task)} участников для знакомства.`
+                  : 'Сначала подай заявку на нетворкинг — после назначения партнёра откроется форма задания.'
+                : isMultiNetworking(task)
+                  ? `Назначено ${task.partners?.length ?? 0} из ${contactsRequired(task)}. «Выполнить» откроется, когда все будут готовы.`
+                  : 'Ожидаем партнёра. Как только пара будет готова, нажми «Выполнить» в списке заданий.'}
+            </div>
+            {task.partners && task.partners.length > 0 && (
+              <NetworkingPartnersList
+                partners={task.partners}
+                title={isMultiNetworking(task) ? 'Участники для знакомства:' : 'Твой партнёр:'}
+              />
+            )}
+            {!task.networkingStatus && (
+              <Button
+                size="m"
+                mode="primary"
+                style={{ marginTop: 12 }}
+                loading={networkingLoading}
+                onClick={() => void handleApplyNetworking(task)}
+              >
+                {isMultiNetworking(task) ? 'Получить участников' : 'Подать заявку на нетворкинг'}
+              </Button>
+            )}
           </Div>
-          <Div style={{ padding: '0 16px 16px' }}>
-            <Button size="l" mode="outline" stretched onClick={closeTaskDetail}>Назад к списку</Button>
-          </Div>
-        </Group>
+        </>
       );
     }
 
     return (
-      <Group>
-        <Div style={{ padding: '12px 16px' }}>
-          <div className="nfo-card" style={{ margin: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{task.title}</div>
-            <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>{task.description}</div>
-            {task.isRandomDistribution && (task.partners?.length || task.partner) && (
-              <NetworkingPartnersList
-                partners={task.partners?.length ? task.partners : task.partner ? [task.partner] : []}
-                title={isMultiNetworking(task) ? 'Участники для знакомства:' : 'Твой партнёр:'}
-              />
-            )}
+      <>
+        <Div style={{ padding: '0 16px 12px' }}>
+          <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.4 }}>
+            {task.description}
           </div>
+          {task.isRandomDistribution && (task.partners?.length || task.partner) && (
+            <NetworkingPartnersList
+              partners={task.partners?.length ? task.partners : task.partner ? [task.partner] : []}
+              title={isMultiNetworking(task) ? 'Участники для знакомства:' : 'Твой партнёр:'}
+            />
+          )}
         </Div>
         <Div style={{ padding: '0 16px 12px' }}>
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Твой ответ</div>
           <textarea
             className="nfo-input"
-            rows={3}
+            rows={4}
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
           />
@@ -325,11 +311,12 @@ export function TasksPanel() {
         {uploadError && (
           <Div style={{ padding: '0 16px 12px', fontSize: 12, color: '#e74c3c' }}>{uploadError}</Div>
         )}
-        <Div style={{ display: 'flex', gap: 8, padding: '0 16px 16px' }}>
-          <Button size="l" mode="primary" stretched loading={submitting} onClick={() => void handleSubmit()}>Отправить</Button>
-          <Button size="l" mode="outline" onClick={closeTaskDetail}>Назад</Button>
+        <Div style={{ padding: '0 16px 24px' }}>
+          <Button size="l" mode="primary" stretched loading={submitting} onClick={() => void handleSubmit()}>
+            Отправить
+          </Button>
         </Div>
-      </Group>
+      </>
     );
   };
 
@@ -341,17 +328,24 @@ export function TasksPanel() {
         <Group>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
             {tasks.map((t) => {
-              const canOpen =
-                t.status !== 'approved' &&
-                (!t.isRandomDistribution || t.networkingStatus === 'paired');
+              const canOpen = t.status !== 'approved';
               const needsNetworking = t.isRandomDistribution && !t.networkingStatus;
               const waitingNetworking = t.isRandomDistribution && t.networkingStatus === 'waiting';
+
+              const handleOpenTask = (e?: { stopPropagation?: () => void }) => {
+                e?.stopPropagation?.();
+                openTask(t);
+              };
 
               return (
                 <div
                   key={t.id}
-                  className="nfo-card"
+                  className={canOpen ? 'nfo-card nfo-card--clickable' : 'nfo-card'}
                   style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }}
+                  onClick={canOpen ? () => handleOpenTask() : undefined}
+                  onKeyDown={canOpen ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleOpenTask(e); } : undefined}
+                  role={canOpen ? 'button' : undefined}
+                  tabIndex={canOpen ? 0 : undefined}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
@@ -410,13 +404,8 @@ export function TasksPanel() {
                         size="s"
                         mode="primary"
                         type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openTask(t);
-                        }}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        onTouchMove={(e) => e.stopPropagation()}
+                        onClick={(e) => handleOpenTask(e)}
+                        onTouchEnd={(e) => e.stopPropagation()}
                       >
                         Выполнить
                       </Button>
@@ -431,56 +420,53 @@ export function TasksPanel() {
     </PullToRefresh>
   );
 
-  const renderContent = () => {
-    if (loading && !isDetailOpen) {
-      return (
-        <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Spinner size="l" />
-        </Div>
-      );
-    }
-    if (detailLoading && !activeTask) {
-      return (
-        <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Spinner size="l" />
-        </Div>
-      );
-    }
-    if (activeTask) {
-      return renderTaskDetail(activeTask);
-    }
-    if (detailError && isDetailOpen) {
-      return (
-        <Group>
-          <Placeholder>{detailError}</Placeholder>
-          <Div style={{ padding: '0 16px 16px' }}>
-            <Button size="l" mode="outline" stretched onClick={closeTaskDetail}>
-              Назад к списку
-            </Button>
-          </Div>
-        </Group>
-      );
-    }
-    return renderTaskList();
-  };
-
   return (
-    <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient backToHome headerActions={<NotificationBell />}>
-      {taskSuccess && <TaskSuccessBanner points={taskSuccess.points} pendingReview={taskSuccess.pendingReview} />}
-      {focus && !isDetailOpen && (
-        <Group>
-          <Div style={{ margin: 12 }}>
-            <div className="nfo-focus-day" style={{ cursor: 'default' }}>
-              <div className="nfo-focus-day__label">Фокус дня</div>
-              <div className="nfo-focus-day__title">{focus.title}</div>
-              {focus.description && (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 6, lineHeight: 1.4 }}>{focus.description}</div>
-              )}
-            </div>
+    <>
+      <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient backToHome headerActions={<NotificationBell />}>
+        {taskSuccess && <TaskSuccessBanner points={taskSuccess.points} pendingReview={taskSuccess.pendingReview} />}
+        {focus && !modalTask && (
+          <Group>
+            <Div style={{ margin: 12 }}>
+              <div className="nfo-focus-day" style={{ cursor: 'default' }}>
+                <div className="nfo-focus-day__label">Фокус дня</div>
+                <div className="nfo-focus-day__title">{focus.title}</div>
+                {focus.description && (
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 6, lineHeight: 1.4 }}>{focus.description}</div>
+                )}
+              </div>
+            </Div>
+          </Group>
+        )}
+        {loading ? (
+          <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+            <Spinner size="l" />
           </Div>
-        </Group>
-      )}
-      {renderContent()}
-    </PanelLayout>
+        ) : (
+          renderTaskList()
+        )}
+      </PanelLayout>
+
+      <ModalRoot activeModal={modalTask ? 'task-detail' : null} onClose={closeTaskModal}>
+        <ModalPage
+          id="task-detail"
+          dynamicContentHeight
+          settlingHeight={100}
+          onClose={closeTaskModal}
+          header={
+            <ModalPageHeader>
+              {modalTask?.title ?? 'Задание'}
+            </ModalPageHeader>
+          }
+        >
+          {modalLoading && !modalTask ? (
+            <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+              <Spinner size="l" />
+            </Div>
+          ) : modalTask ? (
+            renderTaskModalContent(modalTask)
+          ) : null}
+        </ModalPage>
+      </ModalRoot>
+    </>
   );
 }

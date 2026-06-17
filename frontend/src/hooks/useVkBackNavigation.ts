@@ -6,6 +6,7 @@ import { useLayout } from '../contexts/LayoutContext';
 function parentRoute(pathname: string): string | null {
   if (pathname.startsWith('/tasks/')) return '/tasks';
   if (pathname.startsWith('/questions/')) return '/questions';
+  if (pathname === '/checkin' || pathname === '/nfo-day') return '/questions';
   if (pathname.startsWith('/exchange/incoming/')) return '/exchange';
   if (pathname.startsWith('/exchange/')) return '/exchange';
   if (pathname !== '/home') return '/home';
