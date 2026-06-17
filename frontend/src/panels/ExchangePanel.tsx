@@ -16,6 +16,7 @@ import {
   type IncomingQuestion,
 } from '../api/exchange';
 import { ExchangeIncomingCard } from '../components/ExchangeIncomingCard';
+import { EmptyState } from '../components/EmptyState';
 import { GradientHeader } from '../components/GradientHeader';
 
 function getExchangeSubtitle(incomingCount: number): string {
@@ -172,7 +173,9 @@ export function ExchangePanel() {
                 </div>
               </Div>
               <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
-                {feed.map((item) => (
+                {feed.length === 0 ? (
+                  <EmptyState message="Пока никто не задал вопрос. Будь первым!" />
+                ) : feed.map((item) => (
                   <div
                     key={item.id}
                     className="nfo-ex-card"

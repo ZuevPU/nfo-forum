@@ -10,6 +10,7 @@ import {
   type ReflectionQuestion,
 } from '../api/reflection';
 import { PanelLayout } from '../components/PanelLayout';
+import { EmptyState } from '../components/EmptyState';
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
   entry: 'Входной',
@@ -68,7 +69,9 @@ export function QuestionsPanel() {
         </Div>
       )}
       <Group header={<div className="nfo-sec-title">Вопросы трека</div>}>
-        {Object.entries(
+        {questions.length === 0 ? (
+          <EmptyState message="Вопросов пока нет. Загляни позже" />
+        ) : Object.entries(
           questions.reduce((acc, q) => {
             const key = q.groupId || `single-${q.id}`;
             if (!acc[key]) acc[key] = [];

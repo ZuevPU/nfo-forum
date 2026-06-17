@@ -20,7 +20,7 @@ export function applyNetworkingTask(id: number) {
 }
 
 export function submitTask(id: number, answerText: string, photos?: string[]) {
-  return apiRequest(`/api/tasks/${id}/submit`, {
+  return apiRequest<{ submission: { status: string } }>(`/api/tasks/${id}/submit`, {
     method: 'POST',
     body: { answer_text: answerText, photos },
   });

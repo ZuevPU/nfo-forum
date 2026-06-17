@@ -1,5 +1,6 @@
 import { Button, Div, Headline, List, Panel, PanelHeader, Placeholder, Spacing, Text } from '@vkontakte/vkui';
 import { useNavigate } from 'react-router-dom';
+import { CharacterIllustration } from '../components/CharacterIllustration';
 
 export function WelcomePanel() {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ export function WelcomePanel() {
           color: '#fff',
         }}
       >
+        <CharacterIllustration size={120} />
+        <Spacing size={10} />
         <Headline level="1" weight="1" style={{ color: '#fff', textAlign: 'center' }}>
           Привет!
         </Headline>

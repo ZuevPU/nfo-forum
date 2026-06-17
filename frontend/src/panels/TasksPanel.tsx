@@ -2,13 +2,14 @@ import {
   Button,
   Div,
   Group,
-  Headline,
   Spinner,
   PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { pickImageAsDataUrl } from '../lib/vk-bridge';
+import { EmptyState } from '../components/EmptyState';
 import { PanelLayout } from '../components/PanelLayout';
+import { TaskSuccessBanner } from '../components/TaskSuccessBanner';
 import { useLayout } from '../contexts/LayoutContext';
 import {
   applyNetworkingTask,
@@ -30,7 +31,7 @@ export function TasksPanel() {
   const [loading, setLoading] = useState(true);
   const [networkingLoading, setNetworkingLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [taskSuccess, setTaskSuccess] = useState<{ points?: number; pendingReview?: boolean } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const load = () => {
@@ -46,10 +47,10 @@ export function TasksPanel() {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
-    if (!successMessage) return;
-    const timer = window.setTimeout(() => setSuccessMessage(null), 3000);
+    if (!taskSuccess) return;
+    const timer = window.setTimeout(() => setTaskSuccess(null), 4000);
     return () => window.clearTimeout(timer);
-  }, [successMessage]);
+  }, [taskSuccess]);
 
   useEffect(() => {
     if (!selectedTask) {
@@ -104,11 +105,15 @@ export function TasksPanel() {
     }
     setSubmitting(true);
     try {
-      await submitTask(selectedTask.id, answer, photos.length ? photos : undefined);
+      const result = await submitTask(selectedTask.id, answer, photos.length ? photos : undefined);
+      const status = result.submission?.status;
+      setTaskSuccess({
+        points: status === 'approved' ? selectedTask.points : undefined,
+        pendingReview: status === 'pending',
+      });
       setSelectedTask(null);
       setAnswer('');
       setPhotos([]);
-      setSuccessMessage('Задание отправлено');
       load();
     } catch (e) {
       console.error(e);
@@ -129,19 +134,17 @@ export function TasksPanel() {
   return (
     <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient backToHome>
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
-      {successMessage && (
-        <Div style={{ padding: '8px 16px 0' }}>
-          <div style={{ padding: '10px 12px', borderRadius: 10, background: '#e8f8ef', color: '#1e7e34', fontSize: 13, fontWeight: 600 }}>
-            ✅ {successMessage}
-          </div>
-        </Div>
-      )}
+      {taskSuccess && <TaskSuccessBanner points={taskSuccess.points} pendingReview={taskSuccess.pendingReview} />}
       {focus && (
         <Group>
-          <Div className="nfo-gradient-green" style={{ borderRadius: 12, margin: 12, padding: 12, cursor: 'default' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, textTransform: 'uppercase' }}>Фокус дня</div>
-            <Headline level="2" weight="2" style={{ color: '#fff', marginTop: 4 }}>{focus.title}</Headline>
-            <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>{focus.description}</div>
+          <Div style={{ margin: 12 }}>
+            <div className="nfo-focus-day" style={{ cursor: 'default' }}>
+              <div className="nfo-focus-day__label">Фокус дня</div>
+              <div className="nfo-focus-day__title">{focus.title}</div>
+              {focus.description && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 6, lineHeight: 1.4 }}>{focus.description}</div>
+              )}
+            </div>
           </Div>
         </Group>
       )}
@@ -187,6 +190,8 @@ export function TasksPanel() {
             <Button size="l" mode="secondary" onClick={() => { setSelectedTask(null); setPhotos([]); setAnswer(''); }}>Назад</Button>
           </Div>
         </Group>
+      ) : tasks.length === 0 ? (
+        <EmptyState message="Задания скоро появятся — следи за уведомлениями" />
       ) : (
         <Group>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>

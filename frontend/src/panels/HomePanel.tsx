@@ -24,6 +24,7 @@ import { fetchReflectionLevel } from '../api/rating';
 import { updateNotifications, updateNotificationPrefs, updateMessagesPermission } from '../api/auth';
 import type { NotificationPrefs } from '../types/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
+import { ActivityIcon } from '../components/ActivityIcon';
 import { GradientHeader } from '../components/GradientHeader';
 import { ParticipantJourney } from '../components/ParticipantJourney';
 import { ProgressBar } from '../components/ProgressBar';
@@ -270,25 +271,20 @@ export function HomePanel() {
     <>
       <Panel id="home">
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
-      <GradientHeader title="Главная" subtitle="Форум неформального образования">
-        <Div style={{ marginTop: 12 }}><UserProfileCard user={data?.user ?? user} trackRank={data?.trackRank} /></Div>
-        <Div style={{ paddingBottom: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'rgba(255,255,255,0.9)' }}>
-            <Text weight="2">{dateStr}</Text>
-            {programDay ? <Text weight="2">День {programDay}</Text> : null}
-          </div>
-        </Div>
+      <GradientHeader title="Главная" subtitle="Форум неформального образования" variant="main">
+        <div className="nfo-home-header-meta">
+          <Text weight="2">{dateStr}</Text>
+          {programDay ? <Text weight="2">День {programDay}</Text> : null}
+        </div>
+        <UserProfileCard user={data?.user ?? user} trackRank={data?.trackRank} />
       </GradientHeader>
       
       {data?.focusOfDay && (
         <Group>
           <Div style={{ padding: '0 16px' }}>
-            <div className="nfo-gradient-green" style={{ borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 8, cursor: 'default' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 16 }}>🎯</span>
-                <Text weight="2" style={{ color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', fontSize: 12 }}>Фокус дня</Text>
-              </div>
-              <Headline level="2" weight="2" style={{ color: '#fff' }}>{data.focusOfDay.title}</Headline>
+            <div className="nfo-focus-day" style={{ cursor: 'default' }}>
+              <div className="nfo-focus-day__label">Фокус дня</div>
+              <div className="nfo-focus-day__title">{data.focusOfDay.title}</div>
             </div>
           </Div>
         </Group>
@@ -308,7 +304,7 @@ export function HomePanel() {
         <Div style={{ padding: '12px 16px' }}>
           {data?.upcomingBlock && (
             <div className="nfo-hcard" onClick={() => navigate('/schedule')}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📅</div>
+              <ActivityIcon emoji="📅" variant="schedule" />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Что далее</div>
                 <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
@@ -320,7 +316,7 @@ export function HomePanel() {
           )}
 
           <div className="nfo-hcard" onClick={() => navigate('/questions')}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🌙</div>
+            <ActivityIcon emoji="💬" variant="questions" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активные вопросы</div>
               <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data?.stats.activeQuestions ?? 0} доступно</div>
@@ -330,7 +326,7 @@ export function HomePanel() {
           </div>
 
           <div className="nfo-hcard" onClick={() => navigate('/tasks')}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>⭐</div>
+            <ActivityIcon emoji="⭐" variant="tasks" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активные задания</div>
               <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{data?.stats.tasksAvailable ?? 0} доступных · {data?.stats.tasksCompleted ?? 0} выполнено</div>
@@ -345,7 +341,7 @@ export function HomePanel() {
               : undefined}
             onClick={() => navigate('/exchange')}
           >
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>💡</div>
+            <ActivityIcon emoji="💡" variant="exchange" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активный обмен опытом</div>
               <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
@@ -364,7 +360,7 @@ export function HomePanel() {
           </div>
 
           <div className="nfo-hcard" onClick={() => navigate('/nfo-day')}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🌅</div>
+            <ActivityIcon emoji="🌅" variant="neutral" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Каким было НФО сегодня?</div>
               <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>Вечерняя рефлексия дня</div>
@@ -374,7 +370,7 @@ export function HomePanel() {
 
           {checkinInfo.available && (
           <div className="nfo-hcard" onClick={() => navigate('/checkin')}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>😊</div>
+            <ActivityIcon emoji="😊" variant="questions" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Как ты сейчас?</div>
               <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
@@ -410,7 +406,7 @@ export function HomePanel() {
 
           {user.role === 'admin' && (
             <div className="nfo-hcard" onClick={() => navigate('/admin')}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f3f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>⚙️</div>
+              <ActivityIcon emoji="⚙️" variant="neutral" />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Админка</div>
                 <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>Управление форумом</div>

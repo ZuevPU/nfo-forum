@@ -6,14 +6,15 @@ interface Props {
   title: string;
   subtitle?: string;
   backToHome?: boolean;
+  variant?: 'main' | 'default';
   children?: ReactNode;
 }
 
-export function GradientHeader({ title, subtitle, backToHome, children }: Props) {
+export function GradientHeader({ title, subtitle, backToHome, variant = 'default', children }: Props) {
   const navigate = useNavigate();
 
   return (
-    <div className="nfo-gradient-header">
+    <div className={`nfo-gradient-header${variant === 'main' ? ' nfo-gradient-header--main' : ''}`}>
       <Title level="2" style={{ color: '#fff' }}>{title}</Title>
       {subtitle && <Footnote style={{ color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>{subtitle}</Footnote>}
       {backToHome && (
