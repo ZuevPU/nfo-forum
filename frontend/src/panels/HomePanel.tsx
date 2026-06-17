@@ -26,7 +26,6 @@ import type { NotificationPrefs } from '../types/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { ActivityIcon } from '../components/ActivityIcon';
 import { GradientHeader } from '../components/GradientHeader';
-import { ParticipantJourney } from '../components/ParticipantJourney';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -413,19 +412,6 @@ export function HomePanel() {
             </div>
           )}
         </Div>
-      </Group>
-
-      <Group
-        header={
-          <div>
-            <div className="nfo-sec-title">Путь участника</div>
-            <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', padding: '0 16px 8px', lineHeight: 1.4 }}>
-              Расписание активностей бота в течение дня — когда приходят уведомления и что доступно в приложении
-            </div>
-          </div>
-        }
-      >
-        <ParticipantJourney />
       </Group>
 
       <Group header={<div className="nfo-sec-title">Прогресс</div>}>
