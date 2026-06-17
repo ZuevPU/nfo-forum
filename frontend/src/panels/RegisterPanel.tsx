@@ -82,7 +82,7 @@ export function RegisterPanel() {
           </Checkbox>
         </FormItem>
         <Div>
-          <Button size="l" stretched disabled={!termsAccepted || !firstName.trim()} onClick={() => void handleRegister()}>
+          <Button size="l" mode="primary" stretched disabled={!termsAccepted || !firstName.trim()} onClick={() => void handleRegister()}>
             Зарегистрироваться
           </Button>
         </Div>

@@ -10,6 +10,9 @@
     "seed:dedupe": "tsx src/scripts/seed-reset.ts dedupe",
     "seed:reset": "tsx src/scripts/seed-reset.ts reset && tsx src/scripts/seed.ts",
     "promote-admin": "tsx src/scripts/promote-admin.ts",
+    "push:diagnostics": "tsx src/scripts/push-diagnostics.ts",
+    "db:migrate": "node scripts/apply-pending-migrations.mjs",
+    "db:close-test-questions": "node scripts/close-test-questions.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push"
   },

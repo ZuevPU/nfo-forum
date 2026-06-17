@@ -41,7 +41,7 @@ export function NfoDayPanel() {
     if (existing) return;
     setSelectedFactors((prev) => {
       if (prev.includes(factor)) return prev.filter((f) => f !== factor);
-      if (prev.length >= 3) return prev;
+      if (prev.length >= 3) return [...prev.slice(1), factor];
       return [...prev, factor];
     });
   };
@@ -93,8 +93,13 @@ export function NfoDayPanel() {
         </Div>
       </Group>
 
-      <Group header="Что больше всего повлияло? (до 3)">
-        <Div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 16px 12px' }}>
+      <Group header={`Что больше всего повлияло? (до 3) · выбрано ${selectedFactors.length}/3`}>
+        <Div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 16px 4px' }}>
+          {!existing && selectedFactors.length > 0 && (
+            <div style={{ width: '100%', fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>
+              Нажми на плашку ещё раз, чтобы убрать выбор
+            </div>
+          )}
           {factors.map((factor) => {
             const selected = selectedFactors.includes(factor);
             return (
@@ -111,7 +116,7 @@ export function NfoDayPanel() {
                   fontSize: 12,
                   fontWeight: selected ? 600 : 400,
                   cursor: existing ? 'default' : 'pointer',
-                  opacity: !selected && selectedFactors.length >= 3 && !existing ? 0.5 : 1,
+                  opacity: !selected && selectedFactors.length >= 3 && !existing ? 0.7 : 1,
                 }}
               >
                 {factor}
@@ -124,13 +129,7 @@ export function NfoDayPanel() {
       {!existing && !isLocked && (
         <Group>
           <Div style={{ padding: '0 16px 16px' }}>
-            <Button
-              size="l"
-              stretched
-              loading={submitting}
-              disabled={!answer.trim() || selectedFactors.length === 0}
-              onClick={() => void handleSubmit()}
-            >
+            <Button size="l" mode="primary" stretched loading={submitting} disabled={!answer.trim() || selectedFactors.length === 0} onClick={() => void handleSubmit()}>
               Отправить ответ
             </Button>
           </Div>

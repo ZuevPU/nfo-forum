@@ -257,7 +257,7 @@ export function TasksPanel() {
             <Div style={{ padding: '0 16px 12px', fontSize: 12, color: '#e74c3c' }}>{uploadError}</Div>
           )}
           <Div style={{ display: 'flex', gap: 8 }}>
-            <Button size="l" stretched loading={submitting} onClick={() => void handleSubmit()}>Отправить</Button>
+            <Button size="l" mode="primary" stretched loading={submitting} onClick={() => void handleSubmit()}>Отправить</Button>
             <Button size="l" mode="outline" onClick={closeTaskDetail}>Назад</Button>
           </Div>
         </Group>
@@ -266,24 +266,17 @@ export function TasksPanel() {
       ) : (
         <Group>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
-          {tasks.map((t) => (
+          {tasks.map((t) => {
+            const canOpen =
+              t.status !== 'approved' &&
+              (!t.isRandomDistribution || t.networkingStatus === 'paired' || t.networkingStatus === 'waiting');
+            const needsNetworking = t.isRandomDistribution && !t.networkingStatus;
+
+            return (
             <div
               key={t.id}
-              className="nfo-card"
-              role="button"
-              tabIndex={0}
+              className={`nfo-card${canOpen || needsNetworking ? ' nfo-card--clickable' : ''}`}
               style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }}
-              onClick={() => {
-                if (t.status === 'approved') return;
-                if (t.isRandomDistribution && !t.networkingStatus) return;
-                openTask(t);
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                if (t.status === 'approved') return;
-                if (t.isRandomDistribution && !t.networkingStatus) return;
-                openTask(t);
-              }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
@@ -294,10 +287,15 @@ export function TasksPanel() {
               </div>
               {t.isRandomDistribution && (
                 <div style={{ marginTop: 8 }}>
-                  {!t.networkingStatus && (
-                    <Button size="s" loading={networkingLoading} onClick={(e) => { e.stopPropagation(); void handleApplyNetworking(t); }}>
-                      Подать заявку на нетворкинг
-                    </Button>
+                  {needsNetworking && (
+                    <>
+                      <div style={{ fontSize: 11, color: '#f39c12', marginBottom: 6 }}>
+                        Сначала подай заявку на нетворкинг
+                      </div>
+                      <Button size="s" mode="primary" loading={networkingLoading} onClick={() => void handleApplyNetworking(t)}>
+                        Подать заявку на нетворкинг
+                      </Button>
+                    </>
                   )}
                   {t.networkingStatus === 'waiting' && (
                     <div style={{ fontSize: 11, color: '#f39c12' }}>Ожидаем партнёра...</div>
@@ -309,16 +307,22 @@ export function TasksPanel() {
                   )}
                 </div>
               )}
-              <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 {statusBadge(t.status)}
                 {t.deadline && (
                   <div style={{ fontSize: 11, color: t.isPastDeadline ? '#e74c3c' : 'var(--vkui--color_text_secondary)' }}>
                     До {new Date(t.deadline).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 )}
+                {canOpen && (
+                  <Button size="s" mode="primary" onClick={() => openTask(t)}>
+                    Выполнить
+                  </Button>
+                )}
               </div>
             </div>
-          ))}
+          );
+          })}
           </Div>
         </Group>
       )}

@@ -28,6 +28,7 @@ import { ActivityIcon } from '../components/ActivityIcon';
 import { GradientHeader } from '../components/GradientHeader';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
+import { CommunityMessagesBanner } from '../components/CommunityMessagesBanner';
 import { useAuthContext } from '../contexts/AuthContext';
 import { requestVkMessagesFromGroup } from '../lib/vk-bridge';
 import { FORUM_DAYS } from '../constants/nfoFactors';
@@ -188,7 +189,7 @@ export function HomePanel() {
           />
         </FormItem>
         <Div>
-          <Button size="l" stretched loading={feedbackSubmitting} onClick={() => void handleFeedbackSubmit()}>
+          <Button size="l" mode="primary" stretched loading={feedbackSubmitting} onClick={() => void handleFeedbackSubmit()}>
             Отправить
           </Button>
         </Div>
@@ -264,7 +265,7 @@ export function HomePanel() {
     </ModalRoot>
   );
 
-  const checkinInfo = data?.checkin ?? { available: true, activeSlot: null, slotLabel: null };
+  const checkinInfo = data?.checkin ?? { available: true, activeSlot: null, slotLabel: null, canSubmit: false, nextSlotAt: null };
 
   return (
     <>
@@ -277,6 +278,10 @@ export function HomePanel() {
         </div>
         <UserProfileCard user={data?.user ?? user} trackRank={data?.trackRank} />
       </GradientHeader>
+
+      {user && !user.messagesFromGroupAllowed && (
+        <CommunityMessagesBanner onEnabled={() => void refreshUser()} />
+      )}
 
       {data?.focusOfDay && (
         <Div className="nfo-home-focus-wrap">
@@ -374,7 +379,7 @@ export function HomePanel() {
                 {checkinInfo.slotLabel ?? 'Чек-ин состояния'}
               </div>
             </div>
-            {checkinInfo.activeSlot ? (
+            {checkinInfo.canSubmit ? (
               <span className="nfo-hcard-badge">Перейти</span>
             ) : null}
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
@@ -415,20 +420,24 @@ export function HomePanel() {
       </Group>
 
       <Group header={<div className="nfo-sec-title">Прогресс</div>}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 12px 12px' }}>
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div className="nfo-progress-grid">
+          <div className="nfo-card nfo-progress-card">
             <div style={{ fontSize: 20 }}>🏆</div>
-            <Headline level="2" weight="2" style={{ marginTop: 'auto' }}>{data?.trackRank ?? '—'}</Headline>
+            <Headline level="2" weight="2" style={{ marginTop: 4 }}>{data?.trackRank ?? '—'}</Headline>
             <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)' }}>место в треке</div>
-            <div style={{ marginTop: 8 }}>
+            <div className="nfo-progress-card__spacer" />
+            <div>
               <ProgressBar value={user.points} max={200} color="var(--nfo-primary)" />
             </div>
           </div>
-          <div className="nfo-card" style={{ margin: 0, display: 'flex', flexDirection: 'column', height: '100%', cursor: 'pointer' }} onClick={() => navigate('/reflection-level')}>
+          <div
+            className="nfo-card nfo-progress-card nfo-card--clickable"
+            onClick={() => navigate('/reflection-level')}
+          >
             <ActivityIcon emoji="🧠" variant="purple" />
-            <Headline level="2" weight="2" style={{ marginTop: 8 }}>Ур. {user.reflectionLevel}</Headline>
+            <Headline level="2" weight="2" style={{ marginTop: 4 }}>Ур. {user.reflectionLevel}</Headline>
             <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)' }}>рефлексия · {user.reflectionPoints} б.</div>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 4 }}>
               <ProgressBar value={reflectionProgress} max={100} />
             </div>
             {pointsToNextLevel > 0 && nextLevel != null && (
@@ -455,13 +464,13 @@ export function HomePanel() {
 
       <Group>
         <div className="nfo-home-footer-btns">
-          <Button size="l" stretched onClick={() => setActiveModal('feedback')}>
+          <Button size="l" mode="outline" stretched onClick={() => setActiveModal('feedback')}>
             Связь с организаторами
           </Button>
-          <Button size="l" stretched onClick={() => navigate('/settings')}>
+          <Button size="l" mode="outline" stretched onClick={() => navigate('/settings')}>
             Настройки
           </Button>
-          <Button size="l" stretched onClick={() => setActiveModal('info')}>
+          <Button size="l" mode="outline" stretched onClick={() => setActiveModal('info')}>
             О приложении
           </Button>
         </div>

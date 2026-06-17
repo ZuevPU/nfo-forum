@@ -68,6 +68,7 @@ export function createReflectionQuestion(data: {
   sendNotification?: boolean;
   groupId?: string | null;
   track?: string | null;
+  allowMultiple?: boolean;
 }) {
   return apiRequest('/api/admin/reflection-questions', { method: 'POST', body: data });
 }
@@ -86,7 +87,28 @@ export function sendAdminPush(payload: {
   target_user_id?: number;
   scheduled_at?: string;
 }) {
-  return apiRequest('/api/admin/push/send', { method: 'POST', body: payload });
+  return apiRequest<{
+    sent: number;
+    scheduled?: boolean;
+    candidates?: number;
+    eligible?: number;
+    vkError?: { error_code?: number; error_msg?: string };
+  }>('/api/admin/push/send', { method: 'POST', body: payload });
+}
+
+export interface PushSubscriptionStats {
+  total: number;
+  withMessages: number;
+  fullyEligible: number;
+  withoutMessages: number;
+  adminsTotal: number;
+  adminsWithMessages: number;
+  participantsTotal: number;
+  participantsWithMessages: number;
+}
+
+export function fetchPushStats() {
+  return apiRequest<{ stats: PushSubscriptionStats }>('/api/admin/push/stats');
 }
 
 export function fetchBroadcasts() {
@@ -337,4 +359,5 @@ export interface ReflectionQuestion {
   sendNotification: boolean;
   groupId: string | null;
   track: string | null;
+  allowMultiple?: boolean;
 }

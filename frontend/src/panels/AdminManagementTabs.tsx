@@ -288,6 +288,9 @@ export function AdminSettingsTab() {
             onChange={(e) => setCheckin((c) => ({ ...c, slots: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }))}
           />
         </FormItem>
+        <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45, marginBottom: 12 }}>
+          После ответа чек-ин недоступен до следующего слота. Вопросы фиксированы в приложении (энергия + настроение).
+        </div>
         <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveCheckinSettings(checkin)}>
           Сохранить чек-ин
         </button>

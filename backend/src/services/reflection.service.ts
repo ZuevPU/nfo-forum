@@ -34,6 +34,7 @@ export async function getQuestions(user: UserDto) {
       endTime: q.endTime?.toISOString() ?? null,
       isLocked: q.publishTime > now,
       isAnswered: answeredIds.has(q.id),
+      allowMultiple: q.allowMultiple,
       unlockLabel:
         q.publishTime > now
           ? `Откроется в ${q.publishTime.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
@@ -57,21 +58,23 @@ export async function submitAnswer(user: UserDto, questionId: number, answerText
     .where(and(eq(reflectionAnswers.userId, user.id), eq(reflectionAnswers.questionId, questionId)))
     .limit(1);
 
-  if (existingAnswer) throw new Error('Already answered');
+  if (existingAnswer && !question.allowMultiple) throw new Error('Already answered');
 
   const [created] = await db
     .insert(reflectionAnswers)
     .values({ userId: user.id, questionId, answerText })
     .returning();
 
-  await awardPointsForSource(
-    user.id,
-    'reflection_answer',
-    created.id,
-    undefined,
-    question.points,
-    question.points,
-  );
+  if (!existingAnswer) {
+    await awardPointsForSource(
+      user.id,
+      'reflection_answer',
+      created.id,
+      undefined,
+      question.points,
+      question.points,
+    );
+  }
   return created;
 }
 

@@ -123,35 +123,67 @@ function filterByCategory(rows: UserRow[], category?: NotificationCategory): Use
   );
 }
 
-async function resolveTargetUsers(payload: PushPayload): Promise<UserRow[]> {
-  const selectFields = {
-    id: users.id,
-    vkId: users.vkId,
-    notificationsEnabled: users.notificationsEnabled,
-    messagesFromGroupAllowed: users.messagesFromGroupAllowed,
-    notificationPrefs: users.notificationPrefs,
-    track: users.track,
-  };
+const userSelectFields = {
+  id: users.id,
+  vkId: users.vkId,
+  notificationsEnabled: users.notificationsEnabled,
+  messagesFromGroupAllowed: users.messagesFromGroupAllowed,
+  notificationPrefs: users.notificationPrefs,
+  track: users.track,
+};
 
+async function resolveRawTargetUsers(payload: PushPayload): Promise<UserRow[]> {
   if (payload.targetType === 'user' && payload.targetUserId) {
     const [u] = await db
-      .select(selectFields)
+      .select(userSelectFields)
       .from(users)
       .where(eq(users.id, payload.targetUserId))
       .limit(1);
-    return u ? filterByCategory([u as UserRow], payload.category) : [];
+    return u ? [u as UserRow] : [];
   }
 
   if (payload.targetType === 'track' && payload.targetTracks?.length) {
     const rows = await db
-      .select(selectFields)
+      .select(userSelectFields)
       .from(users)
       .where(inArray(users.track, payload.targetTracks));
-    return filterByCategory(rows as UserRow[], payload.category);
+    return rows as UserRow[];
   }
 
-  const rows = await db.select(selectFields).from(users);
-  return filterByCategory(rows as UserRow[], payload.category);
+  const rows = await db.select(userSelectFields).from(users);
+  return rows as UserRow[];
+}
+
+async function resolveTargetUsers(payload: PushPayload): Promise<UserRow[]> {
+  const rows = await resolveRawTargetUsers(payload);
+  return filterByCategory(rows, payload.category);
+}
+
+export async function getPushSubscriptionStats() {
+  const rows = await db
+    .select({
+      role: users.role,
+      messagesFromGroupAllowed: users.messagesFromGroupAllowed,
+      notificationsEnabled: users.notificationsEnabled,
+    })
+    .from(users);
+
+  const total = rows.length;
+  const withMessages = rows.filter((r) => r.messagesFromGroupAllowed).length;
+  const fullyEligible = rows.filter((r) => r.messagesFromGroupAllowed && r.notificationsEnabled).length;
+  const admins = rows.filter((r) => r.role === 'admin');
+  const adminsWithMessages = admins.filter((r) => r.messagesFromGroupAllowed).length;
+
+  return {
+    total,
+    withMessages,
+    fullyEligible,
+    withoutMessages: total - withMessages,
+    adminsTotal: admins.length,
+    adminsWithMessages,
+    participantsTotal: total - admins.length,
+    participantsWithMessages: withMessages - adminsWithMessages,
+  };
 }
 
 function buildMessage(payload: PushPayload): string {
@@ -164,23 +196,54 @@ function buildMessage(payload: PushPayload): string {
 
 export async function deliverPush(
   payload: PushPayload,
-): Promise<{ sent: number; vkError?: VkApiError | null }> {
-  const targetUsers = await resolveTargetUsers(payload);
+): Promise<{ sent: number; candidates: number; eligible: number; vkError?: VkApiError | null }> {
+  const candidates = await resolveRawTargetUsers(payload);
+  const targetUsers = filterByCategory(candidates, payload.category);
   const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
+
+  console.info(
+    `[push] target=${payload.targetType} category=${payload.category ?? 'none'} candidates=${candidates.length} eligible=${targetUsers.length}`,
+  );
+
   if (vkIds.length === 0) {
-    console.info('[push] No eligible recipients for target', payload.targetType);
-    return { sent: 0 };
+    const blockedByMessages = candidates.filter((u) => !u.messagesFromGroupAllowed).length;
+    const blockedByNotifications = candidates.filter(
+      (u) => u.messagesFromGroupAllowed && !u.notificationsEnabled,
+    ).length;
+    const blockedByCategory = candidates.filter(
+      (u) =>
+        u.messagesFromGroupAllowed &&
+        u.notificationsEnabled &&
+        payload.category &&
+        !shouldNotify(
+          u.notificationsEnabled,
+          u.notificationPrefs ?? DEFAULT_NOTIFICATION_PREFS,
+          payload.category,
+        ),
+    ).length;
+    console.info(
+      `[push] No eligible recipients: blockedByMessages=${blockedByMessages} blockedByNotifications=${blockedByNotifications} blockedByCategory=${blockedByCategory}`,
+    );
+    return { sent: 0, candidates: candidates.length, eligible: 0 };
   }
 
   const message = buildMessage(payload);
   const attachment = await resolvePhotoAttachment(payload);
   const vkError = await sendVkMessage(vkIds, message, attachment);
-  return { sent: vkError ? 0 : vkIds.length, vkError };
+  const sent = vkError ? 0 : vkIds.length;
+  console.info(`[push] delivered sent=${sent}${vkError ? ` vkError=${vkError.error_code}` : ''}`);
+  return { sent, candidates: candidates.length, eligible: targetUsers.length, vkError };
 }
 
 export async function sendPush(
   payload: PushPayload,
-): Promise<{ sent: number; scheduled?: boolean; vkError?: VkApiError | null }> {
+): Promise<{
+  sent: number;
+  scheduled?: boolean;
+  candidates?: number;
+  eligible?: number;
+  vkError?: VkApiError | null;
+}> {
   const resolvedMediaId = payload.image || payload.imageMediaId
     ? await resolveMediaIdFromImageInput(payload.image, payload.imageMediaId)
     : null;
@@ -208,8 +271,8 @@ export async function sendPush(
     imageMediaId: resolvedMediaId ?? payload.imageMediaId,
   };
 
-  const { sent, vkError } = await deliverPush(deliverPayload);
-  return { sent, vkError };
+  const { sent, candidates, eligible, vkError } = await deliverPush(deliverPayload);
+  return { sent, candidates, eligible, vkError };
 }
 
 export async function notifyUsersForTrack(

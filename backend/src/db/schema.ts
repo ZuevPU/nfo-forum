@@ -97,6 +97,7 @@ export const reflectionQuestions = pgTable(
     sendNotification: boolean('send_notification').notNull().default(true),
     notificationSentAt: timestamp('notification_sent_at'),
     groupId: text('group_id'),
+    allowMultiple: boolean('allow_multiple').notNull().default(false),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [

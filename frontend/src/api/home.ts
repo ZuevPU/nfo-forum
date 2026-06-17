@@ -29,6 +29,8 @@ export interface HomeData {
     available: boolean;
     activeSlot: string | null;
     slotLabel: string | null;
+    canSubmit?: boolean;
+    nextSlotAt?: string | null;
   };
 }
 

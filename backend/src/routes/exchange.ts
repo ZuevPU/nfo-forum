@@ -79,6 +79,16 @@ exchangeRouter.post('/answers', requireUser, submitRateLimit, async (req: Authen
     await logActivity(req.user!.id, 'answer_exchange');
     res.status(201).json({ answer });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (
+      message === 'Question not found' ||
+      message === 'Question is not available' ||
+      message === 'Question is not available for your track' ||
+      message === 'Already answered'
+    ) {
+      res.status(400).json({ error: message });
+      return;
+    }
     console.error('Create answer error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -98,7 +108,7 @@ exchangeRouter.post('/assignments/:id/skip', requireUser, async (req: Authentica
 exchangeRouter.get('/questions/:id', requireUser, async (req: AuthenticatedRequest, res) => {
   try {
     const id = Number(req.params.id);
-    const data = await getQuestionWithAnswers(id, req.user!.id);
+    const data = await getQuestionWithAnswers(id, req.user!);
     if (!data) {
       res.status(404).json({ error: 'Question not found' });
       return;

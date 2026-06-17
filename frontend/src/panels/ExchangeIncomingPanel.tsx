@@ -80,7 +80,7 @@ export function ExchangeIncomingPanel() {
             />
           </Div>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Button size="l" stretched loading={submitting} onClick={() => void handleSubmit()}>
+            <Button size="l" mode="primary" stretched loading={submitting} onClick={() => void handleSubmit()}>
               Отправить ответ
             </Button>
             <Button size="l" mode="outline" stretched loading={submitting} onClick={() => void handleSkip()}>

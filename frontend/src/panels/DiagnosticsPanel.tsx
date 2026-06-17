@@ -356,9 +356,9 @@ export function DiagnosticsPanel() {
           <Button 
             size="l" 
             stretched 
+            mode="primary"
             disabled={!currentAnswer} 
             onClick={() => void handleNext()}
-            style={{ background: currentAnswer ? 'linear-gradient(90deg, #4f3ec0, #7b5ecf)' : undefined }}
           >
             {currentSkillIndex === data.skills.length - 1 ? 'Завершить' : 'Далее'}
           </Button>
@@ -388,8 +388,8 @@ export function DiagnosticsPanel() {
           <Button 
             size="l" 
             stretched 
+            mode="primary"
             onClick={handleStart}
-            style={{ background: 'linear-gradient(90deg, #4f3ec0, #7b5ecf)' }}
           >
             {isCompleted ? 'Смотреть профиль' : (currentAnswers.length > 0 ? 'Продолжить опрос' : 'Начать опрос →')}
           </Button>

@@ -10,8 +10,10 @@ import {
 import { useEffect, useState } from 'react';
 import {
   fetchCheckinHistory,
+  fetchCheckinStatus,
   submitCheckin,
   type Checkin,
+  type CheckinStatus,
 } from '../api/state';
 import { PanelLayout } from '../components/PanelLayout';
 
@@ -48,86 +50,125 @@ export function StateCheckinPanel() {
   const [emotion, setEmotion] = useState('спокойствие');
   const [comment, setComment] = useState('');
   const [history, setHistory] = useState<Checkin[]>([]);
+  const [status, setStatus] = useState<CheckinStatus | null>(null);
   const [botReaction, setBotReaction] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const loadStatus = () => {
+    fetchCheckinStatus()
+      .then((r) => setStatus(r.status))
+      .catch(console.error);
+  };
 
   useEffect(() => {
+    loadStatus();
     fetchCheckinHistory()
       .then((r) => setHistory(r.checkins))
       .catch((e) => setHistoryError(e instanceof Error ? e.message : 'Ошибка загрузки истории'))
       .finally(() => setHistoryLoading(false));
   }, []);
 
+  const canSubmit = status?.canSubmit ?? true;
+
   const handleSubmit = async () => {
+    setSubmitError(null);
     setLoading(true);
     try {
       const result = await submitCheckin(emotion, energy, comment || undefined);
       setBotReaction(result.botReaction);
       const h = await fetchCheckinHistory();
       setHistory(h.checkins);
+      loadStatus();
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Не удалось отправить чек-ин';
+      setSubmitError(message);
       console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
+  const closedMessage = () => {
+    if (!status) return null;
+    if (status.answeredInCurrentSlot) {
+      return status.nextSlotAt
+        ? `Чек-ин принят. Следующий — в ${status.nextSlotAt}${status.nextSlotLabel ? ` (${status.nextSlotLabel})` : ''}.`
+        : 'Чек-ин на сегодня принят. До завтра!';
+    }
+    if (status.nextSlotAt) {
+      return `Чек-ин откроется в ${status.nextSlotAt}${status.nextSlotLabel ? ` (${status.nextSlotLabel})` : ''}.`;
+    }
+    return 'Чек-ин сейчас недоступен.';
+  };
+
   return (
     <PanelLayout id="checkin" title="Как ты сейчас?" subtitle="30 секунд" useGradient backToHome>
-      <Group header="Энергия (0-10)">
-        <Div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto' }}>
-          {ENERGY_LEVELS.map((e) => (
-            <div
-              key={e.level}
-              onClick={() => setEnergy(e.level)}
-              style={{
-                textAlign: 'center',
-                padding: '8px 4px',
-                borderRadius: 10,
-                background: energy === e.level ? 'var(--vkui--color_background_secondary_alpha)' : undefined,
-                cursor: 'pointer',
-                minWidth: 28,
-              }}
-            >
-              <div style={{ fontSize: 16, fontWeight: energy === e.level ? 'bold' : 'normal' }}>{e.level}</div>
-              {e.label && <div style={{ fontSize: 9, marginTop: 4 }}>{e.label}</div>}
-            </div>
-          ))}
-        </Div>
-      </Group>
-      <Group header="Настроение">
-        <Div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {EMOTIONS.map((em) => (
-            <Button
-              key={em}
-              size="s"
-              mode={emotion === em ? 'primary' : 'secondary'}
-              onClick={() => setEmotion(em)}
-            >
-              {em}
-            </Button>
-          ))}
-        </Div>
-      </Group>
-      <Group>
-        <Div style={{ padding: '12px 16px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Комментарий (необязательно)</div>
-          <textarea 
-            className="nfo-input"
-            rows={3}
-            placeholder="Моё состояние вызвано тем, что..." 
-            value={comment} 
-            onChange={(e) => setComment(e.target.value)} 
-          />
-        </Div>
-        <Div>
-          <Button size="l" stretched loading={loading} onClick={() => void handleSubmit()}>
-            Отправить чек-ин
-          </Button>
-        </Div>
-      </Group>
+      {!canSubmit && (
+        <Group>
+          <Div style={{ padding: '12px 16px' }}>
+            <Placeholder>{closedMessage()}</Placeholder>
+          </Div>
+        </Group>
+      )}
+
+      {canSubmit && (
+        <>
+          <Group header="Энергия (0-10)">
+            <Div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto', alignItems: 'flex-end', gap: 2 }}>
+              {ENERGY_LEVELS.map((e) => (
+                <div key={e.level} style={{ textAlign: 'center', minWidth: 36 }}>
+                  <button
+                    type="button"
+                    className={`nfo-checkin-energy-btn${energy === e.level ? ' nfo-checkin-energy-btn--selected' : ''}`}
+                    onClick={() => setEnergy(e.level)}
+                  >
+                    {e.level}
+                  </button>
+                  {e.label && <div style={{ fontSize: 9, marginTop: 4, color: 'var(--vkui--color_text_secondary)' }}>{e.label}</div>}
+                </div>
+              ))}
+            </Div>
+          </Group>
+          <Group header="Настроение">
+            <Div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {EMOTIONS.map((em) => (
+                <button
+                  key={em}
+                  type="button"
+                  className={`nfo-checkin-emotion-chip${emotion === em ? ' nfo-checkin-emotion-chip--selected' : ''}`}
+                  onClick={() => setEmotion(em)}
+                >
+                  {em}
+                </button>
+              ))}
+            </Div>
+          </Group>
+          <Group>
+            <Div style={{ padding: '12px 16px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Комментарий (необязательно)</div>
+              <textarea
+                className="nfo-input"
+                rows={3}
+                placeholder="Моё состояние вызвано тем, что..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+              />
+            </Div>
+            <Div>
+              <Button size="l" mode="primary" stretched loading={loading} onClick={() => void handleSubmit()}>
+                Отправить чек-ин
+              </Button>
+              {submitError && (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#e74c3c', textAlign: 'center' }}>{submitError}</div>
+              )}
+            </Div>
+          </Group>
+        </>
+      )}
+
       {botReaction && (
         <Group header="Реакция помощника">
           <Div><Headline level="2">{botReaction}</Headline></Div>

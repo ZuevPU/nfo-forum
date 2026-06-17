@@ -5,6 +5,7 @@ import { logActivity } from '../services/activity.service.js';
 import {
   createCheckin,
   getCheckinHistory,
+  getCheckinStatus,
   getTodayCheckins,
 } from '../services/state.service.js';
 
@@ -25,7 +26,27 @@ stateRouter.post('/checkin', requireUser, async (req: AuthenticatedRequest, res)
     await logActivity(req.user!.id, 'state_checkin');
     res.status(201).json(result);
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    const knownErrors = [
+      'Чек-ин недоступен для вашего трека',
+      'Чек-ин сейчас закрыт',
+      'Вы уже отметились в этом слоте',
+    ];
+    if (knownErrors.includes(message)) {
+      res.status(400).json({ error: message });
+      return;
+    }
     console.error('Checkin error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+stateRouter.get('/checkin-status', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const status = await getCheckinStatus(req.user!);
+    res.json({ status });
+  } catch (error) {
+    console.error('Checkin status error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

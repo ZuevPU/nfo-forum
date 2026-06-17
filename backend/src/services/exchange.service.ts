@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   exchangeAnswers,
@@ -60,14 +60,15 @@ export async function getFeed(user: UserDto, feedScope: 'all' | 'track' = 'all')
 
   return rows
     .filter((q) => {
-      if (feedScope !== 'track' || !user.track) return true;
-      return q.scope === 'all' || q.authorTrack === user.track;
+      if (feedScope === 'all') return q.scope === 'all';
+      if (!user.track) return q.scope === 'all';
+      return q.scope === 'all' || (q.scope === 'track' && q.authorTrack === user.track);
     })
     .map((q) => ({
       id: q.id,
       text: q.text,
       scope: q.scope,
-      scopeLabel: q.scope === 'all' ? 'Все треки' : (user.track ?? 'Трек'),
+      scopeLabel: q.scope === 'all' ? 'Все треки' : (q.authorTrack ?? 'Трек'),
       answerCount: Number(q.answerCount),
       isMine: q.userId === user.id,
       createdAt: (q.publishTime ?? q.createdAt).toISOString(),
@@ -75,13 +76,42 @@ export async function getFeed(user: UserDto, feedScope: 'all' | 'track' = 'all')
 }
 
 export async function createAnswer(user: UserDto, questionId: number, answerText: string) {
-  const [question] = await db
-    .select()
+  const [questionRow] = await db
+    .select({
+      question: exchangeQuestions,
+      authorTrack: users.track,
+    })
     .from(exchangeQuestions)
+    .leftJoin(users, eq(exchangeQuestions.userId, users.id))
     .where(eq(exchangeQuestions.id, questionId))
     .limit(1);
 
-  if (!question) throw new Error('Question not found');
+  if (!questionRow?.question) throw new Error('Question not found');
+
+  const question = questionRow.question;
+  if (question.status !== 'published') throw new Error('Question is not available');
+
+  const now = new Date();
+  if (question.publishTime && question.publishTime > now) {
+    throw new Error('Question is not available');
+  }
+
+  if (
+    question.scope === 'track' &&
+    questionRow.authorTrack &&
+    user.track !== questionRow.authorTrack &&
+    question.userId !== user.id
+  ) {
+    throw new Error('Question is not available for your track');
+  }
+
+  const [existingAnswer] = await db
+    .select({ id: exchangeAnswers.id })
+    .from(exchangeAnswers)
+    .where(and(eq(exchangeAnswers.questionId, questionId), eq(exchangeAnswers.userId, user.id)))
+    .limit(1);
+
+  if (existingAnswer) throw new Error('Already answered');
 
   const [created] = await db
     .insert(exchangeAnswers)
@@ -155,6 +185,7 @@ export async function getIncoming(user: UserDto) {
       and(
         eq(exchangeAssignments.assignedUserId, user.id),
         eq(exchangeAssignments.status, 'pending'),
+        eq(exchangeQuestions.status, 'published'),
       ),
     );
 
@@ -166,14 +197,33 @@ export async function getIncoming(user: UserDto) {
   }));
 }
 
-export async function getQuestionWithAnswers(questionId: number, userId: number) {
-  const [question] = await db
-    .select()
+export async function getQuestionWithAnswers(questionId: number, user: UserDto) {
+  const [questionRow] = await db
+    .select({
+      question: exchangeQuestions,
+      authorTrack: users.track,
+    })
     .from(exchangeQuestions)
+    .leftJoin(users, eq(exchangeQuestions.userId, users.id))
     .where(eq(exchangeQuestions.id, questionId))
     .limit(1);
 
-  if (!question) return null;
+  if (!questionRow?.question) return null;
+
+  const question = questionRow.question;
+  if (question.status !== 'published') return null;
+
+  const now = new Date();
+  if (question.publishTime && question.publishTime > now) return null;
+
+  if (
+    question.scope === 'track' &&
+    questionRow.authorTrack &&
+    user.track !== questionRow.authorTrack &&
+    question.userId !== user.id
+  ) {
+    return null;
+  }
 
   const answers = await db
     .select({
@@ -186,25 +236,30 @@ export async function getQuestionWithAnswers(questionId: number, userId: number)
     .from(exchangeAnswers)
     .leftJoin(exchangeReactions, eq(exchangeReactions.answerId, exchangeAnswers.id))
     .where(eq(exchangeAnswers.questionId, questionId))
-    .groupBy(exchangeAnswers.id);
+    .groupBy(exchangeAnswers.id)
+    .orderBy(asc(exchangeAnswers.createdAt));
 
   const myReactions = await db
     .select({ answerId: exchangeReactions.answerId })
     .from(exchangeReactions)
-    .where(eq(exchangeReactions.userId, userId));
+    .where(eq(exchangeReactions.userId, user.id));
 
   const likedSet = new Set(myReactions.map((r) => r.answerId));
+  const publishTime = question.publishTime ?? question.createdAt;
 
   return {
     question: {
       id: question.id,
       text: question.text,
-      isMine: question.userId === userId,
+      isMine: question.userId === user.id,
+      scope: question.scope,
+      scopeLabel: question.scope === 'all' ? 'Все треки' : (questionRow.authorTrack ?? 'Трек'),
+      publishTime: publishTime.toISOString(),
     },
     answers: answers.map((a) => ({
       id: a.id,
       answerText: a.answerText,
-      isMine: a.userId === userId,
+      isMine: a.userId === user.id,
       createdAt: a.createdAt.toISOString(),
       reactionCount: Number(a.reactionCount),
       likedByMe: likedSet.has(a.id),

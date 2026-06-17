@@ -34,6 +34,8 @@ import {
   hideExchangeQuestion,
   moderateSubmission,
   sendAdminPush,
+  fetchPushStats,
+  type PushSubscriptionStats,
   updateAdminEvent,
   updateAdminTask,
   fetchDiagnosticsSettings,
@@ -117,12 +119,14 @@ export function AdminPanel() {
   const [newReflectionSendNotification, setNewReflectionSendNotification] = useState(true);
   const [newReflectionGroupId, setNewReflectionGroupId] = useState('');
   const [newReflectionTrack, setNewReflectionTrack] = useState('');
+  const [newReflectionAllowMultiple, setNewReflectionAllowMultiple] = useState(false);
 
   const [editingReflectionId, setEditingReflectionId] = useState<number | null>(null);
   const [editReflectionText, setEditReflectionText] = useState('');
   const [editReflectionPublishTime, setEditReflectionPublishTime] = useState('');
   const [editReflectionEndTime, setEditReflectionEndTime] = useState('');
   const [editReflectionPoints, setEditReflectionPoints] = useState('10');
+  const [editReflectionAllowMultiple, setEditReflectionAllowMultiple] = useState(false);
 
   const [pushText, setPushText] = useState('');
   const [pushImage, setPushImage] = useState<string | null>(null);
@@ -136,6 +140,8 @@ export function AdminPanel() {
   const [pushTracks, setPushTracks] = useState<string[]>([TRACKS[0]]);
   const [pushUserId, setPushUserId] = useState('');
   const [pushScheduledAt, setPushScheduledAt] = useState('');
+  const [pushStats, setPushStats] = useState<PushSubscriptionStats | null>(null);
+  const [pushResult, setPushResult] = useState<string | null>(null);
 
   const handleUploadPushImage = async () => {
     setPushUploading(true);
@@ -198,17 +204,19 @@ export function AdminPanel() {
       fetchPendingSubmissions(),
       fetchReflectionQuestions(),
       fetchBroadcasts(),
+      fetchPushStats(),
       fetchDiagnosticsSettings(),
       fetchDiagnosticsResults(),
       fetchExchangeActivity(),
     ])
-      .then(([e, t, q, s, r, b, ds, dr, ea]) => {
+      .then(([e, t, q, s, r, b, ps, ds, dr, ea]) => {
         setEvents(e.events);
         setTasks(t.tasks);
         setQuestions(q.questions);
         setSubmissions(s.submissions);
         setReflections(r.questions);
         setBroadcasts(b.broadcasts);
+        setPushStats(ps.stats);
         setDiagTracks(ds.tracks);
         setDiagResults(dr.results);
         setExchangeActivity(ea.activity);
@@ -646,6 +654,12 @@ export function AdminPanel() {
               {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
             </NativeSelect>
           </FormItem>
+          <FormItem top="Ответы">
+            <NativeSelect value={newReflectionAllowMultiple ? 'yes' : 'no'} onChange={(e) => setNewReflectionAllowMultiple(e.target.value === 'yes')}>
+              <option value="no">Только один раз</option>
+              <option value="yes">Можно отвечать повторно</option>
+            </NativeSelect>
+          </FormItem>
           <button
             type="button"
             className="nfo-admin-btn-primary"
@@ -658,11 +672,13 @@ export function AdminPanel() {
               sendNotification: newReflectionSendNotification,
               groupId: newReflectionGroupId || null,
               track: newReflectionTrack || null,
+              allowMultiple: newReflectionAllowMultiple,
             }).then(() => {
               setNewReflectionText('');
               setNewReflectionPublishTime('');
               setNewReflectionEndTime('');
               setNewReflectionGroupId('');
+              setNewReflectionAllowMultiple(false);
               load();
             })}
           >
@@ -678,12 +694,19 @@ export function AdminPanel() {
                 <FormItem top="Публикация"><Input type="datetime-local" value={editReflectionPublishTime} onChange={(e) => setEditReflectionPublishTime(e.target.value)} /></FormItem>
                 <FormItem top="Закрытие"><Input type="datetime-local" value={editReflectionEndTime} onChange={(e) => setEditReflectionEndTime(e.target.value)} /></FormItem>
                 <FormItem top="Баллы"><Input type="number" value={editReflectionPoints} onChange={(e) => setEditReflectionPoints(e.target.value)} /></FormItem>
+                <FormItem top="Ответы">
+                  <NativeSelect value={editReflectionAllowMultiple ? 'yes' : 'no'} onChange={(e) => setEditReflectionAllowMultiple(e.target.value === 'yes')}>
+                    <option value="no">Только один раз</option>
+                    <option value="yes">Можно отвечать повторно</option>
+                  </NativeSelect>
+                </FormItem>
                 <div className="nfo-admin-actions">
                   <button type="button" className="nfo-admin-btn-primary" onClick={() => void updateReflectionQuestion(r.id, {
                     text: editReflectionText,
                     publishTime: new Date(editReflectionPublishTime).toISOString(),
                     endTime: editReflectionEndTime ? new Date(editReflectionEndTime).toISOString() : null,
                     points: Number(editReflectionPoints) || 10,
+                    allowMultiple: editReflectionAllowMultiple,
                   }).then(() => { setEditingReflectionId(null); load(); })}>Сохранить</button>
                   <button type="button" className="nfo-admin-btn-secondary" onClick={() => setEditingReflectionId(null)}>Отмена</button>
                 </div>
@@ -693,7 +716,7 @@ export function AdminPanel() {
                 key={r.id}
                 badge={r.groupId ? <Badge mode="prominent">Группа {r.groupId}</Badge> : undefined}
                 title={r.text}
-                meta={`${r.type} · ${new Date(r.publishTime).toLocaleString('ru-RU')}${r.endTime ? ` – ${new Date(r.endTime).toLocaleString('ru-RU')}` : ''} · ${r.points} б.`}
+                meta={`${r.type} · ${r.allowMultiple ? 'повторно' : '1×'} · ${new Date(r.publishTime).toLocaleString('ru-RU')}${r.endTime ? ` – ${new Date(r.endTime).toLocaleString('ru-RU')}` : ''} · ${r.points} б.`}
                 actions={
                   <>
                     <button
@@ -705,6 +728,7 @@ export function AdminPanel() {
                         setEditReflectionPublishTime(new Date(r.publishTime).toISOString().slice(0, 16));
                         setEditReflectionEndTime(r.endTime ? new Date(r.endTime).toISOString().slice(0, 16) : '');
                         setEditReflectionPoints(String(r.points));
+                        setEditReflectionAllowMultiple(r.allowMultiple ?? false);
                       }}
                     >
                       Изменить
@@ -720,6 +744,30 @@ export function AdminPanel() {
         </div>
       ) : tab === 'push' ? (
         <div className="nfo-admin-section">
+          <div className="nfo-sec-title">Подписка на сообщения</div>
+          {pushStats ? (
+            <div
+              className="nfo-admin-form-card"
+              style={{ marginBottom: 12, fontSize: 13, lineHeight: 1.5, color: 'var(--vkui--color_text_secondary)' }}
+            >
+              <div>
+                Подписаны на сообщения от сообщества:{' '}
+                <strong>{pushStats.withMessages}</strong> из <strong>{pushStats.total}</strong> (
+                {pushStats.total ? Math.round((pushStats.withMessages / pushStats.total) * 100) : 0}%)
+              </div>
+              <div>
+                Участники: {pushStats.participantsWithMessages} из {pushStats.participantsTotal} · Админы:{' '}
+                {pushStats.adminsWithMessages} из {pushStats.adminsTotal}
+              </div>
+              {pushStats.withoutMessages > 0 && (
+                <div style={{ marginTop: 8, color: '#8a6d1d' }}>
+                  {pushStats.withoutMessages} пользователей не разрешили сообщения — рассылка до них не дойдёт.
+                  Попроси включить переключатель «Сообщения от сообщества» в Настройках.
+                </div>
+              )}
+            </div>
+          ) : null}
+
           <div className="nfo-sec-title">Рассылка</div>
           <div className="nfo-admin-form-card">
           <FormItem top="Текст сообщения">
@@ -821,6 +869,7 @@ export function AdminPanel() {
             type="button"
             className="nfo-admin-btn-primary stretched"
             onClick={() => {
+              setPushResult(null);
               void sendAdminPush({
               text: pushText,
               image: pushImage || undefined,
@@ -830,7 +879,18 @@ export function AdminPanel() {
               target_tracks: pushTarget === 'track' && pushTracks.length ? pushTracks : undefined,
               target_user_id: pushTarget === 'user' ? Number(pushUserId) : undefined,
               scheduled_at: pushScheduledAt ? new Date(pushScheduledAt).toISOString() : undefined,
-            }).then(() => {
+            }).then((result) => {
+              if (result.scheduled) {
+                setPushResult('Рассылка запланирована.');
+              } else if (result.vkError) {
+                setPushResult(`Ошибка VK: ${result.vkError.error_msg ?? result.vkError.error_code ?? 'неизвестно'}`);
+              } else if (result.eligible === 0) {
+                setPushResult(
+                  `Никто не получил сообщение: 0 из ${result.candidates ?? 0} кандидатов подписаны на сообщения от сообщества.`,
+                );
+              } else {
+                setPushResult(`Отправлено: ${result.sent} из ${result.eligible ?? result.sent} подписанных.`);
+              }
               setPushText('');
               setPushImage(null);
               setPushMediaId(null);
@@ -845,6 +905,9 @@ export function AdminPanel() {
           >
             Отправить
           </button>
+          {pushResult && (
+            <div style={{ marginTop: 10, fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>{pushResult}</div>
+          )}
           </div>
 
           <div className="nfo-sec-title" style={{ marginTop: 12 }}>История рассылок</div>

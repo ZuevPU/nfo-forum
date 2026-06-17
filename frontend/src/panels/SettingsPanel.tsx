@@ -131,7 +131,7 @@ export function SettingsPanel() {
             {user.reflectionPoints} баллов рефлексии
           </SimpleCell>
           <Div>
-            <Button size="m" stretched loading={saving} onClick={() => void handleSaveProfile()}>
+            <Button size="m" mode="primary" stretched loading={saving} onClick={() => void handleSaveProfile()}>
               Сохранить профиль
             </Button>
           </Div>
@@ -173,7 +173,7 @@ export function SettingsPanel() {
 
         <Group header="Связь">
           <Div>
-            <Button size="l" stretched onClick={() => setActiveModal('feedback')}>
+            <Button size="l" mode="primary" stretched onClick={() => setActiveModal('feedback')}>
               Написать организатору
             </Button>
           </Div>
@@ -183,7 +183,7 @@ export function SettingsPanel() {
           <SimpleCell subtitle="Версия">{APP_VERSION}</SimpleCell>
           <SimpleCell subtitle="Поддержка">forum-nfo@vk.com</SimpleCell>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Button size="l" stretched onClick={() => navigate('/home')}>
+            <Button size="l" mode="outline" stretched onClick={() => navigate('/home')}>
               На главную
             </Button>
             <Button
@@ -217,7 +217,7 @@ export function SettingsPanel() {
             />
           </FormItem>
           <Div>
-            <Button size="l" stretched loading={feedbackSubmitting} onClick={() => void handleFeedbackSubmit()}>
+            <Button size="l" mode="primary" stretched loading={feedbackSubmitting} onClick={() => void handleFeedbackSubmit()}>
               Отправить
             </Button>
           </Div>

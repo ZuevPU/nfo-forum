@@ -15,6 +15,7 @@ import {
   type ExchangeFeedItem,
   type IncomingQuestion,
 } from '../api/exchange';
+import { useAuthContext } from '../contexts/AuthContext';
 import { ExchangeIncomingCard } from '../components/ExchangeIncomingCard';
 import { EmptyState } from '../components/EmptyState';
 import { GradientHeader } from '../components/GradientHeader';
@@ -36,6 +37,7 @@ function getExchangeSubtitle(incomingCount: number): string {
 
 export function ExchangePanel() {
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   const [feed, setFeed] = useState<ExchangeFeedItem[]>([]);
   const [incoming, setIncoming] = useState<IncomingQuestion[]>([]);
   const [feedScope, setFeedScope] = useState<'all' | 'track'>('all');
@@ -58,6 +60,14 @@ export function ExchangePanel() {
   };
 
   useEffect(() => { load(); }, [feedScope]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [feedScope]);
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
@@ -174,7 +184,13 @@ export function ExchangePanel() {
               </Div>
               <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 12px' }}>
                 {feed.length === 0 ? (
-                  <EmptyState message="Пока никто не задал вопрос. Будь первым!" />
+                  <EmptyState
+                    message={
+                      feedScope === 'track' && !user?.track
+                        ? 'Укажи трек в профиле, чтобы видеть вопросы своего направления'
+                        : 'Пока никто не задал вопрос. Будь первым!'
+                    }
+                  />
                 ) : feed.map((item) => (
                   <div
                     key={item.id}
@@ -185,6 +201,7 @@ export function ExchangePanel() {
                     <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{item.text}</div>
                     <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>
                       {item.answerCount} ответов · {item.scopeLabel}
+                      {item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}` : ''}
                     </div>
                   </div>
                 ))}

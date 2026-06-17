@@ -38,6 +38,7 @@ export interface ReflectionQuestion {
   points: number;
   isLocked: boolean;
   isAnswered: boolean;
+  allowMultiple?: boolean;
   unlockLabel: string | null;
 }
 

@@ -62,7 +62,14 @@ export interface IncomingQuestion {
 }
 
 export interface QuestionDetail {
-  question: { id: number; text: string; isMine: boolean };
+  question: {
+    id: number;
+    text: string;
+    isMine: boolean;
+    scope?: string;
+    scopeLabel?: string;
+    publishTime?: string;
+  };
   answers: {
     id: number;
     answerText: string;

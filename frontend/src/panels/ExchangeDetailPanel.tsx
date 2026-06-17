@@ -89,7 +89,16 @@ export function ExchangeDetailPanel() {
       ) : detail ? (
         <>
           <Group>
-            <SimpleCell multiline subtitle={detail.question.isMine ? 'Твой вопрос' : undefined}>
+            <SimpleCell
+              multiline
+              subtitle={[
+                detail.question.scopeLabel,
+                detail.question.publishTime
+                  ? new Date(detail.question.publishTime).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                  : null,
+                detail.question.isMine ? 'Твой вопрос' : null,
+              ].filter(Boolean).join(' · ')}
+            >
               {detail.question.text}
             </SimpleCell>
           </Group>
@@ -141,7 +150,7 @@ export function ExchangeDetailPanel() {
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder="Поделись опытом..."
                 />
-                <Button size="l" stretched loading={submitting} onClick={() => void handleAnswer()} style={{ marginTop: 12 }}>
+                <Button size="l" mode="primary" stretched loading={submitting} onClick={() => void handleAnswer()} style={{ marginTop: 12 }}>
                   Отправить ответ
                 </Button>
               </Div>

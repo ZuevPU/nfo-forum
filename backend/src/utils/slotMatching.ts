@@ -52,3 +52,52 @@ export function getActiveCheckinSlot(
   }
   return null;
 }
+
+function slotStartMinutes(slot: string): number {
+  const { hour, minute } = parseTimeSlot(slot);
+  return hour * 60 + minute;
+}
+
+/** Active slot by interval [slot[i], slot[i+1]) or [last, end of day). */
+export function getCurrentCheckinSlotIndex(slots: string[], now = new Date()): number | null {
+  if (slots.length === 0) return null;
+  const { hours, minutes } = moscowTimeParts(now);
+  const nowTotal = hours * 60 + minutes;
+
+  for (let i = 0; i < slots.length; i++) {
+    const start = slotStartMinutes(slots[i]);
+    const end = i < slots.length - 1 ? slotStartMinutes(slots[i + 1]) : 24 * 60;
+    if (nowTotal >= start && nowTotal < end) return i;
+  }
+  return null;
+}
+
+export function getNextCheckinSlot(
+  slots: string[],
+  now = new Date(),
+): { slot: string; index: number; label: string } | null {
+  if (slots.length === 0) return null;
+  const { hours, minutes } = moscowTimeParts(now);
+  const nowTotal = hours * 60 + minutes;
+
+  for (let i = 0; i < slots.length; i++) {
+    const start = slotStartMinutes(slots[i]);
+    if (nowTotal < start) {
+      return { slot: slots[i], index: i, label: getCheckinSlotLabel(i) };
+    }
+  }
+  return null;
+}
+
+export function mapCheckinToSlotIndex(createdAt: Date, slots: string[]): number | null {
+  if (slots.length === 0) return null;
+  const { hours, minutes } = moscowTimeParts(createdAt);
+  const total = hours * 60 + minutes;
+
+  for (let i = 0; i < slots.length; i++) {
+    const start = slotStartMinutes(slots[i]);
+    const end = i < slots.length - 1 ? slotStartMinutes(slots[i + 1]) : 24 * 60;
+    if (total >= start && total < end) return i;
+  }
+  return null;
+}

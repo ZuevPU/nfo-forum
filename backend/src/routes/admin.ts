@@ -58,7 +58,7 @@ import {
   listFeedbackMessages,
   listUsers,
 } from '../services/export.service.js';
-import { sendPush } from '../services/push.service.js';
+import { sendPush, getPushSubscriptionStats } from '../services/push.service.js';
 
 export const adminRouter = Router();
 
@@ -67,6 +67,11 @@ adminRouter.use(requireUser, requireAdmin);
 adminRouter.get('/broadcasts', async (_req, res) => {
   const rows = await listBroadcasts();
   res.json({ broadcasts: rows });
+});
+
+adminRouter.get('/push/stats', async (_req, res) => {
+  const stats = await getPushSubscriptionStats();
+  res.json({ stats });
 });
 
 adminRouter.get('/events', async (_req, res) => {

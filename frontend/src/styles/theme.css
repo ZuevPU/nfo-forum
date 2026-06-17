@@ -17,7 +17,7 @@
   --vkui--color_background_content: #f2f3f9;
   --vkui--color_background_secondary: #f5f6ff;
   --vkui--color_background_secondary_alpha: #f5f6ff;
-  --vkui--color_text_contrast_themed: #3b4ec0;
+  --vkui--color_text_contrast_themed: #ffffff;
   --vkui--color_text_link: #3b4ec0;
   --vkui--color_text_link--hover: #4f5ed4;
   --vkui--color_text_link--visited: #3b4ec0;
@@ -164,6 +164,77 @@ body {
   padding: 12px;
   margin-bottom: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.nfo-card--clickable {
+  cursor: pointer;
+}
+
+.nfo-progress-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 16px 16px;
+  box-sizing: border-box;
+}
+
+.nfo-progress-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.nfo-progress-card__spacer {
+  flex: 1;
+  min-height: 4px;
+}
+
+.nfo-home .vkuiGroup__content:has(.nfo-progress-grid) {
+  overflow: visible;
+  padding-bottom: 4px;
+}
+
+.nfo-checkin-energy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--vkui--color_text_secondary);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.nfo-checkin-energy-btn--selected {
+  background: var(--nfo-primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.nfo-checkin-emotion-chip {
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 1px solid #d0d4ff;
+  background: #fff;
+  color: var(--vkui--color_text_primary);
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.nfo-checkin-emotion-chip--selected {
+  border: 2px solid var(--nfo-primary);
+  background: var(--nfo-primary);
+  color: #fff;
+  font-weight: 600;
 }
 
 .nfo-rating-me {

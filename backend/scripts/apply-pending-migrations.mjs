@@ -52,6 +52,10 @@ const checks = {
     'exchange_questions',
     'answers_collected_notified_at',
   ),
+  reflection_questions_allow_multiple: await colExists(
+    'reflection_questions',
+    'allow_multiple',
+  ),
 };
 
 console.log('Current state:');
@@ -98,6 +102,11 @@ if (!checks.users_last_seen_exchange_at) {
 if (!checks.exchange_questions_answers_collected_notified_at) {
   statements.push(
     'ALTER TABLE exchange_questions ADD COLUMN IF NOT EXISTS answers_collected_notified_at timestamp',
+  );
+}
+if (!checks.reflection_questions_allow_multiple) {
+  statements.push(
+    'ALTER TABLE reflection_questions ADD COLUMN IF NOT EXISTS allow_multiple boolean NOT NULL DEFAULT false',
   );
 }
 

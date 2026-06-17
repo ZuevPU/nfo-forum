@@ -15,6 +15,20 @@ export function fetchCheckinHistory() {
   return apiRequest<{ checkins: Checkin[] }>('/api/state/history');
 }
 
+export function fetchCheckinStatus() {
+  return apiRequest<{ status: CheckinStatus }>('/api/state/checkin-status');
+}
+
+export interface CheckinStatus {
+  available: boolean;
+  canSubmit: boolean;
+  activeSlot: string | null;
+  slotLabel: string | null;
+  nextSlotAt: string | null;
+  nextSlotLabel: string | null;
+  answeredInCurrentSlot: boolean;
+}
+
 export interface Checkin {
   id: number;
   emotion: string;

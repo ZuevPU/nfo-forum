@@ -308,6 +308,7 @@ export async function createReflectionQuestion(data: {
   sendNotification?: boolean;
   groupId?: string | null;
   track?: string | null;
+  allowMultiple?: boolean;
 }) {
   const [row] = await db
     .insert(reflectionQuestions)
@@ -320,6 +321,7 @@ export async function createReflectionQuestion(data: {
       sendNotification: data.sendNotification ?? true,
       groupId: data.groupId ?? null,
       track: data.track ?? null,
+      allowMultiple: data.allowMultiple ?? false,
     })
     .returning();
 
@@ -352,6 +354,7 @@ export async function updateReflectionQuestion(
     sendNotification: boolean;
     groupId: string | null;
     track: string | null;
+    allowMultiple: boolean;
   }>,
 ) {
   const patch: Record<string, unknown> = { ...data };

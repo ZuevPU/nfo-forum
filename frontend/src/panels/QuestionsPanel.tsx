@@ -100,7 +100,7 @@ export function QuestionsPanel() {
           }, {} as Record<string, ReflectionQuestion[]>)
         ).map(([key, group]) => {
           const isGroup = group.length > 1;
-          const allAnswered = group.every((q) => q.isAnswered);
+          const allAnswered = group.every((q) => q.isAnswered && !q.allowMultiple);
           const anyLocked = group.some((q) => q.isLocked);
           const totalPoints = group.reduce((sum, q) => sum + q.points, 0);
           const unlockLabel = group.find((q) => q.isLocked)?.unlockLabel;
@@ -133,7 +133,7 @@ export function QuestionsPanel() {
                     <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, lineHeight: 1.4 }}>
                       {anyLocked ? '🔒 ' : q.isAnswered ? '✅ ' : ''}{q.text}
                     </div>
-                    {!anyLocked && !q.isAnswered && (
+                    {!anyLocked && (!q.isAnswered || q.allowMultiple) && (
                       <div>
                         <textarea
                           className="nfo-input"
@@ -143,7 +143,7 @@ export function QuestionsPanel() {
                           onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
                         />
                         {!isGroup && (
-                          <Button size="m" stretched style={{ marginTop: 12 }} onClick={() => void handleSubmit(q)}>
+                          <Button size="m" mode="primary" stretched style={{ marginTop: 12 }} onClick={() => void handleSubmit(q)}>
                             Отправить
                           </Button>
                         )}
@@ -155,6 +155,7 @@ export function QuestionsPanel() {
                 {isGroup && !anyLocked && !allAnswered && (
                   <Button 
                     size="m" 
+                    mode="primary"
                     stretched 
                     style={{ marginTop: 12 }} 
                     onClick={() => {
