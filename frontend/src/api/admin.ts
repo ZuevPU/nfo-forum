@@ -32,6 +32,10 @@ export function deleteAdminTask(id: number) {
   return apiRequest(`/api/admin/tasks/${id}`, { method: 'DELETE' });
 }
 
+export function fetchTaskSubmissions(taskId: number) {
+  return apiRequest<{ submissions: TaskSubmissionRow[] }>(`/api/admin/tasks/${taskId}/submissions`);
+}
+
 export function fetchPendingExchange() {
   return apiRequest<{ questions: PendingQuestion[] }>('/api/admin/exchange/pending');
 }
@@ -397,6 +401,21 @@ export interface PendingSubmission {
   answerText: string | null;
   photos?: string[] | null;
   status: string;
+}
+
+export interface TaskSubmissionRow {
+  id: number;
+  taskId: number;
+  userId: number;
+  userName: string;
+  userLastName: string | null;
+  userTrack: string | null;
+  answerText: string | null;
+  photos: string[] | null;
+  status: string;
+  adminComment: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ReflectionQuestion {

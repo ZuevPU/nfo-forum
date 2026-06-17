@@ -12,6 +12,7 @@ import {
   listEvents,
   listPendingExchangeQuestions,
   listPendingSubmissions,
+  listTaskSubmissions,
   listReflectionQuestions,
   listTasks,
   moderateExchangeQuestion,
@@ -106,6 +107,16 @@ adminRouter.get('/tasks', async (_req, res) => {
 adminRouter.post('/tasks', async (req, res) => {
   const task = await createTask(req.body);
   res.status(201).json({ task });
+});
+
+adminRouter.get('/tasks/:id/submissions', async (req, res) => {
+  const taskId = Number(req.params.id);
+  if (Number.isNaN(taskId)) {
+    res.status(400).json({ error: 'Invalid task id' });
+    return;
+  }
+  const submissions = await listTaskSubmissions(taskId);
+  res.json({ submissions });
 });
 
 adminRouter.patch('/tasks/:id', async (req, res) => {

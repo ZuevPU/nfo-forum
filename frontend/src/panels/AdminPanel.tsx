@@ -26,6 +26,7 @@ import {
   updateReflectionQuestion,
   fetchAdminEvents,
   fetchAdminTasks,
+  fetchTaskSubmissions,
   fetchBroadcasts,
   fetchPendingExchange,
   fetchPendingSubmissions,
@@ -49,6 +50,7 @@ import {
   type Broadcast,
   type PendingQuestion,
   type PendingSubmission,
+  type TaskSubmissionRow,
   type ReflectionQuestion,
   type DiagnosticResult,
 } from '../api/admin';
@@ -103,6 +105,9 @@ export function AdminPanel() {
   const [newTaskTrack, setNewTaskTrack] = useState('');
   
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [taskAnswersTaskId, setTaskAnswersTaskId] = useState<number | null>(null);
+  const [taskAnswers, setTaskAnswers] = useState<TaskSubmissionRow[]>([]);
+  const [taskAnswersLoading, setTaskAnswersLoading] = useState(false);
   const [editTaskTitle, setEditTaskTitle] = useState('');
   const [editTaskDesc, setEditTaskDesc] = useState('');
   const [editTaskPoints, setEditTaskPoints] = useState('20');
@@ -224,6 +229,23 @@ export function AdminPanel() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  const openTaskAnswers = (taskId: number) => {
+    setTaskAnswersTaskId(taskId);
+    setTaskAnswersLoading(true);
+    setTaskAnswers([]);
+    fetchTaskSubmissions(taskId)
+      .then((r) => setTaskAnswers(r.submissions))
+      .catch(console.error)
+      .finally(() => setTaskAnswersLoading(false));
+  };
+
+  const taskSubmissionStatusLabel = (status: string) => {
+    if (status === 'approved') return 'Принято';
+    if (status === 'rejected') return 'Отклонено';
+    if (status === 'pending') return 'На проверке';
+    return status;
   };
 
   useEffect(() => { load(); }, []);
@@ -386,6 +408,61 @@ export function AdminPanel() {
         </div>
       ) : tab === 'tasks' ? (
         <div className="nfo-admin-section">
+          {taskAnswersTaskId != null ? (
+            <>
+              <div className="nfo-admin-actions" style={{ marginBottom: 12 }}>
+                <button
+                  type="button"
+                  className="nfo-admin-btn-secondary"
+                  onClick={() => {
+                    setTaskAnswersTaskId(null);
+                    setTaskAnswers([]);
+                  }}
+                >
+                  ← К списку заданий
+                </button>
+              </div>
+              <div className="nfo-sec-title">
+                Ответы: {tasks.find((t) => t.id === taskAnswersTaskId)?.title ?? `Задание #${taskAnswersTaskId}`}
+              </div>
+              {taskAnswersLoading ? (
+                <Div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
+                  <Spinner size="l" />
+                </Div>
+              ) : taskAnswers.length === 0 ? (
+                <div className="nfo-admin-empty">Пока нет ответов на это задание</div>
+              ) : (
+                taskAnswers.map((s) => (
+                  <AdminListCard
+                    key={s.id}
+                    title={`${s.userName} ${s.userLastName ?? ''}`.trim()}
+                    meta={`${s.userTrack ?? '—'} · ${taskSubmissionStatusLabel(s.status)} · ${new Date(s.createdAt).toLocaleString('ru-RU')}`}
+                  >
+                    {s.answerText ? (
+                      <div style={{ marginTop: 4, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{s.answerText}</div>
+                    ) : (
+                      <div style={{ marginTop: 4, fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>Текст не указан</div>
+                    )}
+                    {s.photos && s.photos.length > 0 && (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                        {s.photos.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                            <img src={url} alt={`Фото ${i + 1}`} style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {s.adminComment && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>
+                        Комментарий модератора: {s.adminComment}
+                      </div>
+                    )}
+                  </AdminListCard>
+                ))
+              )}
+            </>
+          ) : (
+            <>
           <div className="nfo-sec-title">Новое задание</div>
           <div className="nfo-admin-form-card">
           <FormItem top="Название">
@@ -499,6 +576,13 @@ export function AdminPanel() {
                   <button
                     type="button"
                     className="nfo-admin-btn-outline"
+                    onClick={() => openTaskAnswers(t.id)}
+                  >
+                    Ответы
+                  </button>
+                  <button
+                    type="button"
+                    className="nfo-admin-btn-outline"
                     onClick={() => {
                       setEditingTaskId(t.id);
                       setEditTaskTitle(t.title);
@@ -553,6 +637,8 @@ export function AdminPanel() {
               ) : null}
             </AdminListCard>
           ))}
+            </>
+          )}
         </div>
       ) : tab === 'exchange' ? (
         <div className="nfo-admin-section">

@@ -8,6 +8,10 @@ interface Props {
   variant?: 'register' | 'compact';
 }
 
+function stopTouchPropagation(e: { stopPropagation: () => void }) {
+  e.stopPropagation();
+}
+
 export function CommunityMessagesOptIn({
   allowed,
   loading,
@@ -34,15 +38,19 @@ export function CommunityMessagesOptIn({
           Сообщество Форума НФО «Цифровой Машук» присылает напоминания о расписании, заданиях,
           вопросах и рассылках. Без разрешения ты пропустишь важные уведомления.
         </div>
-        <div className={isRegister ? 'nfo-register-messages__row' : 'nfo-messages-optin__row'}>
+        <div
+          className={isRegister ? 'nfo-register-messages__row' : 'nfo-messages-optin__row'}
+          onPointerDown={stopTouchPropagation}
+          onTouchStart={stopTouchPropagation}
+        >
           <span className={isRegister ? 'nfo-register-messages__switch-label' : 'nfo-messages-optin__switch-label'}>
             Сообщения от сообщества
           </span>
-          <div className={isRegister ? 'nfo-register-messages__switch-wrap' : undefined}>
+          <div className={isRegister ? 'nfo-register-messages__switch-wrap' : 'nfo-messages-optin__switch-wrap'}>
             <Switch
               checked={allowed}
               disabled={loading}
-              onChange={(e) => void onToggle(e.target.checked)}
+              onChange={(e) => onToggle(e.target.checked)}
             />
           </div>
         </div>

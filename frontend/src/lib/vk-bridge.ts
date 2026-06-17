@@ -171,10 +171,17 @@ function markMessagesFromGroupAllowed(): void {
 }
 
 export async function requestVkMessagesFromGroup(force = false): Promise<boolean> {
-  if (isDevMode()) return false;
   if (!force && localStorage.getItem(MESSAGES_PERMISSION_KEY) === '1') return true;
   if (!VK_GROUP_ID) {
     console.warn('[push] VITE_VK_GROUP_ID is not set');
+    return false;
+  }
+
+  if (isDevMode() && !bridge.isWebView()) {
+    if (force) {
+      markMessagesFromGroupAllowed();
+      return true;
+    }
     return false;
   }
 
@@ -185,11 +192,12 @@ export async function requestVkMessagesFromGroup(force = false): Promise<boolean
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      unsubscribe();
       if (ok) markMessagesFromGroupAllowed();
       resolve(ok);
     };
 
-    bridge.subscribe((event: { detail?: { type?: string; data?: unknown } }) => {
+    const handler = (event: { detail?: { type?: string; data?: unknown } }) => {
       if (settled) return;
       const type = event.detail?.type;
       if (type === 'VKWebAppAllowMessagesFromGroupResult') {
@@ -198,9 +206,12 @@ export async function requestVkMessagesFromGroup(force = false): Promise<boolean
       if (type === 'VKWebAppAllowMessagesFromGroupFailed') {
         finish(false);
       }
-    });
+    };
 
-    const timer = window.setTimeout(() => finish(false), 8000);
+    const unsubscribe = () => bridge.unsubscribe(handler);
+    bridge.subscribe(handler);
+
+    const timer = window.setTimeout(() => finish(false), 15000);
 
     void bridge
       .send('VKWebAppAllowMessagesFromGroup', {
@@ -208,7 +219,9 @@ export async function requestVkMessagesFromGroup(force = false): Promise<boolean
         key: 'nfo_forum_messages',
       })
       .then((result) => {
-        if (parseVkAllowResult(result)) finish(true);
+        if (result != null && typeof result === 'object' && 'result' in (result as object)) {
+          finish(parseVkAllowResult(result));
+        }
       })
       .catch((error) => {
         console.warn('[push] VKWebAppAllowMessagesFromGroup failed:', error);

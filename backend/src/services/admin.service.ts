@@ -245,6 +245,28 @@ export async function listPendingSubmissions() {
     .orderBy(desc(taskSubmissions.createdAt));
 }
 
+export async function listTaskSubmissions(taskId: number) {
+  return db
+    .select({
+      id: taskSubmissions.id,
+      taskId: taskSubmissions.taskId,
+      userId: taskSubmissions.userId,
+      answerText: taskSubmissions.answerText,
+      photos: taskSubmissions.photos,
+      status: taskSubmissions.status,
+      adminComment: taskSubmissions.adminComment,
+      createdAt: taskSubmissions.createdAt,
+      updatedAt: taskSubmissions.updatedAt,
+      userName: users.firstName,
+      userLastName: users.lastName,
+      userTrack: users.track,
+    })
+    .from(taskSubmissions)
+    .innerJoin(users, eq(taskSubmissions.userId, users.id))
+    .where(eq(taskSubmissions.taskId, taskId))
+    .orderBy(desc(taskSubmissions.createdAt));
+}
+
 export async function moderateSubmission(
   id: number,
   status: 'approved' | 'rejected',

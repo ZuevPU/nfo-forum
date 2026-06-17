@@ -422,6 +422,13 @@ body {
   color: #5a4a1a;
 }
 
+.nfo-messages-optin__switch-wrap {
+  flex-shrink: 0;
+  transform: scale(1.25);
+  transform-origin: center right;
+  touch-action: manipulation;
+}
+
 .nfo-messages-optin__hint {
   margin-top: 8px;
   font-size: 12px;

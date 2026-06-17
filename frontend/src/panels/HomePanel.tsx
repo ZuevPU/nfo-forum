@@ -20,7 +20,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchHome, submitFeedback, type HomeData } from '../api/home';
 import { fetchReflectionLevel } from '../api/rating';
-import { updateMessagesPermission } from '../api/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { ActivityIcon } from '../components/ActivityIcon';
 import { GradientHeader } from '../components/GradientHeader';
@@ -29,8 +28,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
 import { CommunityMessagesBanner } from '../components/CommunityMessagesBanner';
 import { useAuthContext } from '../contexts/AuthContext';
-import { MESSAGES_PERMISSION_KEY } from '../hooks/useCommunityMessagesOptIn';
-import { requestVkMessagesFromGroup, requestVkNotifications } from '../lib/vk-bridge';
+import { requestVkNotifications } from '../lib/vk-bridge';
 import { FORUM_DAYS } from '../constants/nfoFactors';
 import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
 
@@ -79,23 +77,11 @@ export function HomePanel() {
   useEffect(() => {
     if (!user) return;
 
-    if (!user.messagesFromGroupAllowed && sessionStorage.getItem('nfo_msg_autoprompt') !== '1') {
-      sessionStorage.setItem('nfo_msg_autoprompt', '1');
-      void (async () => {
-        const allowed = await requestVkMessagesFromGroup(true);
-        const localGranted = localStorage.getItem(MESSAGES_PERMISSION_KEY) === '1';
-        if (allowed || localGranted) {
-          await updateMessagesPermission(true);
-          await refreshUser();
-        }
-      })();
-    }
-
     if (sessionStorage.getItem('nfo_native_notif_prompt') !== '1') {
       sessionStorage.setItem('nfo_native_notif_prompt', '1');
       void requestVkNotifications();
     }
-  }, [user, refreshUser]);
+  }, [user]);
 
   if (loading || !user) {
     return (
