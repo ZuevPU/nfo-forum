@@ -2,11 +2,12 @@ import {
   Button,
   Div,
   Group,
+  Placeholder,
   Spinner,
   PullToRefresh,
 } from '@vkontakte/vkui';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { pickImage } from '../lib/vk-bridge';
 import { EmptyState } from '../components/EmptyState';
 import { PanelLayout } from '../components/PanelLayout';
@@ -56,28 +57,30 @@ function findTaskById(tasks: TaskItem[], id: number) {
   return tasks.find((t) => Number(t.id) === id) ?? null;
 }
 
-function taskIdsMatch(a: unknown, b: unknown) {
-  return Number(a) === Number(b);
-}
-
 export function TasksPanel() {
   const { taskId } = useParams<{ taskId?: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { setBackHandler, setTabbarHidden } = useLayout();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
-  const [viewTask, setViewTask] = useState<TaskItem | null>(null);
+  const [fetchedTask, setFetchedTask] = useState<TaskItem | null>(null);
   const [answer, setAnswer] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [networkingLoading, setNetworkingLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [taskSuccess, setTaskSuccess] = useState<{ points?: number; pendingReview?: boolean } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const prevTaskIdRef = useRef(taskId);
+
+  const activeTaskId = taskId ? Number(taskId) : null;
+  const isDetailOpen = activeTaskId != null && !Number.isNaN(activeTaskId);
+  const activeTask =
+    isDetailOpen && activeTaskId != null
+      ? findTaskById(tasks, activeTaskId) ?? fetchedTask
+      : null;
 
   const load = useCallback(() => {
     setLoading(true);
@@ -93,29 +96,26 @@ export function TasksPanel() {
   useEffect(() => { load(); }, [load]);
 
   const closeTaskDetail = useCallback(() => {
-    setViewTask(null);
     setAnswer('');
     setPhotos([]);
-    navigate('/tasks', { replace: true, state: null });
+    setDetailError(null);
+    navigate('/tasks', { replace: true });
   }, [navigate]);
 
   const openTask = useCallback((task: TaskItem) => {
-    setViewTask(task);
     setAnswer('');
     setPhotos([]);
     setUploadError(null);
-    navigate(`/tasks/${task.id}`, { state: { task } });
+    setDetailError(null);
+    navigate(`/tasks/${task.id}`);
   }, [navigate]);
 
   useEffect(() => {
-    if (prevTaskIdRef.current && !taskId) {
-      setViewTask(null);
-      setAnswer('');
-      setPhotos([]);
+    if (!taskId) {
+      setFetchedTask(null);
+      setDetailError(null);
+      return;
     }
-    prevTaskIdRef.current = taskId;
-
-    if (!taskId) return;
 
     const id = Number(taskId);
     if (Number.isNaN(id)) {
@@ -123,17 +123,9 @@ export function TasksPanel() {
       return;
     }
 
-    if (viewTask && taskIdsMatch(viewTask.id, id)) return;
-
-    const stateTask = (location.state as { task?: TaskItem } | null)?.task;
-    if (stateTask && taskIdsMatch(stateTask.id, id)) {
-      setViewTask(stateTask);
-      return;
-    }
-
-    const fromList = findTaskById(tasks, id);
-    if (fromList) {
-      setViewTask(fromList);
+    if (findTaskById(tasks, id)) {
+      setFetchedTask(null);
+      setDetailError(null);
       return;
     }
 
@@ -141,13 +133,14 @@ export function TasksPanel() {
 
     let cancelled = false;
     setDetailLoading(true);
+    setDetailError(null);
     fetchTask(id)
       .then((data) => {
-        if (!cancelled) setViewTask(taskFromDetail(data));
+        if (!cancelled) setFetchedTask(taskFromDetail(data));
       })
       .catch((e) => {
         console.error(e);
-        if (!cancelled) navigate('/tasks', { replace: true });
+        if (!cancelled) setDetailError('Задание не найдено');
       })
       .finally(() => {
         if (!cancelled) setDetailLoading(false);
@@ -156,7 +149,7 @@ export function TasksPanel() {
     return () => {
       cancelled = true;
     };
-  }, [taskId, tasks, loading, viewTask, location.state, navigate]);
+  }, [taskId, tasks, loading, navigate]);
 
   useEffect(() => {
     if (!taskSuccess) return;
@@ -165,12 +158,12 @@ export function TasksPanel() {
   }, [taskSuccess]);
 
   useEffect(() => {
-    setTabbarHidden(viewTask != null);
+    setTabbarHidden(isDetailOpen);
     return () => setTabbarHidden(false);
-  }, [viewTask, setTabbarHidden]);
+  }, [isDetailOpen, setTabbarHidden]);
 
   useEffect(() => {
-    if (!viewTask) {
+    if (!isDetailOpen) {
       setBackHandler(null);
       return;
     }
@@ -179,7 +172,7 @@ export function TasksPanel() {
       return true;
     });
     return () => setBackHandler(null);
-  }, [viewTask, setBackHandler, closeTaskDetail]);
+  }, [isDetailOpen, setBackHandler, closeTaskDetail]);
 
   const handleUploadPhoto = async () => {
     if (photos.length >= 3) return;
@@ -204,12 +197,10 @@ export function TasksPanel() {
     setNetworkingLoading(true);
     try {
       await applyNetworkingTask(task.id);
-      load();
-      if (viewTask?.id === task.id) {
-        const updated = await fetchTasks();
-        const fresh = findTaskById(updated.tasks, task.id);
-        if (fresh) setViewTask(fresh);
-        setTasks(updated.tasks);
+      const updated = await fetchTasks();
+      setTasks(updated.tasks);
+      if (isDetailOpen && activeTaskId === task.id) {
+        setFetchedTask(null);
       }
     } catch (e) {
       console.error(e);
@@ -219,17 +210,17 @@ export function TasksPanel() {
   };
 
   const handleSubmit = async () => {
-    if (!viewTask) return;
-    if (viewTask.requiresPhoto && photos.length === 0) {
+    if (!activeTask) return;
+    if (activeTask.requiresPhoto && photos.length === 0) {
       alert('Для этого задания необходимо прикрепить фото');
       return;
     }
     setSubmitting(true);
     try {
-      const result = await submitTask(viewTask.id, answer, photos.length ? photos : undefined);
+      const result = await submitTask(activeTask.id, answer, photos.length ? photos : undefined);
       const status = result.submission?.status;
       setTaskSuccess({
-        points: status === 'approved' ? viewTask.points : undefined,
+        points: status === 'approved' ? activeTask.points : undefined,
         pendingReview: status === 'pending',
       });
       closeTaskDetail();
@@ -359,13 +350,8 @@ export function TasksPanel() {
               return (
                 <div
                   key={t.id}
-                  className={`nfo-card${canOpen ? ' nfo-card--clickable' : ''}`}
+                  className="nfo-card"
                   style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }}
-                  onClick={() => {
-                    if (canOpen) openTask(t);
-                  }}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onTouchMove={(e) => e.stopPropagation()}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
@@ -445,10 +431,43 @@ export function TasksPanel() {
     </PullToRefresh>
   );
 
+  const renderContent = () => {
+    if (loading && !isDetailOpen) {
+      return (
+        <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Spinner size="l" />
+        </Div>
+      );
+    }
+    if (detailLoading && !activeTask) {
+      return (
+        <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Spinner size="l" />
+        </Div>
+      );
+    }
+    if (activeTask) {
+      return renderTaskDetail(activeTask);
+    }
+    if (detailError && isDetailOpen) {
+      return (
+        <Group>
+          <Placeholder>{detailError}</Placeholder>
+          <Div style={{ padding: '0 16px 16px' }}>
+            <Button size="l" mode="outline" stretched onClick={closeTaskDetail}>
+              Назад к списку
+            </Button>
+          </Div>
+        </Group>
+      );
+    }
+    return renderTaskList();
+  };
+
   return (
     <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient backToHome headerActions={<NotificationBell />}>
       {taskSuccess && <TaskSuccessBanner points={taskSuccess.points} pendingReview={taskSuccess.pendingReview} />}
-      {focus && !viewTask && (
+      {focus && !isDetailOpen && (
         <Group>
           <Div style={{ margin: 12 }}>
             <div className="nfo-focus-day" style={{ cursor: 'default' }}>
@@ -461,15 +480,7 @@ export function TasksPanel() {
           </Div>
         </Group>
       )}
-      {loading && !viewTask ? (
-        <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="l" /></Div>
-      ) : detailLoading && !viewTask ? (
-        <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="l" /></Div>
-      ) : viewTask ? (
-        renderTaskDetail(viewTask)
-      ) : (
-        renderTaskList()
-      )}
+      {renderContent()}
     </PanelLayout>
   );
 }

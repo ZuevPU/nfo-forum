@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { updateMessagesPermission } from '../api/auth';
 import { requestVkMessagesFromGroup } from '../lib/vk-bridge';
 
@@ -20,9 +20,15 @@ export function useCommunityMessagesOptIn(options: Options = {}) {
   const { persist = false, serverAllowed, onSuccess } = options;
   const [loading, setLoading] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
-  const [localAllowed, setLocalAllowed] = useState(() => serverAllowed ?? readLocalAllowed());
+  const [localAllowed, setLocalAllowed] = useState(() => Boolean(serverAllowed) || readLocalAllowed());
 
-  const allowed = persist && serverAllowed !== undefined ? serverAllowed : localAllowed;
+  const allowed = persist
+    ? Boolean(serverAllowed) || localAllowed
+    : localAllowed;
+
+  useEffect(() => {
+    if (serverAllowed) setLocalAllowed(true);
+  }, [serverAllowed]);
 
   const toggle = useCallback(
     async (enabled: boolean) => {
@@ -31,7 +37,8 @@ export function useCommunityMessagesOptIn(options: Options = {}) {
       try {
         if (enabled) {
           const vkAllowed = await requestVkMessagesFromGroup(true);
-          if (!vkAllowed) {
+          const localGranted = readLocalAllowed();
+          if (!vkAllowed && !localGranted) {
             setHint('Нажми «Разрешить» во всплывающем окне VK — без этого напоминания не придут.');
             return;
           }

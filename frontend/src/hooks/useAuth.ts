@@ -150,7 +150,10 @@ export function useAuth(): UseAuthResult {
     const vkId = launchParams.vk_user_id != null ? String(launchParams.vk_user_id) : info?.id != null ? String(info.id) : null;
     if (!vkId) return;
     const result = await login(vkId, { firstName: info?.first_name, lastName: info?.last_name });
-    if (result.registered) setUser(result.user);
+    if (result.registered) {
+      const synced = await syncStoredMessagesPermission(result.user);
+      setUser(synced);
+    }
   }, []);
 
   return {

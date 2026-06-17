@@ -161,27 +161,60 @@ export async function initVkBridge(): Promise<{
   };
 }
 
+function parseVkAllowResult(data: unknown): boolean {
+  const result = (data as { result?: boolean | number } | null)?.result;
+  return result === true || result === 1;
+}
+
+function markMessagesFromGroupAllowed(): void {
+  localStorage.setItem(MESSAGES_PERMISSION_KEY, '1');
+}
+
 export async function requestVkMessagesFromGroup(force = false): Promise<boolean> {
   if (isDevMode()) return false;
-  if (!force && localStorage.getItem(MESSAGES_PERMISSION_KEY) === '1') return false;
+  if (!force && localStorage.getItem(MESSAGES_PERMISSION_KEY) === '1') return true;
   if (!VK_GROUP_ID) {
     console.warn('[push] VITE_VK_GROUP_ID is not set');
     return false;
   }
 
-  try {
-    const result = (await bridge.send('VKWebAppAllowMessagesFromGroup', {
-      group_id: VK_GROUP_ID,
-      key: 'nfo_forum_messages',
-    })) as { result?: boolean };
-    if (result?.result) {
-      localStorage.setItem(MESSAGES_PERMISSION_KEY, '1');
-    }
-    return result?.result ?? false;
-  } catch (error) {
-    console.warn('[push] VKWebAppAllowMessagesFromGroup failed:', error);
-    return false;
-  }
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (ok) markMessagesFromGroupAllowed();
+      resolve(ok);
+    };
+
+    bridge.subscribe((event: { detail?: { type?: string; data?: unknown } }) => {
+      if (settled) return;
+      const type = event.detail?.type;
+      if (type === 'VKWebAppAllowMessagesFromGroupResult') {
+        finish(parseVkAllowResult(event.detail?.data ?? { result: true }));
+      }
+      if (type === 'VKWebAppAllowMessagesFromGroupFailed') {
+        finish(false);
+      }
+    });
+
+    const timer = window.setTimeout(() => finish(false), 8000);
+
+    void bridge
+      .send('VKWebAppAllowMessagesFromGroup', {
+        group_id: VK_GROUP_ID,
+        key: 'nfo_forum_messages',
+      })
+      .then((result) => {
+        if (parseVkAllowResult(result)) finish(true);
+      })
+      .catch((error) => {
+        console.warn('[push] VKWebAppAllowMessagesFromGroup failed:', error);
+        finish(false);
+      });
+  });
 }
 
 // Дополнительный канал: нативные уведомления VK (не заменяет сообщения от сообщества).

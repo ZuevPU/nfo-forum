@@ -5,22 +5,24 @@ import { CommunityMessagesOptIn } from './CommunityMessagesOptIn';
 import { MESSAGES_PERMISSION_KEY, useCommunityMessagesOptIn } from '../hooks/useCommunityMessagesOptIn';
 
 interface Props {
+  serverAllowed?: boolean;
   onEnabled: () => void;
 }
 
-export function CommunityMessagesBanner({ onEnabled }: Props) {
+export function CommunityMessagesBanner({ serverAllowed, onEnabled }: Props) {
   const { allowed, loading, hint, toggle } = useCommunityMessagesOptIn({
     persist: true,
-    serverAllowed: false,
+    serverAllowed,
     onSuccess: onEnabled,
   });
 
   useEffect(() => {
+    if (serverAllowed) return;
     if (localStorage.getItem(MESSAGES_PERMISSION_KEY) !== '1') return;
     void updateMessagesPermission(true)
       .then(() => onEnabled())
       .catch(console.error);
-  }, [onEnabled]);
+  }, [onEnabled, serverAllowed]);
 
   return (
     <Div style={{ padding: '8px 16px 0' }}>

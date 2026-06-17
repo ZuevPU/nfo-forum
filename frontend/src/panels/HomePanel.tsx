@@ -29,6 +29,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
 import { CommunityMessagesBanner } from '../components/CommunityMessagesBanner';
 import { useAuthContext } from '../contexts/AuthContext';
+import { MESSAGES_PERMISSION_KEY } from '../hooks/useCommunityMessagesOptIn';
 import { requestVkMessagesFromGroup, requestVkNotifications } from '../lib/vk-bridge';
 import { FORUM_DAYS } from '../constants/nfoFactors';
 import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
@@ -82,7 +83,8 @@ export function HomePanel() {
       sessionStorage.setItem('nfo_msg_autoprompt', '1');
       void (async () => {
         const allowed = await requestVkMessagesFromGroup(true);
-        if (allowed) {
+        const localGranted = localStorage.getItem(MESSAGES_PERMISSION_KEY) === '1';
+        if (allowed || localGranted) {
           await updateMessagesPermission(true);
           await refreshUser();
         }
@@ -220,7 +222,10 @@ export function HomePanel() {
       </GradientHeader>
 
       {user && !user.messagesFromGroupAllowed && (
-        <CommunityMessagesBanner onEnabled={() => void refreshUser()} />
+        <CommunityMessagesBanner
+          serverAllowed={user.messagesFromGroupAllowed}
+          onEnabled={() => void refreshUser()}
+        />
       )}
 
       {data?.focusOfDay && (
