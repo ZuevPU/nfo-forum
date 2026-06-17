@@ -2,18 +2,15 @@ import {
   Button,
   Div,
   Group,
-  ModalPage,
-  ModalPageHeader,
-  ModalRoot,
   Spinner,
-  PullToRefresh,
 } from '@vkontakte/vkui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { pickImage } from '../lib/vk-bridge';
 import { EmptyState } from '../components/EmptyState';
 import { PanelLayout } from '../components/PanelLayout';
 import { NotificationBell } from '../components/NotificationBell';
+import { TaskDetailModal } from '../components/TaskDetailModal';
 import { TaskSuccessBanner } from '../components/TaskSuccessBanner';
 import { useLayout } from '../contexts/LayoutContext';
 import {
@@ -27,6 +24,8 @@ import {
   type TaskItem,
 } from '../api/tasks';
 
+const MODAL_CLOSE_SUPPRESS_MS = 400;
+
 function contactsRequired(task: TaskItem) {
   return task.contactsRequired ?? task.networkingContacts ?? 1;
 }
@@ -35,34 +34,20 @@ function isMultiNetworking(task: TaskItem) {
   return !!task.isRandomDistribution && contactsRequired(task) > 1;
 }
 
-function NetworkingPartnersList({
-  partners,
-  title,
-}: {
-  partners?: TaskItem['partners'];
-  title: string;
-}) {
-  if (!partners?.length) return null;
-  return (
-    <div style={{ marginTop: 12, padding: 10, background: '#f2f3f9', borderRadius: 8, fontSize: 12 }}>
-      <div style={{ fontWeight: 600, marginBottom: 6 }}>{title}</div>
-      {partners.map((p) => (
-        <div key={p.id} style={{ marginBottom: 4 }}>
-          {p.firstName} {p.lastName ?? ''}{p.track ? ` · ${p.track}` : ''}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function findTaskById(tasks: TaskItem[], id: number) {
   return tasks.find((t) => Number(t.id) === id) ?? null;
+}
+
+function stopTouchPropagation(e: { stopPropagation: () => void }) {
+  e.stopPropagation();
 }
 
 export function TasksPanel() {
   const { taskId } = useParams<{ taskId?: string }>();
   const navigate = useNavigate();
-  const { setBackHandler, setTabbarHidden } = useLayout();
+  const { setBackHandler } = useLayout();
+  const deepLinkHandledRef = useRef<string | null>(null);
+  const suppressCloseUntilRef = useRef(0);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
   const [modalTask, setModalTask] = useState<TaskItem | null>(null);
@@ -70,51 +55,66 @@ export function TasksPanel() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [networkingLoading, setNetworkingLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [taskSuccess, setTaskSuccess] = useState<{ points?: number; pendingReview?: boolean } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
+  const beginModalOpen = useCallback(() => {
+    suppressCloseUntilRef.current = performance.now() + MODAL_CLOSE_SUPPRESS_MS;
+  }, []);
+
+  const load = useCallback((silent = false) => {
+    if (silent) setRefreshing(true);
+    else setLoading(true);
+
     Promise.all([fetchTasks(), fetchDailyFocus()])
       .then(([t, f]) => {
         setTasks(t.tasks);
         setFocus(f.focus);
       })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (silent) setRefreshing(false);
+        else setLoading(false);
+      });
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const closeTaskModal = useCallback(() => {
-    setModalTask(null);
+  const resetModalForm = useCallback(() => {
     setAnswer('');
     setPhotos([]);
     setUploadError(null);
+  }, []);
+
+  const closeTaskModal = useCallback(() => {
+    if (performance.now() < suppressCloseUntilRef.current) return;
+    setModalTask(null);
+    resetModalForm();
     if (taskId) navigate('/tasks', { replace: true });
-  }, [navigate, taskId]);
+  }, [navigate, resetModalForm, taskId]);
 
   const openTask = useCallback((task: TaskItem) => {
+    beginModalOpen();
     setModalTask(task);
-    setAnswer('');
-    setPhotos([]);
-    setUploadError(null);
-    if (String(task.id) !== taskId) {
-      navigate(`/tasks/${task.id}`, { replace: true });
-    }
-  }, [navigate, taskId]);
+    resetModalForm();
+  }, [beginModalOpen, resetModalForm]);
 
-  // Прямой заход по ссылке /tasks/:id — открываем модалку
+  // Deep link: /tasks/:id с главной или из уведомления
   useEffect(() => {
     if (!taskId || loading) return;
+    if (deepLinkHandledRef.current === taskId) return;
+
     const id = Number(taskId);
     if (Number.isNaN(id)) return;
 
     const fromList = findTaskById(tasks, id);
     if (fromList) {
+      deepLinkHandledRef.current = taskId;
+      beginModalOpen();
       setModalTask(fromList);
       return;
     }
@@ -123,7 +123,11 @@ export function TasksPanel() {
     setModalLoading(true);
     fetchTask(id)
       .then((data) => {
-        if (!cancelled) setModalTask(taskFromDetail(data));
+        if (!cancelled) {
+          deepLinkHandledRef.current = taskId;
+          beginModalOpen();
+          setModalTask(taskFromDetail(data));
+        }
       })
       .catch((e) => {
         console.error(e);
@@ -136,25 +140,17 @@ export function TasksPanel() {
     return () => {
       cancelled = true;
     };
-  }, [taskId, tasks, loading, navigate]);
+  }, [taskId, tasks, loading, navigate, beginModalOpen]);
 
-  // Синхронизируем данные модалки при обновлении списка
   useEffect(() => {
-    if (!modalTask) return;
-    const fresh = findTaskById(tasks, Number(modalTask.id));
-    if (fresh) setModalTask(fresh);
-  }, [tasks, modalTask?.id]);
+    if (!taskId) deepLinkHandledRef.current = null;
+  }, [taskId]);
 
   useEffect(() => {
     if (!taskSuccess) return;
     const timer = window.setTimeout(() => setTaskSuccess(null), 4000);
     return () => window.clearTimeout(timer);
   }, [taskSuccess]);
-
-  useEffect(() => {
-    setTabbarHidden(modalTask != null);
-    return () => setTabbarHidden(false);
-  }, [modalTask, setTabbarHidden]);
 
   useEffect(() => {
     if (!modalTask) {
@@ -216,8 +212,9 @@ export function TasksPanel() {
         points: status === 'approved' ? modalTask.points : undefined,
         pendingReview: status === 'pending',
       });
+      suppressCloseUntilRef.current = 0;
       closeTaskModal();
-      load();
+      load(true);
     } catch (e) {
       console.error(e);
       alert('Не удалось отправить задание. Попробуй ещё раз.');
@@ -234,197 +231,131 @@ export function TasksPanel() {
     return null;
   };
 
-  const renderTaskModalContent = (task: TaskItem) => {
-    const blockedNetworking =
-      task.isRandomDistribution &&
-      task.networkingStatus !== 'paired' &&
-      task.status !== 'approved';
+  const headerActions = (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <button
+        type="button"
+        className="nfo-tasks-refresh-btn"
+        disabled={refreshing || loading}
+        onClick={() => load(true)}
+      >
+        {refreshing ? '…' : '↻'}
+      </button>
+      <NotificationBell />
+    </div>
+  );
 
-    if (blockedNetworking) {
-      return (
-        <>
-          <Div style={{ padding: '12px 16px' }}>
-            <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.4 }}>
-              {task.description}
-            </div>
-            <div style={{ marginTop: 12, fontSize: 13, color: '#f39c12', lineHeight: 1.45 }}>
-              {!task.networkingStatus
-                ? isMultiNetworking(task)
-                  ? `Подай заявку — назначим ${contactsRequired(task)} участников для знакомства.`
-                  : 'Сначала подай заявку на нетворкинг — после назначения партнёра откроется форма задания.'
-                : isMultiNetworking(task)
-                  ? `Назначено ${task.partners?.length ?? 0} из ${contactsRequired(task)}. «Выполнить» откроется, когда все будут готовы.`
-                  : 'Ожидаем партнёра. Как только пара будет готова, нажми «Выполнить» в списке заданий.'}
-            </div>
-            {task.partners && task.partners.length > 0 && (
-              <NetworkingPartnersList
-                partners={task.partners}
-                title={isMultiNetworking(task) ? 'Участники для знакомства:' : 'Твой партнёр:'}
-              />
-            )}
-            {!task.networkingStatus && (
-              <Button
-                size="m"
-                mode="primary"
-                style={{ marginTop: 12 }}
-                loading={networkingLoading}
-                onClick={() => void handleApplyNetworking(task)}
-              >
-                {isMultiNetworking(task) ? 'Получить участников' : 'Подать заявку на нетворкинг'}
-              </Button>
-            )}
-          </Div>
-        </>
-      );
+  const renderTaskList = () => {
+    if (tasks.length === 0) {
+      return <EmptyState message="Задания скоро появятся — следи за уведомлениями" />;
     }
 
     return (
-      <>
-        <Div style={{ padding: '0 16px 12px' }}>
-          <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.4 }}>
-            {task.description}
-          </div>
-          {task.isRandomDistribution && (task.partners?.length || task.partner) && (
-            <NetworkingPartnersList
-              partners={task.partners?.length ? task.partners : task.partner ? [task.partner] : []}
-              title={isMultiNetworking(task) ? 'Участники для знакомства:' : 'Твой партнёр:'}
-            />
-          )}
+      <Group>
+        <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
+          {tasks.map((t) => {
+            const canOpen = t.status !== 'approved';
+            const needsNetworking = t.isRandomDistribution && !t.networkingStatus;
+            const waitingNetworking = t.isRandomDistribution && t.networkingStatus === 'waiting';
+
+            return (
+              <div
+                key={t.id}
+                className="nfo-card"
+                style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1, touchAction: 'manipulation' }}
+                onPointerDown={stopTouchPropagation}
+                onTouchStart={stopTouchPropagation}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nfo-primary)' }}>{t.points} б.</div>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                  {t.description}
+                </div>
+                {t.isRandomDistribution && (
+                  <div style={{ marginTop: 8 }}>
+                    {needsNetworking && (
+                      <>
+                        <div style={{ fontSize: 11, color: '#f39c12', marginBottom: 6 }}>
+                          {isMultiNetworking(t)
+                            ? `Подай заявку — назначим ${contactsRequired(t)} участников`
+                            : 'Сначала подай заявку на нетворкинг'}
+                        </div>
+                        <Button
+                          size="s"
+                          mode="primary"
+                          loading={networkingLoading}
+                          onPointerDown={stopTouchPropagation}
+                          onTouchStart={stopTouchPropagation}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleApplyNetworking(t);
+                          }}
+                        >
+                          {isMultiNetworking(t) ? 'Получить участников' : 'Подать заявку на нетворкинг'}
+                        </Button>
+                      </>
+                    )}
+                    {waitingNetworking && (
+                      <div style={{ fontSize: 11, color: '#f39c12' }}>
+                        {isMultiNetworking(t)
+                          ? `Назначено ${t.partners?.length ?? 0}/${contactsRequired(t)} — «Выполнить» откроется после полного списка`
+                          : 'Ожидаем партнёра — «Выполнить» откроется после назначения пары'}
+                      </div>
+                    )}
+                    {t.networkingStatus === 'paired' && (t.partners?.length || t.partner) && (
+                      <div style={{ fontSize: 11, color: '#27ae60' }}>
+                        {isMultiNetworking(t)
+                          ? `Участники: ${(t.partners ?? (t.partner ? [t.partner] : [])).map((p) => p.firstName).join(', ')}`
+                          : `Партнёр: ${t.partner?.firstName} ${t.partner?.lastName ?? ''}`}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {statusBadge(t.status)}
+                  {t.deadline && (
+                    <div style={{ fontSize: 11, color: t.isPastDeadline ? '#e74c3c' : 'var(--vkui--color_text_secondary)' }}>
+                      До {new Date(t.deadline).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
+                  {canOpen && (
+                    <Button
+                      size="s"
+                      mode="primary"
+                      type="button"
+                      onPointerDown={stopTouchPropagation}
+                      onTouchStart={stopTouchPropagation}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTask(t);
+                      }}
+                    >
+                      Выполнить
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </Div>
-        <Div style={{ padding: '0 16px 12px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>Твой ответ</div>
-          <textarea
-            className="nfo-input"
-            rows={4}
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-          />
-        </Div>
-        <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '0 16px 12px' }}>
-          <Button size="m" mode="secondary" loading={uploading} disabled={photos.length >= 3} onClick={() => void handleUploadPhoto()}>
-            📷 Добавить фото ({photos.length}/3)
-          </Button>
-          {photos.map((url, i) => (
-            <img key={`${i}-${url.slice(0, 32)}`} src={url} alt={`Фото ${i + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover' }} />
-          ))}
-        </Div>
-        {uploadError && (
-          <Div style={{ padding: '0 16px 12px', fontSize: 12, color: '#e74c3c' }}>{uploadError}</Div>
-        )}
-        <Div style={{ padding: '0 16px 24px' }}>
-          <Button size="l" mode="primary" stretched loading={submitting} onClick={() => void handleSubmit()}>
-            Отправить
-          </Button>
-        </Div>
-      </>
+      </Group>
     );
   };
 
-  const renderTaskList = () => (
-    <PullToRefresh onRefresh={() => load()} isFetching={loading}>
-      {tasks.length === 0 ? (
-        <EmptyState message="Задания скоро появятся — следи за уведомлениями" />
-      ) : (
-        <Group>
-          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
-            {tasks.map((t) => {
-              const canOpen = t.status !== 'approved';
-              const needsNetworking = t.isRandomDistribution && !t.networkingStatus;
-              const waitingNetworking = t.isRandomDistribution && t.networkingStatus === 'waiting';
-
-              const handleOpenTask = (e?: { stopPropagation?: () => void }) => {
-                e?.stopPropagation?.();
-                openTask(t);
-              };
-
-              return (
-                <div
-                  key={t.id}
-                  className={canOpen ? 'nfo-card nfo-card--clickable' : 'nfo-card'}
-                  style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }}
-                  onClick={canOpen ? () => handleOpenTask() : undefined}
-                  onKeyDown={canOpen ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleOpenTask(e); } : undefined}
-                  role={canOpen ? 'button' : undefined}
-                  tabIndex={canOpen ? 0 : undefined}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nfo-primary)' }}>{t.points} б.</div>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>
-                    {t.description}
-                  </div>
-                  {t.isRandomDistribution && (
-                    <div style={{ marginTop: 8 }}>
-                      {needsNetworking && (
-                        <>
-                          <div style={{ fontSize: 11, color: '#f39c12', marginBottom: 6 }}>
-                            {isMultiNetworking(t)
-                              ? `Подай заявку — назначим ${contactsRequired(t)} участников`
-                              : 'Сначала подай заявку на нетворкинг'}
-                          </div>
-                          <Button
-                            size="s"
-                            mode="primary"
-                            loading={networkingLoading}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleApplyNetworking(t);
-                            }}
-                          >
-                            {isMultiNetworking(t) ? 'Получить участников' : 'Подать заявку на нетворкинг'}
-                          </Button>
-                        </>
-                      )}
-                      {waitingNetworking && (
-                        <div style={{ fontSize: 11, color: '#f39c12' }}>
-                          {isMultiNetworking(t)
-                            ? `Назначено ${t.partners?.length ?? 0}/${contactsRequired(t)} — «Выполнить» откроется после полного списка`
-                            : 'Ожидаем партнёра — «Выполнить» откроется после назначения пары'}
-                        </div>
-                      )}
-                      {t.networkingStatus === 'paired' && (t.partners?.length || t.partner) && (
-                        <div style={{ fontSize: 11, color: '#27ae60' }}>
-                          {isMultiNetworking(t)
-                            ? `Участники: ${(t.partners ?? (t.partner ? [t.partner] : [])).map((p) => p.firstName).join(', ')}`
-                            : `Партнёр: ${t.partner?.firstName} ${t.partner?.lastName ?? ''}`}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    {statusBadge(t.status)}
-                    {t.deadline && (
-                      <div style={{ fontSize: 11, color: t.isPastDeadline ? '#e74c3c' : 'var(--vkui--color_text_secondary)' }}>
-                        До {new Date(t.deadline).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    )}
-                    {canOpen && (
-                      <Button
-                        size="s"
-                        mode="primary"
-                        type="button"
-                        onClick={(e) => handleOpenTask(e)}
-                        onTouchEnd={(e) => e.stopPropagation()}
-                      >
-                        Выполнить
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </Div>
-        </Group>
-      )}
-    </PullToRefresh>
-  );
-
   return (
     <>
-      <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient backToHome headerActions={<NotificationBell />}>
+      <PanelLayout
+        id="tasks"
+        title="Активные задания"
+        subtitle="Задания дня"
+        useGradient
+        backToHome
+        headerActions={headerActions}
+      >
         {taskSuccess && <TaskSuccessBanner points={taskSuccess.points} pendingReview={taskSuccess.pendingReview} />}
-        {focus && !modalTask && (
+        {focus && (
           <Group>
             <Div style={{ margin: 12 }}>
               <div className="nfo-focus-day" style={{ cursor: 'default' }}>
@@ -446,27 +377,21 @@ export function TasksPanel() {
         )}
       </PanelLayout>
 
-      <ModalRoot activeModal={modalTask ? 'task-detail' : null} onClose={closeTaskModal}>
-        <ModalPage
-          id="task-detail"
-          dynamicContentHeight
-          settlingHeight={100}
-          onClose={closeTaskModal}
-          header={
-            <ModalPageHeader>
-              {modalTask?.title ?? 'Задание'}
-            </ModalPageHeader>
-          }
-        >
-          {modalLoading && !modalTask ? (
-            <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-              <Spinner size="l" />
-            </Div>
-          ) : modalTask ? (
-            renderTaskModalContent(modalTask)
-          ) : null}
-        </ModalPage>
-      </ModalRoot>
+      <TaskDetailModal
+        task={modalTask}
+        loading={modalLoading}
+        answer={answer}
+        photos={photos}
+        uploading={uploading}
+        submitting={submitting}
+        networkingLoading={networkingLoading}
+        uploadError={uploadError}
+        onClose={closeTaskModal}
+        onAnswerChange={setAnswer}
+        onUploadPhoto={() => void handleUploadPhoto()}
+        onSubmit={() => void handleSubmit()}
+        onApplyNetworking={(task) => void handleApplyNetworking(task)}
+      />
     </>
   );
 }

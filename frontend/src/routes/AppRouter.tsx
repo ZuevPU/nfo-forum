@@ -53,7 +53,8 @@ export function AppRouter() {
   const { status } = useAuthContext();
   const { tabbarHidden } = useLayout();
   const location = useLocation();
-  const showTabbar = isMainRoute(location.pathname) && !tabbarHidden;
+  const isMain = isMainRoute(location.pathname);
+  const showTabbar = isMain && !tabbarHidden;
 
   useVkBackNavigation();
   useDeepLink();
@@ -76,7 +77,7 @@ export function AppRouter() {
 
   return (
     <>
-      <div className={showTabbar ? 'nfo-with-tabbar' : undefined}>
+      <div className={isMain ? 'nfo-with-tabbar' : undefined}>
       <Routes>
           <Route path="/welcome" element={<WelcomePanel />} />
           <Route path="/reflection-level" element={<ReflectionLevelPanel />} />
