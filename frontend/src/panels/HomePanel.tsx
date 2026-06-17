@@ -13,7 +13,6 @@ import {
   Textarea,
   Button,
   Spacing,
-  Switch,
   SimpleCell,
   PullToRefresh,
 } from '@vkontakte/vkui';
@@ -21,17 +20,16 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchHome, submitFeedback, type HomeData } from '../api/home';
 import { fetchReflectionLevel } from '../api/rating';
-import { updateNotifications, updateNotificationPrefs, updateMessagesPermission } from '../api/auth';
-import type { NotificationPrefs } from '../types/auth';
+import { updateMessagesPermission } from '../api/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { ActivityIcon } from '../components/ActivityIcon';
 import { GradientHeader } from '../components/GradientHeader';
+import { NotificationBell } from '../components/NotificationBell';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
-import { ParticipantJourney } from '../components/ParticipantJourney';
 import { CommunityMessagesBanner } from '../components/CommunityMessagesBanner';
 import { useAuthContext } from '../contexts/AuthContext';
-import { requestVkMessagesFromGroup } from '../lib/vk-bridge';
+import { requestVkMessagesFromGroup, requestVkNotifications } from '../lib/vk-bridge';
 import { FORUM_DAYS } from '../constants/nfoFactors';
 import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
 
@@ -58,17 +56,6 @@ export function HomePanel() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
-  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>(
-    user?.notificationPrefs ?? {
-      program: true,
-      questions: true,
-      tasks: true,
-      exchange: true,
-      points: true,
-    },
-  );
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [reflectionThresholds, setReflectionThresholds] = useState<number[]>(DEFAULT_REFLECTION_THRESHOLDS);
 
   const load = () => {
@@ -87,6 +74,26 @@ export function HomePanel() {
       })
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    if (!user.messagesFromGroupAllowed && sessionStorage.getItem('nfo_msg_autoprompt') !== '1') {
+      sessionStorage.setItem('nfo_msg_autoprompt', '1');
+      void (async () => {
+        const allowed = await requestVkMessagesFromGroup(true);
+        if (allowed) {
+          await updateMessagesPermission(true);
+          await refreshUser();
+        }
+      })();
+    }
+
+    if (sessionStorage.getItem('nfo_native_notif_prompt') !== '1') {
+      sessionStorage.setItem('nfo_native_notif_prompt', '1');
+      void requestVkNotifications();
+    }
+  }, [user, refreshUser]);
 
   if (loading || !user) {
     return (
@@ -125,41 +132,6 @@ export function HomePanel() {
   const handleDeleteAccount = async () => {
     if (window.confirm('Вы уверены, что хотите удалить свой аккаунт и все данные? Это действие необратимо.')) {
       await deleteUserAccount();
-    }
-  };
-
-  const handleToggleNotifications = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.checked;
-    setNotificationsEnabled(val);
-    setNotificationsLoading(true);
-    try {
-      if (val) {
-        const allowed = await requestVkMessagesFromGroup(true);
-        if (allowed) {
-          await updateMessagesPermission(true);
-          await refreshUser();
-        }
-      }
-      await updateNotifications(val);
-    } catch (err) {
-      console.error(err);
-      setNotificationsEnabled(!val);
-    } finally {
-      setNotificationsLoading(false);
-    }
-  };
-
-  const handleTogglePref = async (key: keyof NotificationPrefs, val: boolean) => {
-    const next = { ...notificationPrefs, [key]: val };
-    setNotificationPrefs(next);
-    setNotificationsLoading(true);
-    try {
-      await updateNotificationPrefs(next);
-    } catch (err) {
-      console.error(err);
-      setNotificationPrefs(notificationPrefs);
-    } finally {
-      setNotificationsLoading(false);
     }
   };
 
@@ -216,46 +188,13 @@ export function HomePanel() {
           </ul>
           <p>За активное участие ты получаешь баллы, которые помогут тебе подняться в рейтинге!</p>
           <Spacing size={16} />
-          
-          <SimpleCell
-            after={
-              <Switch
-                checked={notificationsEnabled}
-                onChange={(e) => void handleToggleNotifications(e)}
-                disabled={notificationsLoading}
-              />
-            }
-            subtitle="Сообщения от сообщества Форума НФО в личку VK"
-          >
-            Уведомления
-          </SimpleCell>
 
           <SimpleCell
-            subtitle="Личные сообщения от сообщества «Цифровой Машук»"
+            subtitle="Уведомления и сообщения от сообщества"
+            onClick={() => navigate('/settings')}
           >
-            Сообщения от сообщества
+            Настройки уведомлений
           </SimpleCell>
-
-          {([
-            ['program', 'Программа и расписание'],
-            ['questions', 'Вопросы и рефлексия'],
-            ['tasks', 'Задания'],
-            ['exchange', 'Обмен опытом'],
-            ['points', 'Баллы и рейтинг'],
-          ] as const).map(([key, label]) => (
-            <SimpleCell
-              key={key}
-              after={
-                <Switch
-                  checked={notificationPrefs[key]}
-                  disabled={notificationsLoading || !notificationsEnabled}
-                  onChange={(e) => void handleTogglePref(key, e.target.checked)}
-                />
-              }
-            >
-              {label}
-            </SimpleCell>
-          ))}
 
           <Spacing size={16} />
           <Button mode="primary" style={{ backgroundColor: 'var(--vkui--color_background_negative)' }} stretched onClick={() => void handleDeleteAccount()}>
@@ -272,7 +211,7 @@ export function HomePanel() {
     <>
       <Panel id="home" className="nfo-home">
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
-      <GradientHeader title="Главная" subtitle="Форум неформального образования" variant="main">
+      <GradientHeader title="Главная" subtitle="Форум неформального образования" variant="main" actions={<NotificationBell />}>
         <div className="nfo-home-header-meta">
           <Text weight="2">{dateStr}</Text>
           {programDay ? <Text weight="2">День {programDay}</Text> : null}
@@ -292,12 +231,6 @@ export function HomePanel() {
           </div>
         </Div>
       )}
-
-      <Group>
-        <Div style={{ padding: '0 16px 12px' }}>
-          <ParticipantJourney />
-        </Div>
-      </Group>
 
       <Group header={<div className="nfo-sec-title">Сейчас в программе</div>}>
         {event ? (

@@ -19,11 +19,12 @@ import { ReflectionLevelPanel } from '../panels/ReflectionLevelPanel';
 import { RegisterPanel } from '../panels/RegisterPanel';
 import { SchedulePanel } from '../panels/SchedulePanel';
 import { SettingsPanel } from '../panels/SettingsPanel';
+import { NotificationsPanel } from '../panels/NotificationsPanel';
 import { StateCheckinPanel } from '../panels/StateCheckinPanel';
 import { TasksPanel } from '../panels/TasksPanel';
 import { WelcomePanel } from '../panels/WelcomePanel';
 
-const MAIN_ROUTE_PREFIXES = ['/home', '/schedule', '/questions', '/exchange', '/tasks', '/rating', '/checkin', '/diagnostics', '/nfo-day', '/settings'];
+const MAIN_ROUTE_PREFIXES = ['/home', '/schedule', '/questions', '/exchange', '/tasks', '/rating', '/checkin', '/diagnostics', '/nfo-day', '/settings', '/notifications'];
 
 function isMainRoute(pathname: string) {
   return MAIN_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -93,6 +94,7 @@ export function AppRouter() {
           <Route path="/diagnostics" element={<DiagnosticsPanel />} />
           <Route path="/nfo-day" element={<NfoDayPanel />} />
           <Route path="/settings" element={<SettingsPanel />} />
+          <Route path="/notifications" element={<NotificationsPanel />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/" element={<HashRedirect />} />
           <Route path="*" element={<Navigate to="/home" replace />} />

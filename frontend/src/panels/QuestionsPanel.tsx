@@ -11,6 +11,7 @@ import {
   type ReflectionQuestion,
 } from '../api/reflection';
 import { PanelLayout } from '../components/PanelLayout';
+import { NotificationBell } from '../components/NotificationBell';
 import { EmptyState } from '../components/EmptyState';
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
@@ -80,7 +81,7 @@ export function QuestionsPanel() {
   };
 
   return (
-    <PanelLayout id="questions" title="Активные вопросы" subtitle="Вопросы трека" loading={loading} error={error} useGradient backToHome>
+    <PanelLayout id="questions" title="Активные вопросы" subtitle="Вопросы трека" loading={loading} error={error} useGradient backToHome headerActions={<NotificationBell />}>
       {successMessage && (
         <Div style={{ padding: '8px 16px 0' }}>
           <div style={{ padding: '10px 12px', borderRadius: 10, background: '#e8f8ef', color: '#1e7e34', fontSize: 13, fontWeight: 600 }}>

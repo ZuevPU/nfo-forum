@@ -57,6 +57,7 @@ const checks = {
     'allow_multiple',
   ),
   tasks_networking_contacts: await colExists('tasks', 'networking_contacts'),
+  user_notifications: await tableExists('user_notifications'),
 };
 
 console.log('Current state:');
@@ -113,6 +114,24 @@ if (!checks.reflection_questions_allow_multiple) {
 if (!checks.tasks_networking_contacts) {
   statements.push(
     'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS networking_contacts integer NOT NULL DEFAULT 1',
+  );
+}
+if (!checks.user_notifications) {
+  statements.push(`CREATE TABLE IF NOT EXISTS user_notifications (
+  id serial PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text text NOT NULL,
+  category text,
+  link_hash text,
+  link_label text,
+  read_at timestamp,
+  created_at timestamp NOT NULL DEFAULT now()
+)`);
+  statements.push(
+    'CREATE INDEX IF NOT EXISTS idx_user_notifications_user_read ON user_notifications (user_id, read_at)',
+  );
+  statements.push(
+    'CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created ON user_notifications (user_id, created_at)',
   );
 }
 

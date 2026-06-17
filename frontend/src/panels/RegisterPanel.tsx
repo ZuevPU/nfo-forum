@@ -14,23 +14,17 @@ import {
 } from '@vkontakte/vkui';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CommunityMessagesOptIn } from '../components/CommunityMessagesOptIn';
 import { GradientHeader } from '../components/GradientHeader';
 import { TRACKS, type Track } from '../constants/tracks';
-import { useCommunityMessagesOptIn } from '../hooks/useCommunityMessagesOptIn';
 import { useAuthContext } from '../contexts/AuthContext';
 
 export function RegisterPanel() {
   const { vkUserInfo, registerUser, error, status } = useAuthContext();
   const navigate = useNavigate();
-  const [step, setStep] = useState<1 | 2>(1);
   const [selectedTrack, setSelectedTrack] = useState<Track>('НФО и образование');
   const [firstName, setFirstName] = useState(vkUserInfo?.first_name ?? '');
   const [lastName, setLastName] = useState(vkUserInfo?.last_name ?? '');
   const [termsAccepted, setTermsAccepted] = useState(false);
-
-  const { allowed: messagesAllowed, loading: messagesLoading, hint: messagesHint, toggle: toggleMessages } =
-    useCommunityMessagesOptIn({ persist: false });
 
   const handleRegister = async () => {
     if (!termsAccepted || !firstName.trim()) return;
@@ -49,45 +43,9 @@ export function RegisterPanel() {
     );
   }
 
-  if (step === 1) {
-    return (
-      <Panel id="register">
-        <GradientHeader title="Добро пожаловать!" subtitle="Шаг 1 из 2 — уведомления" />
-        <Group>
-          <Div style={{ padding: '8px 16px 16px' }}>
-            <CommunityMessagesOptIn
-              allowed={messagesAllowed}
-              loading={messagesLoading}
-              hint={messagesHint}
-              onToggle={toggleMessages}
-              variant="register"
-            />
-          </Div>
-          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 16px' }}>
-            <Button
-              size="l"
-              mode="primary"
-              stretched
-              disabled={!messagesAllowed}
-              onClick={() => setStep(2)}
-            >
-              Далее
-            </Button>
-            {!messagesAllowed && (
-              <Button size="l" mode="tertiary" stretched onClick={() => setStep(2)}>
-                Продолжить без сообщений
-              </Button>
-            )}
-          </Div>
-        </Group>
-        <Placeholder>Рекомендуем включить — иначе не придут напоминания от «Цифровой Машук»</Placeholder>
-      </Panel>
-    );
-  }
-
   return (
     <Panel id="register">
-      <GradientHeader title="Регистрация" subtitle="Шаг 2 из 2 — данные участника" />
+      <GradientHeader title="Регистрация" subtitle="Данные участника" />
       <Group>
         <FormItem top="Фамилия">
           <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
@@ -126,9 +84,6 @@ export function RegisterPanel() {
         <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Button size="l" mode="primary" stretched disabled={!termsAccepted || !firstName.trim()} onClick={() => void handleRegister()}>
             Зарегистрироваться
-          </Button>
-          <Button size="l" mode="outline" stretched onClick={() => setStep(1)}>
-            Назад
           </Button>
         </Div>
       </Group>

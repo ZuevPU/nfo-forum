@@ -11,6 +11,7 @@ import { appendAppLink } from '../utils/appLinks.js';
 import { eq, inArray } from 'drizzle-orm';
 import { getMedia, resolveMediaIdFromImageInput } from './media.service.js';
 import { uploadPhotoForMessage } from './vkPhoto.service.js';
+import { recordUserNotifications } from './notifications.service.js';
 
 interface PushPayload {
   text: string;
@@ -198,6 +199,18 @@ export async function deliverPush(
   payload: PushPayload,
 ): Promise<{ sent: number; candidates: number; eligible: number; vkError?: VkApiError | null }> {
   const candidates = await resolveRawTargetUsers(payload);
+
+  // Дублируем уведомление в персональную ленту всем адресатам — независимо от VK-разрешений.
+  await recordUserNotifications(
+    candidates.map((u) => u.id),
+    {
+      text: payload.text,
+      category: payload.category,
+      linkHash: payload.linkHash ?? payload.hash,
+      linkLabel: payload.linkLabel,
+    },
+  ).catch((e) => console.error('[push] failed to record inbox notifications', e));
+
   const targetUsers = filterByCategory(candidates, payload.category);
   const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
 

@@ -6,10 +6,11 @@ import {
   PullToRefresh,
 } from '@vkontakte/vkui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { pickImage } from '../lib/vk-bridge';
 import { EmptyState } from '../components/EmptyState';
 import { PanelLayout } from '../components/PanelLayout';
+import { NotificationBell } from '../components/NotificationBell';
 import { TaskSuccessBanner } from '../components/TaskSuccessBanner';
 import { useLayout } from '../contexts/LayoutContext';
 import {
@@ -52,12 +53,17 @@ function NetworkingPartnersList({
 }
 
 function findTaskById(tasks: TaskItem[], id: number) {
-  return tasks.find((t) => t.id === id || String(t.id) === String(id)) ?? null;
+  return tasks.find((t) => Number(t.id) === id) ?? null;
+}
+
+function taskIdsMatch(a: unknown, b: unknown) {
+  return Number(a) === Number(b);
 }
 
 export function TasksPanel() {
   const { taskId } = useParams<{ taskId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { setBackHandler, setTabbarHidden } = useLayout();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
@@ -90,7 +96,7 @@ export function TasksPanel() {
     setViewTask(null);
     setAnswer('');
     setPhotos([]);
-    navigate('/tasks', { replace: true });
+    navigate('/tasks', { replace: true, state: null });
   }, [navigate]);
 
   const openTask = useCallback((task: TaskItem) => {
@@ -98,10 +104,8 @@ export function TasksPanel() {
     setAnswer('');
     setPhotos([]);
     setUploadError(null);
-    if (String(task.id) !== taskId) {
-      navigate(`/tasks/${task.id}`);
-    }
-  }, [navigate, taskId]);
+    navigate(`/tasks/${task.id}`, { state: { task } });
+  }, [navigate]);
 
   useEffect(() => {
     if (prevTaskIdRef.current && !taskId) {
@@ -119,7 +123,13 @@ export function TasksPanel() {
       return;
     }
 
-    if (viewTask?.id === id) return;
+    if (viewTask && taskIdsMatch(viewTask.id, id)) return;
+
+    const stateTask = (location.state as { task?: TaskItem } | null)?.task;
+    if (stateTask && taskIdsMatch(stateTask.id, id)) {
+      setViewTask(stateTask);
+      return;
+    }
 
     const fromList = findTaskById(tasks, id);
     if (fromList) {
@@ -146,7 +156,7 @@ export function TasksPanel() {
     return () => {
       cancelled = true;
     };
-  }, [taskId, tasks, loading, viewTask?.id, navigate]);
+  }, [taskId, tasks, loading, viewTask, location.state, navigate]);
 
   useEffect(() => {
     if (!taskSuccess) return;
@@ -349,8 +359,13 @@ export function TasksPanel() {
               return (
                 <div
                   key={t.id}
-                  className="nfo-card"
+                  className={`nfo-card${canOpen ? ' nfo-card--clickable' : ''}`}
                   style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }}
+                  onClick={() => {
+                    if (canOpen) openTask(t);
+                  }}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchMove={(e) => e.stopPropagation()}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>
@@ -368,7 +383,15 @@ export function TasksPanel() {
                               ? `Подай заявку — назначим ${contactsRequired(t)} участников`
                               : 'Сначала подай заявку на нетворкинг'}
                           </div>
-                          <Button size="s" mode="primary" loading={networkingLoading} onClick={() => void handleApplyNetworking(t)}>
+                          <Button
+                            size="s"
+                            mode="primary"
+                            loading={networkingLoading}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleApplyNetworking(t);
+                            }}
+                          >
                             {isMultiNetworking(t) ? 'Получить участников' : 'Подать заявку на нетворкинг'}
                           </Button>
                         </>
@@ -402,9 +425,12 @@ export function TasksPanel() {
                         mode="primary"
                         type="button"
                         onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
                           openTask(t);
                         }}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchMove={(e) => e.stopPropagation()}
                       >
                         Выполнить
                       </Button>
@@ -420,7 +446,7 @@ export function TasksPanel() {
   );
 
   return (
-    <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient backToHome>
+    <PanelLayout id="tasks" title="Активные задания" subtitle="Задания дня" useGradient backToHome headerActions={<NotificationBell />}>
       {taskSuccess && <TaskSuccessBanner points={taskSuccess.points} pendingReview={taskSuccess.pendingReview} />}
       {focus && !viewTask && (
         <Group>

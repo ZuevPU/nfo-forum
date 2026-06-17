@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'nfo_pending_deeplink';
 
 const ALLOWED_ROUTE =
-  /^\/(home|schedule|questions|exchange|tasks|rating|checkin|diagnostics|nfo-day|settings|admin|reflection-level)(\/\d+)?(\/incoming\/\d+)?$/;
+  /^\/(home|schedule|questions|exchange|tasks|rating|checkin|diagnostics|nfo-day|settings|admin|reflection-level|notifications)(\/\d+)?(\/incoming\/\d+)?$/;
 
 export function parseDeepLinkFragment(raw: string): string | null {
   const cleaned = raw.replace(/^#\/?/, '').trim();

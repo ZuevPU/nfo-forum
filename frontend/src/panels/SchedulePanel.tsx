@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { fetchEvents } from '../api/events';
 import type { EventDto } from '../api/home';
 import { GradientHeader } from '../components/GradientHeader';
+import { NotificationBell } from '../components/NotificationBell';
 import { FORUM_DAYS } from '../constants/nfoFactors';
 import { useAuthContext } from '../contexts/AuthContext';
 import {
@@ -59,7 +60,7 @@ export function SchedulePanel() {
 
   return (
     <Panel id="schedule">
-      <GradientHeader title="Расписание" subtitle={offline ? 'Офлайн — показан кеш' : 'Программа форума'} backToHome>
+      <GradientHeader title="Расписание" subtitle={offline ? 'Офлайн — показан кеш' : 'Программа форума'} backToHome actions={<NotificationBell />}>
         <div style={{ display: 'flex', gap: 4, marginTop: 10, overflowX: 'auto' }}>
           {FORUM_DAYS.map((tab) => (
             <button

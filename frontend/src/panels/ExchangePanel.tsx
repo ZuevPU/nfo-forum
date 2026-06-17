@@ -19,6 +19,7 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { ExchangeIncomingCard } from '../components/ExchangeIncomingCard';
 import { EmptyState } from '../components/EmptyState';
 import { GradientHeader } from '../components/GradientHeader';
+import { NotificationBell } from '../components/NotificationBell';
 
 function getExchangeSubtitle(incomingCount: number): string {
   const hour = Number(
@@ -89,7 +90,7 @@ export function ExchangePanel() {
 
   return (
     <Panel id="exchange">
-      <GradientHeader title="Обмен опытом 💡" subtitle={subtitle} backToHome />
+      <GradientHeader title="Обмен опытом 💡" subtitle={subtitle} backToHome actions={<NotificationBell />} />
 
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
         <div className="nfo-bg">

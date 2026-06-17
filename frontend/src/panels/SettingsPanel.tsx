@@ -129,7 +129,8 @@ export function SettingsPanel() {
 
         <Group header="Уведомления">
           <SimpleCell
-            subtitle="Личные сообщения от сообщества «Цифровой Машук»"
+            subtitle="Личные сообщения от сообщества «Цифровой Машук». Выключите, чтобы не получать напоминания."
+            multiline
             after={
               <Switch
                 checked={messagesAllowed}
@@ -171,7 +172,7 @@ export function SettingsPanel() {
 
         <Group header="О приложении">
           <SimpleCell subtitle="Версия">{APP_VERSION}</SimpleCell>
-          <SimpleCell subtitle="Поддержка">forum-nfo@vk.com</SimpleCell>
+          <SimpleCell subtitle="Поддержка">online@czmashuk.ru</SimpleCell>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Button size="l" mode="outline" stretched onClick={() => navigate('/home')}>
               На главную

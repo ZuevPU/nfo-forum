@@ -320,6 +320,26 @@ export const feedbackMessages = pgTable('feedback_messages', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+export const userNotifications = pgTable(
+  'user_notifications',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    category: text('category'),
+    linkHash: text('link_hash'),
+    linkLabel: text('link_label'),
+    readAt: timestamp('read_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_user_notifications_user_read').on(table.userId, table.readAt),
+    index('idx_user_notifications_user_created').on(table.userId, table.createdAt),
+  ],
+);
+
 export const trainerSelfDiagnostics = pgTable('trainer_self_diagnostics', {
   id: serial('id').primaryKey(),
   userId: integer('user_id')

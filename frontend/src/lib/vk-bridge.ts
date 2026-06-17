@@ -155,10 +155,6 @@ export async function initVkBridge(): Promise<{
     }
   }
 
-  if (!isDevMode()) {
-    void requestVkMessagesFromGroup(false).catch(() => {});
-  }
-
   return {
     launchParams,
     userInfo: vkUserInfo,
@@ -188,9 +184,10 @@ export async function requestVkMessagesFromGroup(force = false): Promise<boolean
   }
 }
 
+// Дополнительный канал: нативные уведомления VK (не заменяет сообщения от сообщества).
+// VK может не показывать диалог повторно; основной OS-пуш — через messages.send.
 export async function requestVkNotifications(): Promise<boolean> {
   if (isDevMode() || !bridge.isWebView()) return false;
-
   try {
     const result = (await bridge.send('VKWebAppAllowNotifications')) as { result?: boolean };
     return result?.result ?? false;
