@@ -39,6 +39,59 @@ export function getCheckinSlotLabel(slotIndex: number): string {
   return CHECKIN_SLOT_LABELS[2];
 }
 
+export interface CheckinInterval {
+  start: string;
+  end: string;
+  label?: string;
+}
+
+export function getCurrentIntervalIndex(intervals: CheckinInterval[], now = new Date()): number | null {
+  if (intervals.length === 0) return null;
+  const { hours, minutes } = moscowTimeParts(now);
+  const nowTotal = hours * 60 + minutes;
+
+  for (let i = 0; i < intervals.length; i++) {
+    const start = slotStartMinutes(intervals[i].start);
+    const end = intervals[i].end === '24:00' ? 24 * 60 : slotStartMinutes(intervals[i].end);
+    if (nowTotal >= start && nowTotal < end) return i;
+  }
+  return null;
+}
+
+export function getNextInterval(
+  intervals: CheckinInterval[],
+  now = new Date(),
+): { start: string; index: number; label: string } | null {
+  if (intervals.length === 0) return null;
+  const { hours, minutes } = moscowTimeParts(now);
+  const nowTotal = hours * 60 + minutes;
+
+  for (let i = 0; i < intervals.length; i++) {
+    const start = slotStartMinutes(intervals[i].start);
+    if (nowTotal < start) {
+      return {
+        start: intervals[i].start,
+        index: i,
+        label: intervals[i].label ?? getCheckinSlotLabel(i),
+      };
+    }
+  }
+  return null;
+}
+
+export function mapCheckinToIntervalIndex(createdAt: Date, intervals: CheckinInterval[]): number | null {
+  if (intervals.length === 0) return null;
+  const { hours, minutes } = moscowTimeParts(createdAt);
+  const total = hours * 60 + minutes;
+
+  for (let i = 0; i < intervals.length; i++) {
+    const start = slotStartMinutes(intervals[i].start);
+    const end = intervals[i].end === '24:00' ? 24 * 60 : slotStartMinutes(intervals[i].end);
+    if (total >= start && total < end) return i;
+  }
+  return null;
+}
+
 /** First slot whose MSK window [slot, slot + windowMinutes) contains now. */
 export function getActiveCheckinSlot(
   slots: string[],

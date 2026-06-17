@@ -17,7 +17,21 @@ import {
 } from '../api/state';
 import { PanelLayout } from '../components/PanelLayout';
 
-const ENERGY_LEVELS = [
+const DEFAULT_EMOTIONS = [
+  'тревога',
+  'растерянность',
+  'скука',
+  'раздражение',
+  'усталость',
+  'спокойствие',
+  'интерес',
+  'вовлечённость',
+  'воодушевление',
+  'радость',
+  'гордость',
+];
+
+const DEFAULT_ENERGY_LEVELS = [
   { level: 0, label: 'еле держусь' },
   { level: 1, label: '' },
   { level: 2, label: '' },
@@ -31,19 +45,17 @@ const ENERGY_LEVELS = [
   { level: 10, label: 'заряжен' },
 ];
 
-const EMOTIONS = [
-  'тревога',
-  'растерянность',
-  'скука',
-  'раздражение',
-  'усталость',
-  'спокойствие',
-  'интерес',
-  'вовлечённость',
-  'воодушевление',
-  'радость',
-  'гордость',
-];
+function buildEnergyLevels(status: CheckinStatus | null) {
+  const low = status?.energyLowLabel ?? 'еле держусь';
+  const mid = status?.energyMidLabel ?? 'нормально';
+  const high = status?.energyHighLabel ?? 'заряжен';
+  return DEFAULT_ENERGY_LEVELS.map((e) => {
+    if (e.level === 0) return { ...e, label: low };
+    if (e.level === 5) return { ...e, label: mid };
+    if (e.level === 10) return { ...e, label: high };
+    return e;
+  });
+}
 
 export function StateCheckinPanel() {
   const [energy, setEnergy] = useState(5);
@@ -72,6 +84,14 @@ export function StateCheckinPanel() {
   }, []);
 
   const canSubmit = status?.canSubmit ?? true;
+  const emotions = status?.emotions?.length ? status.emotions : DEFAULT_EMOTIONS;
+  const energyLevels = buildEnergyLevels(status);
+
+  useEffect(() => {
+    if (emotions.length && !emotions.includes(emotion)) {
+      setEmotion(emotions[0]);
+    }
+  }, [emotions, emotion]);
 
   const handleSubmit = async () => {
     setSubmitError(null);
@@ -122,9 +142,9 @@ export function StateCheckinPanel() {
 
       {canSubmit && (
         <>
-          <Group header="Энергия (0-10)">
+          <Group header={status?.energyLabel ?? 'Энергия (0-10)'}>
             <Div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto', alignItems: 'flex-end', gap: 2 }}>
-              {ENERGY_LEVELS.map((e) => (
+              {energyLevels.map((e) => (
                 <div key={e.level} style={{ textAlign: 'center', minWidth: 36 }}>
                   <button
                     type="button"
@@ -138,9 +158,9 @@ export function StateCheckinPanel() {
               ))}
             </Div>
           </Group>
-          <Group header="Настроение">
+          <Group header={status?.emotionLabel ?? 'Настроение'}>
             <Div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {EMOTIONS.map((em) => (
+              {emotions.map((em) => (
                 <button
                   key={em}
                   type="button"
@@ -158,7 +178,7 @@ export function StateCheckinPanel() {
               <textarea
                 className="nfo-input"
                 rows={3}
-                placeholder="Моё состояние вызвано тем, что..."
+                placeholder={status?.commentPlaceholder ?? 'Моё состояние вызвано тем, что...'}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
               />

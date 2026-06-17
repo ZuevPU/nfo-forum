@@ -29,6 +29,13 @@ export interface CheckinStatus {
   answeredInCurrentSlot: boolean;
   title?: string;
   subtitle?: string;
+  emotions?: string[];
+  energyLabel?: string;
+  energyLowLabel?: string;
+  energyMidLabel?: string;
+  energyHighLabel?: string;
+  emotionLabel?: string;
+  commentPlaceholder?: string;
 }
 
 export interface Checkin {

@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, downloadApiFile } from './client';
 
 export function fetchAdminEvents() {
   return apiRequest<{ events: AdminEvent[] }>('/api/admin/events');
@@ -203,12 +203,19 @@ export function saveReflectionLevelSettings(thresholds: number[]) {
   return apiRequest('/api/admin/settings/reflection-levels', { method: 'POST', body: { thresholds } });
 }
 
-export function getAdminExportUrl(type: string) {
-  return `/api/admin/export/${type}`;
-}
+export type AdminExportType =
+  | 'reflection'
+  | 'tasks'
+  | 'exchange'
+  | 'rating'
+  | 'checkins'
+  | 'nfo-day'
+  | 'points-history'
+  | 'activity';
 
-export function getAdminExportXlsxUrl(type: string) {
-  return `/api/admin/export/${type}/xlsx`;
+export function downloadAdminExport(type: AdminExportType, format: 'csv' | 'xlsx') {
+  const path = format === 'xlsx' ? `/api/admin/export/${type}/xlsx` : `/api/admin/export/${type}`;
+  return downloadApiFile(path, `${type}.${format === 'xlsx' ? 'xlsx' : 'csv'}`);
 }
 
 export function fetchNfoDaySettings() {
@@ -263,16 +270,32 @@ export function fetchCheckinSettings() {
   return apiRequest<{
     enabledTracks: string[];
     slots: string[];
+    intervals?: { start: string; end: string; label?: string }[];
     title?: string;
     subtitle?: string;
+    emotions?: string[];
+    energyLabel?: string;
+    energyLowLabel?: string;
+    energyMidLabel?: string;
+    energyHighLabel?: string;
+    emotionLabel?: string;
+    commentPlaceholder?: string;
   }>('/api/admin/settings/checkin');
 }
 
 export function saveCheckinSettings(data: {
   enabledTracks: string[];
   slots: string[];
+  intervals?: { start: string; end: string; label?: string }[];
   title?: string;
   subtitle?: string;
+  emotions?: string[];
+  energyLabel?: string;
+  energyLowLabel?: string;
+  energyMidLabel?: string;
+  energyHighLabel?: string;
+  emotionLabel?: string;
+  commentPlaceholder?: string;
 }) {
   return apiRequest('/api/admin/settings/checkin', { method: 'POST', body: data });
 }
@@ -356,6 +379,7 @@ export interface AdminTask {
   sendNotification?: boolean;
   isFocusOfDay?: boolean;
   isRandomDistribution?: boolean;
+  networkingContacts?: number;
   autoApprove?: boolean;
 }
 

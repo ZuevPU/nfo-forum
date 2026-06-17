@@ -28,6 +28,7 @@ import { ActivityIcon } from '../components/ActivityIcon';
 import { GradientHeader } from '../components/GradientHeader';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
+import { ParticipantJourney } from '../components/ParticipantJourney';
 import { CommunityMessagesBanner } from '../components/CommunityMessagesBanner';
 import { useAuthContext } from '../contexts/AuthContext';
 import { requestVkMessagesFromGroup } from '../lib/vk-bridge';
@@ -292,6 +293,12 @@ export function HomePanel() {
         </Div>
       )}
 
+      <Group>
+        <Div style={{ padding: '0 16px 12px' }}>
+          <ParticipantJourney />
+        </Div>
+      </Group>
+
       <Group header={<div className="nfo-sec-title">Сейчас в программе</div>}>
         {event ? (
           <CurrentBlockCard event={event} />
@@ -327,7 +334,13 @@ export function HomePanel() {
             <div style={{ color: 'var(--vkui--color_icon_tertiary)', fontSize: 20 }}>›</div>
           </div>
 
-          <div className="nfo-hcard" onClick={() => navigate('/tasks')}>
+          <div
+            className="nfo-hcard"
+            onClick={() => {
+              const taskId = data?.stats.firstAvailableTaskId;
+              navigate(taskId ? `/tasks/${taskId}` : '/tasks');
+            }}
+          >
             <ActivityIcon emoji="⭐" variant="tasks" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Активные задания</div>
@@ -464,13 +477,13 @@ export function HomePanel() {
 
       <Group>
         <div className="nfo-home-footer-btns">
-          <Button size="l" mode="outline" stretched onClick={() => setActiveModal('feedback')}>
+          <Button size="l" mode="outline" className="nfo-btn-gray-blue" stretched onClick={() => setActiveModal('feedback')}>
             Связь с организаторами
           </Button>
-          <Button size="l" mode="outline" stretched onClick={() => navigate('/settings')}>
+          <Button size="l" mode="outline" className="nfo-btn-gray-blue" stretched onClick={() => navigate('/settings')}>
             Настройки
           </Button>
-          <Button size="l" mode="outline" stretched onClick={() => setActiveModal('info')}>
+          <Button size="l" mode="outline" className="nfo-btn-gray-blue" stretched onClick={() => setActiveModal('info')}>
             О приложении
           </Button>
         </div>

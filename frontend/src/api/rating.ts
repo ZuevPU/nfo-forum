@@ -36,6 +36,7 @@ export interface RatingData {
     reflectionPoints: number;
     reflectionLevelName?: string;
     nextLevelPoints?: number | null;
+    reflectionThresholds?: number[];
   };
 }
 

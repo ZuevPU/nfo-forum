@@ -9,6 +9,7 @@ export interface HomeData {
   stats: {
     tasksAvailable: number;
     tasksCompleted: number;
+    firstAvailableTaskId: number | null;
     newExchangeAnswers: number;
     activeQuestions: number;
     activeExchange: number;

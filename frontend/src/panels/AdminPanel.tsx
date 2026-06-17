@@ -98,6 +98,7 @@ export function AdminPanel() {
   const [newTaskSendNotification, setNewTaskSendNotification] = useState(true);
   const [newTaskIsFocusOfDay, setNewTaskIsFocusOfDay] = useState(false);
   const [newTaskIsRandomDistribution, setNewTaskIsRandomDistribution] = useState(false);
+  const [newTaskNetworkingContacts, setNewTaskNetworkingContacts] = useState('1');
   const [newTaskAutoApprove, setNewTaskAutoApprove] = useState(false);
   const [newTaskTrack, setNewTaskTrack] = useState('');
   
@@ -417,6 +418,17 @@ export function AdminPanel() {
               <option value="yes">Да</option>
             </NativeSelect>
           </FormItem>
+          {newTaskIsRandomDistribution && (
+            <FormItem top="Сколько участников назначить (1 = пара, 3 = познакомься с тремя)">
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={newTaskNetworkingContacts}
+                onChange={(e) => setNewTaskNetworkingContacts(e.target.value)}
+              />
+            </FormItem>
+          )}
           <FormItem top="Авто-подтверждение">
             <NativeSelect value={newTaskAutoApprove ? 'yes' : 'no'} onChange={(e) => setNewTaskAutoApprove(e.target.value === 'yes')}>
               <option value="no">Нет</option>
@@ -425,7 +437,7 @@ export function AdminPanel() {
           </FormItem>
           <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45, marginBottom: 12 }}>
             Для задания «познакомиться через нетворкинг»: <strong>Нетворкинг = Да</strong>, <strong>Авто-подтверждение = Нет</strong>.
-            Участник: заявка → ожидание пары → «Выполнить» → форма ответа. Если авто-подтверждение включено, пустой ответ сразу засчитывается.
+            Для «познакомься с 3 участниками» укажи <strong>3</strong> в поле количества. Участник: заявка → назначение → «Выполнить».
           </div>
           <FormItem top="Фокус дня">
             <NativeSelect value={newTaskIsFocusOfDay ? 'yes' : 'no'} onChange={(e) => setNewTaskIsFocusOfDay(e.target.value === 'yes')}>
@@ -458,6 +470,9 @@ export function AdminPanel() {
               sendNotification: newTaskSendNotification,
               isFocusOfDay: newTaskIsFocusOfDay,
               isRandomDistribution: newTaskIsRandomDistribution,
+              networkingContacts: newTaskIsRandomDistribution
+                ? Math.max(1, Number(newTaskNetworkingContacts) || 1)
+                : 1,
               autoApprove: newTaskAutoApprove,
               track: newTaskTrack || null,
             }).then(() => {
@@ -816,7 +831,7 @@ export function AdminPanel() {
                 </button>
               </div>
             ) : (
-              <Button mode="secondary" loading={pushUploading} onClick={() => void handleUploadPushImage()}>
+              <Button mode="secondary" className="nfo-btn-gray-blue" loading={pushUploading} onClick={() => void handleUploadPushImage()}>
                 Прикрепить фото
               </Button>
             )}
@@ -834,7 +849,7 @@ export function AdminPanel() {
                   setPushImageError(null);
                 }}
               />
-              <Button mode="secondary" loading={pushUploading} onClick={() => void handleIngestPushImageUrl()}>
+              <Button mode="secondary" className="nfo-btn-gray-blue" loading={pushUploading} onClick={() => void handleIngestPushImageUrl()}>
                 Загрузить
               </Button>
             </div>

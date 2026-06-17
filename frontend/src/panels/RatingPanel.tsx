@@ -7,10 +7,9 @@ import {
 import { useEffect, useState } from 'react';
 import { fetchPointsHistory, fetchRating, type PointsHistoryItem, type RatingData } from '../api/rating';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
+import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
 import { PanelLayout } from '../components/PanelLayout';
 import { ProgressBar } from '../components/ProgressBar';
-
-const REFLECTION_THRESHOLDS = [0, 30, 70, 120, 200];
 
 export function RatingPanel() {
   const [scope, setScope] = useState<'track' | 'all'>('track');
@@ -32,12 +31,11 @@ export function RatingPanel() {
   }, [scope]);
 
   const me = data?.me;
+  const thresholds = me?.reflectionThresholds?.length
+    ? me.reflectionThresholds
+    : DEFAULT_REFLECTION_THRESHOLDS;
   const reflectionProgress = me
-    ? me.reflectionLevel >= 5
-      ? 100
-      : ((me.reflectionPoints - REFLECTION_THRESHOLDS[me.reflectionLevel - 1]) /
-          (REFLECTION_THRESHOLDS[me.reflectionLevel] - REFLECTION_THRESHOLDS[me.reflectionLevel - 1])) *
-        100
+    ? getReflectionProgress(me.reflectionLevel, me.reflectionPoints, thresholds).progress
     : 0;
 
   return (

@@ -7,8 +7,12 @@ import { getCheckinSettings } from './admin.service.js';
 import {
   getCheckinSlotLabel,
   getCurrentCheckinSlotIndex,
+  getCurrentIntervalIndex,
   getNextCheckinSlot,
+  getNextInterval,
+  mapCheckinToIntervalIndex,
   mapCheckinToSlotIndex,
+  type CheckinInterval,
 } from '../utils/slotMatching.js';
 import { moscowDateString } from '../utils/moscowTime.js';
 
@@ -37,37 +41,82 @@ function getTodayStartMsk(): Date {
   return new Date(`${today}T00:00:00+03:00`);
 }
 
-export async function getCheckinStatus(user: UserDto) {
-  const settings = await getCheckinSettings();
-  const available = isTrackEnabled(settings, user);
+function resolveCheckinTiming(settings: Awaited<ReturnType<typeof getCheckinSettings>>, now = new Date()) {
+  const intervals = settings.intervals as CheckinInterval[] | undefined;
+  if (intervals?.length) {
+    const slotIndex = getCurrentIntervalIndex(intervals, now);
+    const activeSlot = slotIndex != null ? intervals[slotIndex].start : null;
+    const slotLabel = slotIndex != null
+      ? intervals[slotIndex].label ?? getCheckinSlotLabel(slotIndex)
+      : null;
+    const next = getNextInterval(intervals, now);
+    return {
+      useIntervals: true as const,
+      intervals,
+      slotIndex,
+      activeSlot,
+      slotLabel,
+      nextSlotAt: next?.start ?? null,
+      nextSlotLabel: next?.label ?? null,
+    };
+  }
+
   const slots = settings.slots.length ? settings.slots : ['08:30', '13:15', '19:30'];
-  const now = new Date();
   const slotIndex = getCurrentCheckinSlotIndex(slots, now);
   const activeSlot = slotIndex != null ? slots[slotIndex] : null;
   const slotLabel = slotIndex != null ? getCheckinSlotLabel(slotIndex) : null;
-
-  const todayCheckins = await getTodayCheckins(user.id);
-  const answeredSlotIndices = new Set(
-    todayCheckins
-      .map((c) => mapCheckinToSlotIndex(c.createdAt, slots))
-      .filter((i): i is number => i != null),
-  );
-
-  const answeredInCurrentSlot = slotIndex != null && answeredSlotIndices.has(slotIndex);
-  const canSubmit = available && slotIndex != null && !answeredInCurrentSlot;
-
   const next = getNextCheckinSlot(slots, now);
-
   return {
-    available,
-    canSubmit,
+    useIntervals: false as const,
+    slots,
+    slotIndex,
     activeSlot,
     slotLabel,
     nextSlotAt: next?.slot ?? null,
     nextSlotLabel: next?.label ?? null,
+  };
+}
+
+function mapCheckinTimeToSlotIndex(createdAt: Date, timing: ReturnType<typeof resolveCheckinTiming>) {
+  if (timing.useIntervals) {
+    return mapCheckinToIntervalIndex(createdAt, timing.intervals);
+  }
+  return mapCheckinToSlotIndex(createdAt, timing.slots);
+}
+
+export async function getCheckinStatus(user: UserDto) {
+  const settings = await getCheckinSettings();
+  const available = isTrackEnabled(settings, user);
+  const now = new Date();
+  const timing = resolveCheckinTiming(settings, now);
+
+  const todayCheckins = await getTodayCheckins(user.id);
+  const answeredSlotIndices = new Set(
+    todayCheckins
+      .map((c) => mapCheckinTimeToSlotIndex(c.createdAt, timing))
+      .filter((i): i is number => i != null),
+  );
+
+  const answeredInCurrentSlot = timing.slotIndex != null && answeredSlotIndices.has(timing.slotIndex);
+  const canSubmit = available && timing.slotIndex != null && !answeredInCurrentSlot;
+
+  return {
+    available,
+    canSubmit,
+    activeSlot: timing.activeSlot,
+    slotLabel: timing.slotLabel,
+    nextSlotAt: timing.nextSlotAt,
+    nextSlotLabel: timing.nextSlotLabel,
     answeredInCurrentSlot,
-    title: settings.title ?? 'Как ты сейчас?',
-    subtitle: settings.subtitle ?? '30 секунд',
+    title: settings.title,
+    subtitle: settings.subtitle,
+    emotions: settings.emotions,
+    energyLabel: settings.energyLabel,
+    energyLowLabel: settings.energyLowLabel,
+    energyMidLabel: settings.energyMidLabel,
+    energyHighLabel: settings.energyHighLabel,
+    emotionLabel: settings.emotionLabel,
+    commentPlaceholder: settings.commentPlaceholder,
   };
 }
 
@@ -82,16 +131,20 @@ export async function createCheckin(
     throw new Error('Чек-ин недоступен для вашего трека');
   }
 
-  const slots = settings.slots.length ? settings.slots : ['08:30', '13:15', '19:30'];
+  const allowedEmotions = new Set(settings.emotions.map((e) => e.toLowerCase()));
+  if (!allowedEmotions.has(emotion.toLowerCase())) {
+    throw new Error('Недопустимое настроение');
+  }
+
   const now = new Date();
-  const slotIndex = getCurrentCheckinSlotIndex(slots, now);
-  if (slotIndex == null) {
+  const timing = resolveCheckinTiming(settings, now);
+  if (timing.slotIndex == null) {
     throw new Error('Чек-ин сейчас закрыт');
   }
 
   const todayCheckins = await getTodayCheckins(user.id);
   const alreadyInSlot = todayCheckins.some(
-    (c) => mapCheckinToSlotIndex(c.createdAt, slots) === slotIndex,
+    (c) => mapCheckinTimeToSlotIndex(c.createdAt, timing) === timing.slotIndex,
   );
   if (alreadyInSlot) {
     throw new Error('Вы уже отметились в этом слоте');

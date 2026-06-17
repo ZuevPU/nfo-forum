@@ -5,7 +5,7 @@ interface Props {
   trackRank?: number;
 }
 
-export function UserProfileCard({ user }: Props) {
+export function UserProfileCard({ user, trackRank }: Props) {
   const initials = `${user.firstName[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase();
 
   return (
@@ -16,6 +16,11 @@ export function UserProfileCard({ user }: Props) {
           {user.firstName} {user.lastName ?? ''}
         </div>
         {user.track && <div className="nfo-profile-card__track">{user.track}</div>}
+        {trackRank != null && trackRank > 0 && (
+          <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
+            {trackRank} место в треке
+          </div>
+        )}
       </div>
       <div style={{ textAlign: 'right' }}>
         <div className="nfo-profile-card__points">{user.points} б.</div>

@@ -79,6 +79,8 @@ async function seed() {
       description: 'Из разных треков — обменяйтесь контактами',
       points: 30,
       track: null,
+      isRandomDistribution: true,
+      networkingContacts: 3,
     },
     {
       title: 'Ответь на вопрос участника',

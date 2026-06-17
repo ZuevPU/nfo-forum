@@ -1,16 +1,24 @@
-# Деплой Frontend на VK Hosting
+# Frontend: Timeweb (основной) и VK Hosting (устаревший)
 
-Официальный способ — [`@vkontakte/vk-miniapps-deploy`](https://dev.vk.com/ru/mini-apps/development/hosting/overview).
+**Production:** frontend — статика на **Timeweb**, backend — Node на Timeweb. См. [TIMEWEB.md](./TIMEWEB.md).
 
-На Windows upload идёт через [`deploy-vk-curl.mjs`](./deploy-vk-curl.mjs) (обход `ECONNRESET` в `node-fetch`).
+## Деплой на Timeweb (рекомендуется)
 
-**Node.js:** для сборки нужен **Node 18+** (Vite 6). Документация VK про Node 16 устарела — на Hosting попадает только статика `dist/`.
+```powershell
+npm run deploy:frontend:timeweb
+# или только сборка:
+npm run build:frontend:prod
+```
 
-**Кабинет VK:** [VK_CABINET_CHECKLIST.md](./VK_CABINET_CHECKLIST.md)
+1. Скрипт собирает `frontend/dist` с `VITE_API_URL=https://zuevpu-nfo-forum-d400.twc1.net`
+2. Залейте содержимое `frontend/dist` на Timeweb (статическое приложение)
+3. В [dev.vk.com → Размещение](https://dev.vk.com/ru/mini-apps/settings) укажите HTTPS URL фронтенда на Timeweb
+
+Чеклист кабинета: [VK_CABINET_CHECKLIST.md](./VK_CABINET_CHECKLIST.md)
 
 ## Локальная разработка (tunnel)
 
-**VK Tunnel (`@vkontakte/vk-tunnel`) с октября 2025 часто возвращает `Access denied` (error 15)** — сервис отключён на стороне VK. Проверка: `npm run tunnel:diagnose`.
+**VK Tunnel** (`@vkontakte/vk-tunnel`) с октября 2025 часто возвращает `Access denied` (error 15). Проверка: `npm run tunnel:diagnose`.
 
 ### Рекомендуется: Cloudflare Quick Tunnel
 
@@ -20,10 +28,9 @@ npm run dev:frontend
 
 # Терминал 2 — HTTPS URL для «Размещение»
 npm run tunnel:local
-# Если Vite на другом порту: npm run tunnel:local -- -Port 5174
 ```
 
-Скопируйте `https://....trycloudflare.com` в [dev.vk.com → Размещение](https://dev.vk.com/ru/mini-apps/settings) (mobile / web / mvk) или **Режим разработки**.
+Скопируйте `https://....trycloudflare.com` в [dev.vk.com → Размещение](https://dev.vk.com/ru/mini-apps/settings).
 
 ### VK Tunnel (если снова заработает)
 
@@ -32,64 +39,17 @@ npm run dev:frontend
 npm run tunnel:vk -- -ResetAuth
 ```
 
-OAuth: **сначала** подтвердите вход в браузере, **потом** нажмите Enter в терминале.
+## VK Hosting (устаревший путь)
 
-## Команды деплоя
+Если когда-либо понадобится VK Hosting — [`@vkontakte/vk-miniapps-deploy`](https://dev.vk.com/ru/mini-apps/development/hosting/overview).
 
-| Команда | Режим | Код подтверждения |
-|---------|-------|-------------------|
-| `npm run deploy:vk` | dev (по умолчанию) | Не нужен |
-| `npm run deploy:vk:dev` | dev | Не нужен |
-| `npm run deploy:vk:prod` | production | Нужен от «Администрация» |
+На Windows upload идёт через [`deploy-vk-curl.mjs`](./deploy-vk-curl.mjs).
 
-### Первый деплой (рекомендуется)
+| Команда | Режим |
+|---------|-------|
+| `npm run deploy:vk:dev` | dev |
+| `npm run deploy:vk:prod` | production (может требовать код) |
 
-```powershell
-npm run deploy:vk:dev
-```
-
-После успеха в терминале появятся **URL для раздела «Размещение»** в [dev.vk.com](https://dev.vk.com/ru/mini-apps/settings).
-
-### Production (для пользователей)
-
-```powershell
-# Если код пришёл в сообщения «Администрация»:
-$env:VK_DEPLOY_CONFIRM_CODE="ВАШ_КОД"
-npm run deploy:vk:prod
-```
-
-Или выключите **debug-режим** в dev.vk.com → тогда код часто не нужен.
-
-### OAuth-токен (один раз)
-
-```powershell
-cd frontend
-npm run deploy
-```
-
-Откройте OAuth-ссылку, нажмите Y. Токен сохранится в `%USERPROFILE%\.config\configstore\@vkontakte\vk-miniapps-deploy.json`.
-
-## Размещение в кабинете VK
-
-Вставляйте URL **из вывода деплоя** (HTTPS + `index.html`), не URL backend и не `vk.com/app54627015`.
-
-Пример:
-
-```
-mobile: https://....vk-apps.com/.../index.html
-web:    https://....vk-apps.com/.../index.html
-mvk:    https://....vk-apps.com/.../index.html
-```
-
-## Конфигурация
-
-- [`frontend/vk-hosting-config.json`](../frontend/vk-hosting-config.json) — `app_id: 54627015`, `static_path: dist`
-- Сборка: `VITE_API_URL` из `.env.production` → Timeweb backend (`https://zuevpu-nfo-forum-d400.twc1.net`)
-- Режим dev/prod переопределяется через `MINI_APPS_ENVIRONMENT` в скрипте
-
-## Ограничения VK
-
-- Не более **24 деплоев в сутки**
-- Максимальный zip — **300 МБ**
+Для production проекта **не используйте** — Timeweb static + `VK_CABINET_CHECKLIST.md`.
 
 См. также [VK_SETUP.md](./VK_SETUP.md), [DEPLOY.md](./DEPLOY.md).

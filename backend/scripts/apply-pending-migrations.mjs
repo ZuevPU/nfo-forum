@@ -56,6 +56,7 @@ const checks = {
     'reflection_questions',
     'allow_multiple',
   ),
+  tasks_networking_contacts: await colExists('tasks', 'networking_contacts'),
 };
 
 console.log('Current state:');
@@ -107,6 +108,11 @@ if (!checks.exchange_questions_answers_collected_notified_at) {
 if (!checks.reflection_questions_allow_multiple) {
   statements.push(
     'ALTER TABLE reflection_questions ADD COLUMN IF NOT EXISTS allow_multiple boolean NOT NULL DEFAULT false',
+  );
+}
+if (!checks.tasks_networking_contacts) {
+  statements.push(
+    'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS networking_contacts integer NOT NULL DEFAULT 1',
   );
 }
 

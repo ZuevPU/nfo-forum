@@ -2,21 +2,23 @@
 
 Приложение: **54627015** — [Форум неформального образования](https://vk.com/app54627015)
 
+Frontend на **Timeweb** (статика), backend на **Timeweb** (`*.twc1.net`). VK Hosting не используется.
+
 ## 1. Размещение (обязательно)
 
 [dev.vk.com → Настройки → Размещение](https://dev.vk.com/ru/mini-apps/settings)
 
-После `npm run deploy:vk:dev` скопируйте URL из терминала:
+После `npm run build:frontend:prod` и загрузки `frontend/dist` на Timeweb укажите **HTTPS URL фронтенда**:
 
-| Поле в кабинете | URL из деплоя |
-|-----------------|---------------|
-| Мобильное приложение | `mobile` или `mobile_dev` |
-| Десктопная версия | `web` или `web_dev` |
-| Мобильная версия сайта | `mvk` или `mvk_dev` |
+| Поле в кабинете | Значение |
+|-----------------|----------|
+| Мобильное приложение | URL Timeweb static (с `index.html`) |
+| Десктопная версия | тот же URL |
+| Мобильная версия сайта | тот же URL |
 
-**Не использовать:** URL backend (`*.twc1.net`), `https://vk.com/app54627015`.
+**Не использовать:** URL backend (`https://zuevpu-nfo-forum-d400.twc1.net`), `https://vk.com/app54627015`.
 
-Если деплoy завершился timeout — в терминале может быть блок «Текущие URL из apps.get».
+Для локальной отладки можно подставить Cloudflare tunnel (`npm run tunnel:local`).
 
 **Состояние для пользователей:** «Отключено» (только админы) или «Включено».
 
@@ -30,11 +32,17 @@
 
 Без совпадения ключей API вернёт `403 Invalid VK signature`.
 
-## 3. Debug-режим
+## 3. Деплой обновлений
 
-Если включён debug — production-деплой требует код от «Администрация».
+```powershell
+npm run build:frontend:prod   # или npm run deploy:frontend:timeweb
+# Залить frontend/dist на Timeweb static
 
-Для первого запуска используйте `npm run deploy:vk:dev` (код не нужен).
+npm run deploy:backend
+# Redeploy backend в панели Timeweb
+```
+
+Скрипты `npm run deploy:vk:*` — устаревший путь через VK Hosting.
 
 ## 4. Проверка после настройки
 
@@ -56,7 +64,7 @@ npm run tunnel:local
 
 Диагностика VK Tunnel: `npm run tunnel:diagnose`
 
-Подробнее: [vk-hosting.md](./vk-hosting.md)
+Подробнее: [TIMEWEB.md](./TIMEWEB.md)
 
 ## 6. Личные сообщения от сообщества (push)
 
@@ -99,3 +107,5 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS messages_from_group_allowed boolean D
 4. GitHub Actions → `morning-greeting` → в логе JSON `{ "ok": true, "sent": N }` без `vkError`
 
 Синхронизация cron-секрета: `.\deploy\set-github-secrets.ps1`
+
+Наполнение контента: [ADMIN_CONTENT.md](./ADMIN_CONTENT.md)

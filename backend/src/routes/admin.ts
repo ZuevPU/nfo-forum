@@ -190,11 +190,9 @@ adminRouter.get('/settings/checkin', async (_req, res) => {
 });
 
 adminRouter.post('/settings/checkin', async (req, res) => {
-  await setCheckinSettings(req.body as {
+  await setCheckinSettings(req.body as Partial<import('../services/admin.service.js').CheckinSettingsValue> & {
     enabledTracks: string[];
     slots: string[];
-    title?: string;
-    subtitle?: string;
   });
   res.json({ ok: true });
 });

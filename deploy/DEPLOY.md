@@ -10,7 +10,7 @@ Production: **https://zuevpu-nfo-forum-d400.twc1.net** — см. [TIMEWEB.md](./
 
 | Переменная | Значение |
 |------------|----------|
-| `DATABASE_URL` | Supabase PostgreSQL (pooler) |
+| `DATABASE_URL` | PostgreSQL на Timeweb (managed DB) |
 | `PORT` | `3001` |
 | `NODE_ENV` | `production` |
 | `FRONTEND_ORIGIN` | `https://vk.com` |
@@ -51,22 +51,21 @@ npm run verify:prod       # smoke после редеплоя
 
 Используйте [`render.yaml`](../render.yaml) — сервис `nfo-backend`, health check `/api/health`.
 
-## 2. Frontend (VK Hosting)
+## 2. Frontend (Timeweb — статика)
 
 ```powershell
-# Первый деплой / тест (без кода подтверждения)
-npm run deploy:vk:dev
-
-# Production (может потребоваться код от «Администрация»)
-$env:VK_DEPLOY_CONFIRM_CODE="ВАШ_КОД"   # если нужен
-npm run deploy:vk:prod
+npm run build:frontend:prod
 ```
 
-После успеха скопируйте URL из вывода в раздел **«Размещение»** в [dev.vk.com](https://dev.vk.com/ru/mini-apps/settings) (mobile, web, mvk).
+Результат: `frontend/dist/`. Залейте на Timeweb (статическое приложение).
+
+В [dev.vk.com → Размещение](https://dev.vk.com/ru/mini-apps/settings) укажите URL фронтенда на Timeweb (не backend `*.twc1.net`).
 
 Проверка: https://vk.com/app54627015
 
-Подробнее: [vk-hosting.md](./vk-hosting.md)
+Скрипты `npm run deploy:vk:*` — устаревший путь через VK Hosting, для production не нужны.
+
+Подробнее: [TIMEWEB.md](./TIMEWEB.md), [VK_CABINET_CHECKLIST.md](./VK_CABINET_CHECKLIST.md)
 
 ## 3. GitHub Secrets (cron)
 

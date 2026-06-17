@@ -1,4 +1,4 @@
-# Production frontend build for VK Hosting
+# Production frontend build for Timeweb static hosting
 param(
   [string]$ApiUrl = "https://zuevpu-nfo-forum-d400.twc1.net"
 )
@@ -8,4 +8,4 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 $env:VITE_API_URL = $ApiUrl
 Write-Host "Building frontend with VITE_API_URL=$ApiUrl"
 npm run build:frontend
-Write-Host "Output: frontend/dist (zip and upload to VK Mini Apps)"
+Write-Host "Output: frontend/dist (upload to Timeweb static, then set URL in dev.vk.com Размещение)"

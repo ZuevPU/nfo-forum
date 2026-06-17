@@ -81,7 +81,7 @@ export function SchedulePanel() {
             onChange={(v) => setFilter(v as 'track' | 'all')}
             options={[
               { label: 'Мой трек', value: 'track' },
-              { label: 'Все', value: 'all' },
+              { label: 'Общий трек', value: 'all' },
             ]}
           />
         </Div>

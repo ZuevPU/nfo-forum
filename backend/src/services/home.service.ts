@@ -18,6 +18,7 @@ import type { UserDto } from '../types/api.js';
 import type { EventDto } from './events.service.js';
 import { isTrainerTrack } from './diagnostics.service.js';
 import { getCheckinStatus } from './state.service.js';
+import { getTasks } from './tasks.service.js';
 
 export async function submitFeedback(userId: number, text: string) {
   await db.insert(feedbackMessages).values({
@@ -34,6 +35,7 @@ export interface HomeData {
   stats: {
     tasksAvailable: number;
     tasksCompleted: number;
+    firstAvailableTaskId: number | null;
     newExchangeAnswers: number;
     activeQuestions: number;
     activeExchange: number;
@@ -225,6 +227,15 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
 
   const checkinStatus = await getCheckinStatus(user);
 
+  const userTasks = await getTasks(user);
+  const firstAvailableTask = userTasks.find((t) => {
+    if (t.isFocusOfDay || t.isPastDeadline) return false;
+    const networkingOk =
+      !t.isRandomDistribution ||
+      ('networkingStatus' in t && t.networkingStatus === 'paired');
+    return t.status !== 'approved' && networkingOk;
+  });
+
   return {
     user,
     currentEvent: currentEvent ? toEventDto(currentEvent) : null,
@@ -233,6 +244,7 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     stats: {
       tasksAvailable: taskStats?.tasksAvailable ?? 0,
       tasksCompleted: taskStats?.tasksCompleted ?? 0,
+      firstAvailableTaskId: firstAvailableTask?.id ?? null,
       newExchangeAnswers: newAnswers,
       activeQuestions,
       activeExchange,

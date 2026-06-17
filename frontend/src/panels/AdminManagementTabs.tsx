@@ -17,8 +17,8 @@ import {
   fetchDailyFocusSettings,
   saveDailyFocusSettings,
   fetchActivityLogs,
-  getAdminExportUrl,
-  getAdminExportXlsxUrl,
+  downloadAdminExport,
+  type AdminExportType,
   savePointsSettings,
   saveReflectionLevelSettings,
   type AdminUser,
@@ -119,8 +119,12 @@ export function AdminReflectionAnswersTab() {
     <div className="nfo-admin-section">
       <div className="nfo-sec-title">Ответы на рефлексию</div>
       <div className="nfo-admin-export-row" style={{ marginBottom: 12 }}>
-        <a className="nfo-admin-btn-secondary" href={getAdminExportUrl('reflection')} target="_blank" rel="noreferrer">CSV</a>
-        <a className="nfo-admin-btn-outline" href={getAdminExportXlsxUrl('reflection')} target="_blank" rel="noreferrer">XLSX</a>
+        <button type="button" className="nfo-admin-btn-secondary" onClick={() => void downloadAdminExport('reflection', 'csv').catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'))}>
+          CSV
+        </button>
+        <button type="button" className="nfo-admin-btn-outline" onClick={() => void downloadAdminExport('reflection', 'xlsx').catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'))}>
+          XLSX
+        </button>
       </div>
       <div className="nfo-admin-form-card">
         <FormItem top="Трек">
@@ -190,9 +194,9 @@ export function AdminActivityTab() {
     <div className="nfo-admin-section">
       <div className="nfo-sec-title">Журнал активности</div>
       <div style={{ marginBottom: 12 }}>
-        <a className="nfo-admin-btn-secondary" href={getAdminExportUrl('activity')} target="_blank" rel="noreferrer">
+        <button type="button" className="nfo-admin-btn-secondary" onClick={() => void downloadAdminExport('activity', 'csv').catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'))}>
           Скачать CSV
-        </a>
+        </button>
       </div>
       {logs.slice(0, 100).map((l) => (
         <AdminListCard
@@ -211,9 +215,18 @@ export function AdminSettingsTab() {
   const [checkin, setCheckin] = useState({
     enabledTracks: [] as string[],
     slots: [] as string[],
+    intervalsText: '',
     title: 'Как ты сейчас?',
     subtitle: '30 секунд',
+    emotionsText: '',
+    energyLabel: 'Энергия (0-10)',
+    energyLowLabel: 'еле держусь',
+    energyMidLabel: 'нормально',
+    energyHighLabel: 'заряжен',
+    emotionLabel: 'Настроение',
+    commentPlaceholder: 'Моё состояние вызвано тем, что...',
   });
+  const [exportLoading, setExportLoading] = useState<string | null>(null);
   const [exchangeSlots, setExchangeSlots] = useState<string[]>([]);
   const [nfoDay, setNfoDay] = useState({
     publishHour: 19,
@@ -232,8 +245,16 @@ export function AdminSettingsTab() {
     fetchCheckinSettings().then((r) => setCheckin({
       enabledTracks: r.enabledTracks ?? [],
       slots: r.slots ?? [],
+      intervalsText: (r.intervals ?? []).map((i) => `${i.start}-${i.end}${i.label ? `|${i.label}` : ''}`).join('\n'),
       title: r.title ?? 'Как ты сейчас?',
       subtitle: r.subtitle ?? '30 секунд',
+      emotionsText: (r.emotions ?? []).join('\n'),
+      energyLabel: r.energyLabel ?? 'Энергия (0-10)',
+      energyLowLabel: r.energyLowLabel ?? 'еле держусь',
+      energyMidLabel: r.energyMidLabel ?? 'нормально',
+      energyHighLabel: r.energyHighLabel ?? 'заряжен',
+      emotionLabel: r.emotionLabel ?? 'Настроение',
+      commentPlaceholder: r.commentPlaceholder ?? 'Моё состояние вызвано тем, что...',
     })).catch(console.error);
     fetchExchangeSlots().then((r) => setExchangeSlots(r.slots)).catch(console.error);
     fetchNfoDaySettings().then((r) => setNfoDay({
@@ -308,10 +329,18 @@ export function AdminSettingsTab() {
             {t}
           </Checkbox>
         ))}
-        <FormItem top="Слоты (HH:MM через запятую)">
+        <FormItem top="Слоты (HH:MM через запятую, если интервалы ниже пустые)">
           <Input
             value={checkin.slots.join(', ')}
             onChange={(e) => setCheckin((c) => ({ ...c, slots: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }))}
+          />
+        </FormItem>
+        <FormItem top="Интервалы с–по (строка: HH:MM-HH:MM|подпись)">
+          <Textarea
+            rows={3}
+            value={checkin.intervalsText}
+            onChange={(e) => setCheckin((c) => ({ ...c, intervalsText: e.target.value }))}
+            placeholder={'08:30-13:15|Утренний чек-in\n13:15-19:30|Дневной чек-in\n19:30-24:00|Вечерний чек-in'}
           />
         </FormItem>
         <FormItem top="Заголовок экрана чек-ина">
@@ -320,11 +349,56 @@ export function AdminSettingsTab() {
         <FormItem top="Подзаголовок">
           <Input value={checkin.subtitle} onChange={(e) => setCheckin((c) => ({ ...c, subtitle: e.target.value }))} />
         </FormItem>
+        <FormItem top="Подпись шкалы энергии">
+          <Input value={checkin.energyLabel} onChange={(e) => setCheckin((c) => ({ ...c, energyLabel: e.target.value }))} />
+        </FormItem>
+        <FormItem top="Подпись уровня 0">
+          <Input value={checkin.energyLowLabel} onChange={(e) => setCheckin((c) => ({ ...c, energyLowLabel: e.target.value }))} />
+        </FormItem>
+        <FormItem top="Подпись уровня 5">
+          <Input value={checkin.energyMidLabel} onChange={(e) => setCheckin((c) => ({ ...c, energyMidLabel: e.target.value }))} />
+        </FormItem>
+        <FormItem top="Подпись уровня 10">
+          <Input value={checkin.energyHighLabel} onChange={(e) => setCheckin((c) => ({ ...c, energyHighLabel: e.target.value }))} />
+        </FormItem>
+        <FormItem top="Подпись блока настроения">
+          <Input value={checkin.emotionLabel} onChange={(e) => setCheckin((c) => ({ ...c, emotionLabel: e.target.value }))} />
+        </FormItem>
+        <FormItem top="Эмоции (по одной на строку)">
+          <Textarea rows={4} value={checkin.emotionsText} onChange={(e) => setCheckin((c) => ({ ...c, emotionsText: e.target.value }))} />
+        </FormItem>
+        <FormItem top="Плейсхолдер комментария">
+          <Input value={checkin.commentPlaceholder} onChange={(e) => setCheckin((c) => ({ ...c, commentPlaceholder: e.target.value }))} />
+        </FormItem>
         <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45, marginBottom: 12 }}>
-          Слоты задают, когда чек-ин открыт (утро / обед / вечер). После ответа форма закрыта до следующего слота.
-          Эмоции и шкала 0–10 пока фиксированы в приложении. Текстовые вопросы «состояния» — во вкладке «Вопросы», не здесь.
+          Интервалы имеют приоритет над слотами. После ответа форма закрыта до следующего интервала.
+          Тип «Состояние (чек-ин)» во вкладке «Вопросы» — это /questions, не /checkin.
         </div>
-        <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveCheckinSettings(checkin)}>
+        <button
+          type="button"
+          className="nfo-admin-btn-primary"
+          onClick={() => void saveCheckinSettings({
+            enabledTracks: checkin.enabledTracks,
+            slots: checkin.slots,
+            intervals: checkin.intervalsText.split('\n').map((line) => {
+              const trimmed = line.trim();
+              if (!trimmed) return null;
+              const [range, label] = trimmed.split('|').map((s) => s.trim());
+              const [start, end] = range.split('-').map((s) => s.trim());
+              if (!start || !end) return null;
+              return { start, end, ...(label ? { label } : {}) };
+            }).filter((i) => i != null),
+            title: checkin.title,
+            subtitle: checkin.subtitle,
+            emotions: checkin.emotionsText.split('\n').map((s) => s.trim()).filter(Boolean),
+            energyLabel: checkin.energyLabel,
+            energyLowLabel: checkin.energyLowLabel,
+            energyMidLabel: checkin.energyMidLabel,
+            energyHighLabel: checkin.energyHighLabel,
+            emotionLabel: checkin.emotionLabel,
+            commentPlaceholder: checkin.commentPlaceholder,
+          })}
+        >
           Сохранить чек-ин
         </button>
       </div>
@@ -393,12 +467,34 @@ export function AdminSettingsTab() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(['reflection', 'tasks', 'exchange', 'rating', 'checkins', 'nfo-day', 'points-history', 'activity'] as const).map((type) => (
             <div key={type} className="nfo-admin-export-row">
-              <a className="nfo-admin-btn-secondary" href={getAdminExportUrl(type)} target="_blank" rel="noreferrer">
-                {type} CSV
-              </a>
-              <a className="nfo-admin-btn-outline" href={getAdminExportXlsxUrl(type)} target="_blank" rel="noreferrer">
-                {type} XLSX
-              </a>
+              <button
+                type="button"
+                className="nfo-admin-btn-secondary"
+                disabled={exportLoading != null}
+                onClick={() => {
+                  const key = `${type}-csv`;
+                  setExportLoading(key);
+                  void downloadAdminExport(type as AdminExportType, 'csv')
+                    .catch((e) => alert(e instanceof Error ? e.message : 'Ошибка выгрузки'))
+                    .finally(() => setExportLoading(null));
+                }}
+              >
+                {exportLoading === `${type}-csv` ? '…' : `${type} CSV`}
+              </button>
+              <button
+                type="button"
+                className="nfo-admin-btn-outline"
+                disabled={exportLoading != null}
+                onClick={() => {
+                  const key = `${type}-xlsx`;
+                  setExportLoading(key);
+                  void downloadAdminExport(type as AdminExportType, 'xlsx')
+                    .catch((e) => alert(e instanceof Error ? e.message : 'Ошибка выгрузки'))
+                    .finally(() => setExportLoading(null));
+                }}
+              >
+                {exportLoading === `${type}-xlsx` ? '…' : `${type} XLSX`}
+              </button>
             </div>
           ))}
         </div>

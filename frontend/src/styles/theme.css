@@ -911,7 +911,9 @@ body {
 }
 
 .nfo-app .vkuiButton--mode-secondary .vkuiButton__content,
-.nfo-app .vkuiButton--mode-secondary .vkuiText {
+.nfo-app .vkuiButton--mode-secondary .vkuiText,
+.nfo-app .vkuiButton--mode-secondary span,
+.nfo-app .vkuiButton--mode-secondary [class*="Typography"] {
   color: var(--nfo-primary) !important;
 }
 
@@ -922,7 +924,17 @@ body {
 }
 
 .nfo-app .vkuiButton--mode-outline .vkuiButton__content,
-.nfo-app .vkuiButton--mode-outline .vkuiText {
+.nfo-app .vkuiButton--mode-outline .vkuiText,
+.nfo-app .vkuiButton--mode-outline span,
+.nfo-app .vkuiButton--mode-outline [class*="Typography"] {
+  color: var(--nfo-primary) !important;
+}
+
+/* Серые кнопки на главной и в админке — синий текст */
+.nfo-home-footer-btns .vkuiButton,
+.nfo-home-footer-btns .vkuiButton *:not(svg):not(path),
+.nfo-btn-gray-blue,
+.nfo-btn-gray-blue *:not(svg):not(path) {
   color: var(--nfo-primary) !important;
 }
 
@@ -1172,12 +1184,26 @@ body {
 
 .nfo-admin .vkuiButton--mode-secondary {
   background: #f5f6ff;
-  color: var(--nfo-primary);
+  color: var(--nfo-primary) !important;
+}
+
+.nfo-admin .vkuiButton--mode-secondary .vkuiButton__content,
+.nfo-admin .vkuiButton--mode-secondary .vkuiText,
+.nfo-admin .vkuiButton--mode-secondary span,
+.nfo-admin .vkuiButton--mode-secondary [class*="Typography"] {
+  color: var(--nfo-primary) !important;
 }
 
 .nfo-admin .vkuiButton--mode-outline {
-  color: var(--nfo-primary);
+  color: var(--nfo-primary) !important;
   border-color: #d0d4ff;
+}
+
+.nfo-admin .vkuiButton--mode-outline .vkuiButton__content,
+.nfo-admin .vkuiButton--mode-outline .vkuiText,
+.nfo-admin .vkuiButton--mode-outline span,
+.nfo-admin .vkuiButton--mode-outline [class*="Typography"] {
+  color: var(--nfo-primary) !important;
 }
 
 .nfo-admin .vkuiButton--mode-tertiary {

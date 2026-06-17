@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { systemSettings, taskSubmissions, tasks } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import { awardPoints } from './points.service.js';
-import { getNetworkingPartner, joinNetworkingQueue } from './taskNetworking.service.js';
+import { getNetworkingState, joinNetworkingQueue } from './taskNetworking.service.js';
 import { validatePhotos } from '../utils/photoValidation.js';
 
 export async function getTasks(user: UserDto) {
@@ -28,6 +28,8 @@ export async function getTasks(user: UserDto) {
       allowMultiple: t.allowMultiple,
       requiresPhoto: t.requiresPhoto,
       isRandomDistribution: t.isRandomDistribution,
+      isFocusOfDay: t.isFocusOfDay,
+      networkingContacts: t.networkingContacts ?? 1,
       isPastDeadline,
       status: latest?.status ?? 'new',
       submissionCount: subs.length,
@@ -37,11 +39,14 @@ export async function getTasks(user: UserDto) {
   return Promise.all(
     baseTasks.map(async (t) => {
       if (!t.isRandomDistribution) return t;
-      const networking = await getNetworkingPartner(t.id, user.id);
+      const networking = await getNetworkingState(t.id, user.id, t.networkingContacts);
       return {
         ...t,
         networkingStatus: networking?.status ?? null,
+        networkingMode: networking?.mode ?? (t.networkingContacts > 1 ? 'multi' : 'pair'),
+        contactsRequired: t.networkingContacts,
         partner: networking?.partner ?? null,
+        partners: networking?.partners ?? [],
       };
     }),
   );
@@ -68,7 +73,8 @@ export async function applyNetworking(user: UserDto, taskId: number) {
     throw new Error('Deadline passed');
   }
 
-  return joinNetworkingQueue(taskId, user.id);
+  const contactsRequired = task.networkingContacts ?? 1;
+  return joinNetworkingQueue(taskId, user.id, contactsRequired);
 }
 
 export async function submitTask(
@@ -91,9 +97,14 @@ export async function submitTask(
   validatePhotos(photos);
 
   if (task.isRandomDistribution) {
-    const networking = await getNetworkingPartner(taskId, user.id);
+    const contactsRequired = task.networkingContacts ?? 1;
+    const networking = await getNetworkingState(taskId, user.id, contactsRequired);
     if (!networking || networking.status !== 'paired') {
-      throw new Error('Join networking queue and wait for a partner first');
+      throw new Error(
+        contactsRequired > 1
+          ? 'Submit networking application and wait for contacts first'
+          : 'Join networking queue and wait for a partner first',
+      );
     }
   }
 

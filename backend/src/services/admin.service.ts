@@ -103,6 +103,7 @@ export async function createTask(data: {
   sendNotification?: boolean;
   isFocusOfDay?: boolean;
   isRandomDistribution?: boolean;
+  networkingContacts?: number;
 }) {
   const [row] = await db
     .insert(tasks)
@@ -118,6 +119,9 @@ export async function createTask(data: {
       sendNotification: data.sendNotification ?? true,
       isFocusOfDay: data.isFocusOfDay ?? false,
       isRandomDistribution: data.isRandomDistribution ?? false,
+      networkingContacts: data.isRandomDistribution
+        ? Math.max(1, data.networkingContacts ?? 1)
+        : 1,
     })
     .returning();
 
@@ -415,30 +419,78 @@ export async function getNfoDayStats() {
   return { answers: rows, factorCounts };
 }
 
-export async function getCheckinSettings() {
+const DEFAULT_CHECKIN_EMOTIONS = [
+  'тревога',
+  'растерянность',
+  'скука',
+  'раздражение',
+  'усталость',
+  'спокойствие',
+  'интерес',
+  'вовлечённость',
+  'воодушевление',
+  'радость',
+  'гордость',
+];
+
+export type CheckinIntervalSetting = { start: string; end: string; label?: string };
+
+export type CheckinSettingsValue = {
+  enabledTracks: string[];
+  slots: string[];
+  intervals?: CheckinIntervalSetting[];
+  title: string;
+  subtitle: string;
+  emotions: string[];
+  energyLabel: string;
+  energyLowLabel: string;
+  energyMidLabel: string;
+  energyHighLabel: string;
+  emotionLabel: string;
+  commentPlaceholder: string;
+};
+
+function normalizeCheckinSettings(raw: Partial<CheckinSettingsValue>): CheckinSettingsValue {
+  const emotions = Array.isArray(raw.emotions)
+    ? raw.emotions.filter((e) => typeof e === 'string' && e.trim()).map((e) => e.trim())
+    : [...DEFAULT_CHECKIN_EMOTIONS];
+  const intervals = Array.isArray(raw.intervals)
+    ? raw.intervals.filter((i) => i?.start && i?.end)
+    : undefined;
+
+  return {
+    enabledTracks: Array.isArray(raw.enabledTracks) ? raw.enabledTracks : [],
+    slots: Array.isArray(raw.slots) && raw.slots.length ? raw.slots : ['08:30', '13:15', '19:30'],
+    intervals: intervals?.length ? intervals : undefined,
+    title: raw.title?.trim() || 'Как ты сейчас?',
+    subtitle: raw.subtitle?.trim() || '30 секунд',
+    emotions: emotions.length ? emotions : [...DEFAULT_CHECKIN_EMOTIONS],
+    energyLabel: raw.energyLabel?.trim() || 'Энергия (0-10)',
+    energyLowLabel: raw.energyLowLabel?.trim() || 'еле держусь',
+    energyMidLabel: raw.energyMidLabel?.trim() || 'нормально',
+    energyHighLabel: raw.energyHighLabel?.trim() || 'заряжен',
+    emotionLabel: raw.emotionLabel?.trim() || 'Настроение',
+    commentPlaceholder: raw.commentPlaceholder?.trim() || 'Моё состояние вызвано тем, что...',
+  };
+}
+
+export async function getCheckinSettings(): Promise<CheckinSettingsValue> {
   const [setting] = await db
     .select()
     .from(systemSettings)
     .where(eq(systemSettings.key, 'checkin_settings'))
     .limit(1);
-  const defaults = {
-    enabledTracks: [] as string[],
-    slots: ['08:30', '13:15', '19:30'],
-    title: 'Как ты сейчас?',
-    subtitle: '30 секунд',
-  };
   if (setting?.value && typeof setting.value === 'object') {
-    return { ...defaults, ...(setting.value as object) };
+    return normalizeCheckinSettings(setting.value as Partial<CheckinSettingsValue>);
   }
-  return defaults;
+  return normalizeCheckinSettings({});
 }
 
-export async function setCheckinSettings(value: {
+export async function setCheckinSettings(value: Partial<CheckinSettingsValue> & {
   enabledTracks: string[];
   slots: string[];
-  title?: string;
-  subtitle?: string;
 }) {
+  const normalized = normalizeCheckinSettings(value);
   const [existing] = await db
     .select()
     .from(systemSettings)
@@ -447,10 +499,10 @@ export async function setCheckinSettings(value: {
   if (existing) {
     await db
       .update(systemSettings)
-      .set({ value, updatedAt: new Date() })
+      .set({ value: normalized, updatedAt: new Date() })
       .where(eq(systemSettings.id, existing.id));
   } else {
-    await db.insert(systemSettings).values({ key: 'checkin_settings', value });
+    await db.insert(systemSettings).values({ key: 'checkin_settings', value: normalized });
   }
 }
 

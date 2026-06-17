@@ -67,8 +67,12 @@ export interface TaskItem {
   isPastDeadline: boolean;
   requiresPhoto: boolean;
   isRandomDistribution?: boolean;
+  networkingContacts?: number;
+  networkingMode?: 'pair' | 'multi';
+  contactsRequired?: number;
   networkingStatus?: 'waiting' | 'paired' | null;
   partner?: { id: number; firstName: string; lastName: string | null; track: string | null } | null;
+  partners?: { id: number; firstName: string; lastName: string | null; track: string | null }[];
 }
 
 export interface DailyFocus {

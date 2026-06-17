@@ -20,6 +20,7 @@
     "smoke-test:ps1": "powershell -File scripts/smoke-test.ps1",
     "vk-checklist:ps1": "powershell -File scripts/vk-checklist.ps1",
     "build:frontend:prod": "powershell -File deploy/build-frontend.ps1",
+    "deploy:frontend:timeweb": "powershell -File deploy/deploy-frontend-timeweb.ps1",
     "package:vk": "powershell -File deploy/package-vk-frontend.ps1",
     "deploy:vk": "powershell -File deploy/deploy-vk-hosting.ps1 -Environment dev",
     "deploy:vk:dev": "powershell -File deploy/deploy-vk-hosting.ps1 -Environment dev",

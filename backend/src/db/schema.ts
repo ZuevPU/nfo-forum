@@ -143,6 +143,7 @@ export const tasks = pgTable(
     allowMultiple: boolean('allow_multiple').notNull().default(false),
     autoApprove: boolean('auto_approve').notNull().default(false),
     isRandomDistribution: boolean('is_random_distribution').notNull().default(false),
+    networkingContacts: integer('networking_contacts').notNull().default(1),
     isFocusOfDay: boolean('is_focus_of_day').notNull().default(false),
     requiresPhoto: boolean('requires_photo').notNull().default(false),
     sendNotification: boolean('send_notification').notNull().default(true),

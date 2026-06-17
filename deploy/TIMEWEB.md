@@ -1,14 +1,12 @@
-# Backend на Timeweb Cloud
+# Backend и frontend на Timeweb Cloud
 
-Production URL: **https://zuevpu-nfo-forum-d400.twc1.net**
+Production backend: **https://zuevpu-nfo-forum-d400.twc1.net**
 
-Railway в проекте **не используется**.
+Railway и VK Hosting в проекте **не используются** для production.
 
-## Переменные окружения
+## Переменные окружения (backend)
 
-Скопируйте [`.env.production.example`](../.env.production.example) в панель Timeweb → переменные окружения приложения.
-
-Обязательно:
+Скопируйте [`.env.production.example`](../.env.production.example) в панель Timeweb → переменные окружения приложения backend.
 
 | Переменная | Значение |
 |------------|----------|
@@ -21,32 +19,39 @@ Railway в проекте **не используется**.
 ## Деплой backend
 
 ```powershell
-# Сборка + миграции БД + подсказки по редеплою в панели Timeweb
 npm run deploy:backend
-
-# Проверка после редеплоя
 npm run verify:prod
 ```
+
+Скрипт собирает backend, применяет миграции БД и напоминает сделать **Redeploy** в панели Timeweb.
 
 Миграции отдельно:
 
 ```powershell
 cd backend
 npm run db:migrate
-npm run db:close-test-questions
 ```
 
-## Деплой frontend
+## Деплой frontend (статика на Timeweb)
 
 ```powershell
-npm run build:frontend:prod
-npm run deploy:vk:dev
+npm run deploy:frontend:timeweb
 ```
 
+Результат: папка `frontend/dist/`. Залейте её содержимое на Timeweb (отдельное статическое приложение или ваш способ хостинга).
+
 `VITE_API_URL` при сборке должен указывать на Timeweb backend (см. `.env.production`).
+
+## VK Mini App — размещение
+
+В [dev.vk.com → Размещение](https://dev.vk.com/ru/mini-apps/settings) укажите URL **фронтенда на Timeweb** (HTTPS + `index.html`).
+
+**Не использовать:** URL backend (`*.twc1.net`), `https://vk.com/app54627015`.
+
+Чеклист: [VK_CABINET_CHECKLIST.md](./VK_CABINET_CHECKLIST.md)
 
 ## GitHub Actions (cron)
 
 Секреты `API_URL` и `CRON_SECRET` — см. [`set-github-secrets.ps1`](./set-github-secrets.ps1).
 
-Полный чеклист: [DEPLOY.md](./DEPLOY.md), [VK_CABINET_CHECKLIST.md](./VK_CABINET_CHECKLIST.md).
+Полный обзор: [DEPLOY.md](./DEPLOY.md).

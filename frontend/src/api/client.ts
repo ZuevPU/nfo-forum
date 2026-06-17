@@ -54,3 +54,43 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   return data as T;
 }
+
+function getVkIdForDownload(): string | null {
+  if (import.meta.env.DEV && !window.location.search.includes('vk_user_id')) {
+    return DEV_VK_ID;
+  }
+  const launchParams = getLaunchParams();
+  const info = getVkUserInfo();
+  if (launchParams.vk_user_id != null) return String(launchParams.vk_user_id);
+  if (info?.id != null) return String(info.id);
+  return null;
+}
+
+export async function downloadApiFile(path: string, filename: string): Promise<void> {
+  if (lifecycleManager.isPaused) {
+    throw new ApiPausedError();
+  }
+
+  const vkId = getVkIdForDownload();
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: {
+      ...(vkId ? { 'X-Vk-Id': vkId } : {}),
+      ...getVkSignHeaders(),
+    },
+    signal: lifecycleManager.signal,
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    const message = (data as { error?: string } | null)?.error ?? `Download failed: ${response.status}`;
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
