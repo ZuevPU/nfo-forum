@@ -57,3 +57,44 @@ npm run tunnel:local
 Диагностика VK Tunnel: `npm run tunnel:diagnose`
 
 Подробнее: [vk-hosting.md](./vk-hosting.md)
+
+## 6. Личные сообщения от сообщества (push)
+
+Уведомления отправляются через `messages.send` от сообщества. Без этих шагов пользователи не получат ЛС.
+
+### Мини-приложение 54627015
+
+[dev.vk.com → Настройки → Информация](https://dev.vk.com/ru/mini-apps/settings)
+
+- [ ] **Официальное сообщество** = [club231468147](https://vk.com/club231468147) (ID `231468147`)
+- [ ] Настройки → Оформление → **иконка для сниппетов** (для ссылок в сообщениях)
+
+### Сообщество 231468147
+
+- [ ] Управление → **Сообщения** → сообщения сообщества **включены**
+- [ ] Дополнительно → Работа с API → ключ с правом **«Разрешить приложению доступ к сообщениям сообщества»**
+- [ ] Этот ключ = `VK_GROUP_TOKEN` на сервере (Timeweb)
+
+### Frontend env
+
+- [ ] `VITE_VK_GROUP_ID=231468147` при сборке фронтенда
+- [ ] `VITE_VK_APP_ID=54627015`
+
+### База данных
+
+Применить миграцию:
+
+```sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS messages_from_group_allowed boolean DEFAULT false NOT NULL;
+```
+
+Файл: [backend/drizzle/0002_messages_from_group.sql](../backend/drizzle/0002_messages_from_group.sql)
+
+### Проверка end-to-end
+
+1. Открыть приложение → разрешить **сообщения от сообщества** (диалог VK или Настройки → переключатель)
+2. Админка → Push → тестовое сообщение себе
+3. В личке VK должно прийти сообщение от сообщества с ссылкой «Открыть приложение»
+4. GitHub Actions → `morning-greeting` → в логе JSON `{ "ok": true, "sent": N }` без `vkError`
+
+Синхронизация cron-секрета: `.\deploy\set-github-secrets.ps1`

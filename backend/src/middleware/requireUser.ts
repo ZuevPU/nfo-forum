@@ -46,6 +46,7 @@ function toUserDto(user: typeof users.$inferSelect): UserDto {
     reflectionLevel: user.reflectionLevel,
     reflectionPoints: user.reflectionPoints,
     notificationsEnabled: user.notificationsEnabled,
+    messagesFromGroupAllowed: user.messagesFromGroupAllowed,
     notificationPrefs: (user.notificationPrefs as UserDto['notificationPrefs']) ?? defaultPrefs,
     createdAt: user.createdAt.toISOString(),
   };

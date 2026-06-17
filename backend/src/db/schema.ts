@@ -25,6 +25,7 @@ export const users = pgTable(
     reflectionLevel: integer('reflection_level').notNull().default(1),
     reflectionPoints: integer('reflection_points').notNull().default(0),
     notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
+    messagesFromGroupAllowed: boolean('messages_from_group_allowed').notNull().default(false),
     notificationPrefs: jsonb('notification_prefs').$type<{
       program: boolean;
       questions: boolean;

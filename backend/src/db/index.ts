@@ -3,13 +3,24 @@ import { Pool } from 'pg';
 import { env } from '../config/env.js';
 import * as schema from './schema.js';
 
+function stripSslModeParam(url: string): string {
+  return url
+    .replace(/([?&])sslmode=[^&]*(&|$)/, (_, prefix, suffix) => (suffix === '&' ? prefix : ''))
+    .replace(/\?$/, '');
+}
+
 function buildConnectionString(): string {
-  let url = env.DATABASE_URL;
-  if (url.includes('pooler.supabase.com:5432')) {
-    url = url.replace('pooler.supabase.com:5432', 'pooler.supabase.com:6543');
+  const url = env.DATABASE_URL;
+  // Supabase pooler only — pgbouncer params break direct Postgres (e.g. Timeweb).
+  if (!url.includes('supabase.com')) {
+    return stripSslModeParam(url);
   }
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}uselibpqcompat=true&pgbouncer=true`;
+  let poolerUrl = url;
+  if (poolerUrl.includes('pooler.supabase.com:5432')) {
+    poolerUrl = poolerUrl.replace('pooler.supabase.com:5432', 'pooler.supabase.com:6543');
+  }
+  const separator = poolerUrl.includes('?') ? '&' : '?';
+  return `${poolerUrl}${separator}uselibpqcompat=true&pgbouncer=true`;
 }
 
 const pool = new Pool({

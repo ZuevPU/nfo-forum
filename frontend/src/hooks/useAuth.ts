@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { login, register, deleteAccount } from '../api/auth';
+import { login, register, deleteAccount, updateMessagesPermission } from '../api/auth';
 import { ApiPausedError } from '../api/client';
 import type { Track } from '../constants/tracks';
-import { DEV_VK_ID, getLaunchParams, getVkUserInfo } from '../lib/vk-bridge';
+import { DEV_VK_ID, getLaunchParams, getVkUserInfo, requestVkMessagesFromGroup } from '../lib/vk-bridge';
 import type { AuthStatus, UserDto, VkUserInfo } from '../types/auth';
+
+const MESSAGES_PERMISSION_KEY = 'nfo_vk_messages_from_group';
+
+async function syncStoredMessagesPermission(user: UserDto): Promise<UserDto> {
+  if (user.messagesFromGroupAllowed) return user;
+  if (localStorage.getItem(MESSAGES_PERMISSION_KEY) !== '1') return user;
+  const { user: updated } = await updateMessagesPermission(true);
+  return updated;
+}
 
 interface UseAuthResult {
   status: AuthStatus;
@@ -50,7 +59,8 @@ export function useAuth(): UseAuthResult {
       });
 
       if (result.registered) {
-        setUser(result.user);
+        const synced = await syncStoredMessagesPermission(result.user);
+        setUser(synced);
         setStatus('authenticated');
       } else {
         setUser(null);
@@ -99,7 +109,12 @@ export function useAuth(): UseAuthResult {
           track,
         });
 
-        setUser(created);
+        const allowed = await requestVkMessagesFromGroup(true);
+        const finalUser = allowed
+          ? (await updateMessagesPermission(true)).user
+          : created;
+
+        setUser(finalUser);
         setStatus('authenticated');
       } catch (err) {
         if (err instanceof ApiPausedError) {

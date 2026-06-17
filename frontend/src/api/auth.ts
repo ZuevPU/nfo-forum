@@ -53,3 +53,10 @@ export async function updateNotificationPrefs(prefs: NonNullable<UserDto['notifi
     body: prefs,
   });
 }
+
+export async function updateMessagesPermission(allowed: boolean): Promise<{ user: UserDto }> {
+  return apiRequest<{ user: UserDto }>('/api/auth/messages-permission', {
+    method: 'POST',
+    body: { allowed },
+  });
+}

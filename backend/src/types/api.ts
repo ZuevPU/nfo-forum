@@ -19,6 +19,7 @@ export interface UserDto {
   reflectionLevel: number;
   reflectionPoints: number;
   notificationsEnabled: boolean;
+  messagesFromGroupAllowed?: boolean;
   notificationPrefs?: NotificationPrefs | null;
   createdAt?: string;
 }

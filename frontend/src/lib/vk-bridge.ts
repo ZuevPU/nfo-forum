@@ -3,6 +3,9 @@ import type { AppLifecycleState, VkUserInfo } from '../types/auth';
 
 type LifecycleListener = (state: AppLifecycleState) => void;
 
+const VK_GROUP_ID = Number(import.meta.env.VITE_VK_GROUP_ID ?? '231468147');
+const MESSAGES_PERMISSION_KEY = 'nfo_vk_messages_from_group';
+
 class AppLifecycleManager {
   private state: AppLifecycleState = 'active';
   private abortController: AbortController | null = null;
@@ -153,7 +156,7 @@ export async function initVkBridge(): Promise<{
   }
 
   if (bridge.isWebView()) {
-    void requestVkNotifications().catch(() => {});
+    void requestVkMessagesFromGroup(false).catch(() => {});
   }
 
   return {
@@ -162,15 +165,34 @@ export async function initVkBridge(): Promise<{
   };
 }
 
-const NOTIFICATIONS_PROMPT_KEY = 'nfo_vk_notifications_prompted';
+export async function requestVkMessagesFromGroup(force = false): Promise<boolean> {
+  if (isDevMode() || !bridge.isWebView()) return false;
+  if (!force && localStorage.getItem(MESSAGES_PERMISSION_KEY) === '1') return false;
+  if (!VK_GROUP_ID) {
+    console.warn('[push] VITE_VK_GROUP_ID is not set');
+    return false;
+  }
+
+  try {
+    const result = (await bridge.send('VKWebAppAllowMessagesFromGroup', {
+      group_id: VK_GROUP_ID,
+      key: 'nfo_forum_messages',
+    })) as { result?: boolean };
+    if (result?.result) {
+      localStorage.setItem(MESSAGES_PERMISSION_KEY, '1');
+    }
+    return result?.result ?? false;
+  } catch (error) {
+    console.warn('[push] VKWebAppAllowMessagesFromGroup failed:', error);
+    return false;
+  }
+}
 
 export async function requestVkNotifications(): Promise<boolean> {
   if (isDevMode() || !bridge.isWebView()) return false;
-  if (localStorage.getItem(NOTIFICATIONS_PROMPT_KEY) === '1') return false;
 
   try {
     const result = (await bridge.send('VKWebAppAllowNotifications')) as { result?: boolean };
-    localStorage.setItem(NOTIFICATIONS_PROMPT_KEY, '1');
     return result?.result ?? false;
   } catch (error) {
     console.warn('[push] VKWebAppAllowNotifications failed:', error);
@@ -200,10 +222,8 @@ export function getVkSignHeaders(): Record<string, string> {
     }
   }
 
-  // Передаем все параметры одной строкой, чтобы сервера не вырезали пустые значения
   headers['Authorization'] = `VK ${query.toString()}`;
 
-  // Оставляем для обратной совместимости
   const sign = (params as Record<string, unknown>).sign;
   if (sign != null) {
     headers['X-Vk-Sign'] = String(sign);

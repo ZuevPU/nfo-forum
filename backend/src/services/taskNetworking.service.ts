@@ -58,13 +58,15 @@ export async function joinNetworkingQueue(taskId: number, userId: number): Promi
       .limit(1);
 
     void sendPush({
-      text: `Тебе назначен партнёр для нетворкинг-задания! Открой раздел «Задания».\n#/tasks`,
+      text: 'Тебе назначен партнёр для нетворкинг-задания! Открой раздел «Задания».',
+      hash: '#/tasks',
       targetType: 'user',
       targetUserId: userId,
     }).catch(console.error);
 
     void sendPush({
-      text: `Тебе назначен партнёр для нетворкинг-задания! Открой раздел «Задания».\n#/tasks`,
+      text: 'Тебе назначен партнёр для нетворкинг-задания! Открой раздел «Задания».',
+      hash: '#/tasks',
       targetType: 'user',
       targetUserId: waitingPartner.userId,
     }).catch(console.error);

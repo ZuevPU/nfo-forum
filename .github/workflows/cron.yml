@@ -35,85 +35,129 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/morning-greeting" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/morning-greeting"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   morning-checkin:
     if: github.event.schedule == '30 5 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'morning-checkin')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/morning-checkin" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/morning-checkin"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   daily-tasks:
     if: github.event.schedule == '0 6 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'daily-tasks')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/daily-tasks" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/daily-tasks"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   lunch-exchange:
     if: github.event.schedule == '15 10 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'lunch-exchange')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/lunch-exchange" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/lunch-exchange"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   evening-reflection:
     if: github.event.schedule == '30 16 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'evening-reflection')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/evening-reflection" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/evening-reflection"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   goodnight:
     if: github.event.schedule == '0 17 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'goodnight')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/goodnight" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/goodnight"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   trainer-diagnostics:
     if: github.event.schedule == '0 11 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'trainer-diagnostics')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/trainer-diagnostics" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/trainer-diagnostics"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   event-reminders:
     if: github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'event-reminders')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/event-reminders" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/event-reminders"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   scheduled-broadcasts:
     if: github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'scheduled-broadcasts')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/scheduled-broadcasts" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/scheduled-broadcasts"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   reflection-publish:
     if: github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'reflection-publish')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/reflection-publish" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/reflection-publish"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400
 
   dynamic-slots:
     if: github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job_name == 'dynamic-slots')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sf -X POST "${{ secrets.API_URL }}/api/cron/dynamic-slots" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
+          URL="${{ secrets.API_URL }}/api/cron/dynamic-slots"
+          HTTP_CODE=$(curl -sS -o cron_response.json -w "%{http_code}" -X POST "$URL" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          cat cron_response.json
+          echo "HTTP $HTTP_CODE"
+          test "$HTTP_CODE" -lt 400

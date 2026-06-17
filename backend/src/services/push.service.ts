@@ -7,6 +7,7 @@ import {
   type NotificationCategory,
   type NotificationPrefs,
 } from '../constants/notifications.js';
+import { appendAppLink } from '../utils/appLinks.js';
 import { eq, inArray } from 'drizzle-orm';
 
 interface PushPayload {
@@ -18,19 +19,24 @@ interface PushPayload {
   scheduledAt?: Date;
   category?: NotificationCategory;
   skipBroadcastLog?: boolean;
+  hash?: string;
+  linkLabel?: string;
 }
 
 type UserRow = {
   id: number;
   vkId: string;
   notificationsEnabled: boolean;
+  messagesFromGroupAllowed: boolean;
   notificationPrefs: NotificationPrefs | null;
   track: string | null;
 };
 
-type VkApiError = { error_code?: number; error_msg?: string };
+export type VkApiError = { error_code?: number; error_msg?: string };
 
-async function sendVkMessage(
+const PEER_IDS_BATCH_SIZE = 100;
+
+async function sendVkMessageBatch(
   vkUserIds: number[],
   message: string,
   image?: string,
@@ -70,9 +76,26 @@ async function sendVkMessage(
   return null;
 }
 
+async function sendVkMessage(
+  vkUserIds: number[],
+  message: string,
+  image?: string,
+): Promise<VkApiError | null> {
+  if (vkUserIds.length === 0) return null;
+
+  let lastError: VkApiError | null = null;
+  for (let i = 0; i < vkUserIds.length; i += PEER_IDS_BATCH_SIZE) {
+    const batch = vkUserIds.slice(i, i + PEER_IDS_BATCH_SIZE);
+    const err = await sendVkMessageBatch(batch, message, image);
+    if (err) lastError = err;
+  }
+  return lastError;
+}
+
 function filterByCategory(rows: UserRow[], category?: NotificationCategory): UserRow[] {
-  if (!category) return rows.filter((u) => u.notificationsEnabled);
-  return rows.filter((u) =>
+  const withMessages = rows.filter((u) => u.messagesFromGroupAllowed);
+  if (!category) return withMessages.filter((u) => u.notificationsEnabled);
+  return withMessages.filter((u) =>
     shouldNotify(u.notificationsEnabled, u.notificationPrefs ?? DEFAULT_NOTIFICATION_PREFS, category),
   );
 }
@@ -82,6 +105,7 @@ async function resolveTargetUsers(payload: PushPayload): Promise<UserRow[]> {
     id: users.id,
     vkId: users.vkId,
     notificationsEnabled: users.notificationsEnabled,
+    messagesFromGroupAllowed: users.messagesFromGroupAllowed,
     notificationPrefs: users.notificationPrefs,
     track: users.track,
   };
@@ -107,6 +131,13 @@ async function resolveTargetUsers(payload: PushPayload): Promise<UserRow[]> {
   return filterByCategory(rows as UserRow[], payload.category);
 }
 
+function buildMessage(payload: PushPayload): string {
+  if (payload.hash) {
+    return appendAppLink(payload.text, payload.hash, payload.linkLabel);
+  }
+  return payload.text;
+}
+
 export async function deliverPush(
   payload: PushPayload,
 ): Promise<{ sent: number; vkError?: VkApiError | null }> {
@@ -117,7 +148,8 @@ export async function deliverPush(
     return { sent: 0 };
   }
 
-  const vkError = await sendVkMessage(vkIds, payload.text, payload.image);
+  const message = buildMessage(payload);
+  const vkError = await sendVkMessage(vkIds, message, payload.image);
   return { sent: vkError ? 0 : vkIds.length, vkError };
 }
 
@@ -149,11 +181,13 @@ export async function notifyUsersForTrack(
   text: string,
   category: NotificationCategory,
   hash?: string,
+  linkLabel?: string,
 ) {
-  const message = hash ? `${text}\n${hash}` : text;
   if (track) {
     return sendPush({
-      text: message,
+      text,
+      hash,
+      linkLabel,
       targetType: 'track',
       targetTracks: [track],
       category,
@@ -161,7 +195,9 @@ export async function notifyUsersForTrack(
     });
   }
   return sendPush({
-    text: message,
+    text,
+    hash,
+    linkLabel,
     targetType: 'all',
     category,
     skipBroadcastLog: true,
@@ -173,10 +209,12 @@ export async function notifyUser(
   text: string,
   category: NotificationCategory,
   hash?: string,
+  linkLabel?: string,
 ) {
-  const message = hash ? `${text}\n${hash}` : text;
   return sendPush({
-    text: message,
+    text,
+    hash,
+    linkLabel,
     targetType: 'user',
     targetUserId: userId,
     category,

@@ -20,7 +20,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchHome, submitFeedback, type HomeData } from '../api/home';
-import { updateNotifications, updateNotificationPrefs } from '../api/auth';
+import { updateNotifications, updateNotificationPrefs, updateMessagesPermission } from '../api/auth';
 import type { NotificationPrefs } from '../types/auth';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { GradientHeader } from '../components/GradientHeader';
@@ -28,6 +28,7 @@ import { ParticipantJourney } from '../components/ParticipantJourney';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
 import { useAuthContext } from '../contexts/AuthContext';
+import { requestVkMessagesFromGroup } from '../lib/vk-bridge';
 import { FORUM_DAYS } from '../constants/nfoFactors';
 
 function getProgramDayInfo() {
@@ -47,7 +48,7 @@ function getProgramDayInfo() {
 
 export function HomePanel() {
   const navigate = useNavigate();
-  const { user, deleteUserAccount } = useAuthContext();
+  const { user, deleteUserAccount, refreshUser } = useAuthContext();
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -122,6 +123,13 @@ export function HomePanel() {
     setNotificationsEnabled(val);
     setNotificationsLoading(true);
     try {
+      if (val) {
+        const allowed = await requestVkMessagesFromGroup(true);
+        if (allowed) {
+          await updateMessagesPermission(true);
+          await refreshUser();
+        }
+      }
       await updateNotifications(val);
     } catch (err) {
       console.error(err);
@@ -207,9 +215,15 @@ export function HomePanel() {
                 disabled={notificationsLoading}
               />
             }
-            subtitle="Общий переключатель уведомлений"
+            subtitle="Сообщения от сообщества Форума НФО в личку VK"
           >
             Уведомления
+          </SimpleCell>
+
+          <SimpleCell
+            subtitle={user.messagesFromGroupAllowed ? 'Разрешено' : 'Нужно разрешить в VK для получения сообщений'}
+          >
+            Сообщения от сообщества
           </SimpleCell>
 
           {([

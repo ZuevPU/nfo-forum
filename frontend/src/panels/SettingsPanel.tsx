@@ -13,10 +13,11 @@ import {
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { updateNotificationPrefs, updateProfile } from '../api/auth';
+import { updateNotificationPrefs, updateProfile, updateMessagesPermission } from '../api/auth';
 import { submitFeedback } from '../api/home';
 import { PanelLayout } from '../components/PanelLayout';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
+import { requestVkMessagesFromGroup } from '../lib/vk-bridge';
 import { useAuthContext } from '../contexts/AuthContext';
 
 const APP_VERSION = '1.1.0';
@@ -38,6 +39,8 @@ export function SettingsPanel() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesHint, setMessagesHint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -64,6 +67,29 @@ export function SettingsPanel() {
     setPrefs(next);
     await updateNotificationPrefs(next);
     await refreshUser();
+  };
+
+  const handleToggleCommunityMessages = async (enabled: boolean) => {
+    setMessagesHint(null);
+    setMessagesLoading(true);
+    try {
+      if (enabled) {
+        const allowed = await requestVkMessagesFromGroup(true);
+        if (!allowed) {
+          setMessagesHint('Разреши сообщения от сообщества во всплывающем окне VK — иначе уведомления не придут.');
+          return;
+        }
+        await updateMessagesPermission(true);
+      } else {
+        await updateMessagesPermission(false);
+      }
+      await refreshUser();
+    } catch (e) {
+      console.error(e);
+      setMessagesHint('Не удалось сохранить настройку. Попробуй ещё раз.');
+    } finally {
+      setMessagesLoading(false);
+    }
   };
 
   const handleFeedbackSubmit = async () => {
@@ -112,6 +138,23 @@ export function SettingsPanel() {
         </Group>
 
         <Group header="Уведомления">
+          <SimpleCell
+            subtitle="Личные сообщения от сообщества Форума НФО"
+            after={
+              <Switch
+                checked={user.messagesFromGroupAllowed ?? false}
+                disabled={messagesLoading}
+                onChange={(e) => void handleToggleCommunityMessages(e.target.checked)}
+              />
+            }
+          >
+            Сообщения от сообщества
+          </SimpleCell>
+          {messagesHint && (
+            <Div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>
+              {messagesHint}
+            </Div>
+          )}
           {([
             ['program', 'Программа и расписание'],
             ['questions', 'Вопросы и рефлексия'],

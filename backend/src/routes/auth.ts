@@ -10,6 +10,7 @@ import {
   deleteUserAccount,
   updateProfile,
   updateNotificationPrefs,
+  updateMessagesFromGroupAllowed,
 } from '../services/auth.service.js';
 
 export const authRouter = Router();
@@ -131,6 +132,25 @@ authRouter.post('/notifications', requireUser, async (req: AuthenticatedRequest,
     res.json({ ok: true, enabled });
   } catch (error) {
     console.error('Update notifications error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+authRouter.post('/messages-permission', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { allowed } = req.body as { allowed?: boolean };
+    if (typeof allowed !== 'boolean') {
+      res.status(400).json({ error: 'allowed is required' });
+      return;
+    }
+    const user = await updateMessagesFromGroupAllowed(req.user!.id, allowed);
+    res.json({ user });
+  } catch (error) {
+    if (error instanceof AuthValidationError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    console.error('Update messages permission error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -23,6 +23,7 @@ function toUserDto(user: typeof users.$inferSelect): UserDto {
     reflectionLevel: user.reflectionLevel,
     reflectionPoints: user.reflectionPoints,
     notificationsEnabled: user.notificationsEnabled,
+    messagesFromGroupAllowed: user.messagesFromGroupAllowed,
     notificationPrefs: (user.notificationPrefs as UserDto['notificationPrefs']) ?? defaultPrefs,
     createdAt: user.createdAt.toISOString(),
   };
@@ -109,6 +110,16 @@ export async function updateNotificationPrefs(userId: number, prefs: NonNullable
   const [updated] = await db
     .update(users)
     .set({ notificationPrefs: prefs, notificationsEnabled: enabled })
+    .where(eq(users.id, userId))
+    .returning();
+  if (!updated) throw new AuthValidationError('User not found');
+  return toUserDto(updated);
+}
+
+export async function updateMessagesFromGroupAllowed(userId: number, allowed: boolean) {
+  const [updated] = await db
+    .update(users)
+    .set({ messagesFromGroupAllowed: allowed })
     .where(eq(users.id, userId))
     .returning();
   if (!updated) throw new AuthValidationError('User not found');

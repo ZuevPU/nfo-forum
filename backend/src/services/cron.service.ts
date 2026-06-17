@@ -7,6 +7,8 @@ import { getEnabledTracks } from './diagnostics.service.js';
 import { getCheckinSettings, getExchangeSlotSettings } from './admin.service.js';
 import { getNfoDayConfig } from './reflection.service.js';
 import { isInSlotWindow, slotDedupKey } from '../utils/slotMatching.js';
+import { appendAppLink } from '../utils/appLinks.js';
+import type { VkApiError } from './push.service.js';
 
 const CRON_JOBS: Record<
   string,
@@ -95,11 +97,12 @@ async function runEventReminders(): Promise<number> {
   let sent = 0;
   for (const event of upcoming) {
     const place = event.place ? ` · ${event.place}` : '';
-    const text = `Через 10 минут: «${event.title}»${place}\n#/schedule`;
+    const text = `Через 10 минут: «${event.title}»${place}`;
 
     const result = event.track
       ? await sendPush({
           text,
+          hash: '#/schedule',
           targetType: 'track',
           targetTracks: [event.track],
           category: 'program',
@@ -207,7 +210,7 @@ async function sendIfSlotNotSent(
   const dedup = await getCronDedup();
   if (dedup[key]) return 0;
 
-  const text = payload.hash ? `${payload.text}\n${payload.hash}` : payload.text;
+  const text = payload.hash ? appendAppLink(payload.text, payload.hash) : payload.text;
   const result = await sendPush({
     text,
     targetType: 'all',
@@ -228,7 +231,7 @@ async function sendIfSlotNotSentForTracks(
   const dedup = await getCronDedup();
   if (dedup[key]) return 0;
 
-  const text = payload.hash ? `${payload.text}\n${payload.hash}` : payload.text;
+  const text = payload.hash ? appendAppLink(payload.text, payload.hash) : payload.text;
   const result = await sendPush({
     text,
     targetType: 'track',
@@ -282,7 +285,9 @@ async function runDynamicSlots(): Promise<number> {
   return sent;
 }
 
-export async function runCronJob(jobName: string): Promise<{ ok: boolean; sent?: number }> {
+export async function runCronJob(
+  jobName: string,
+): Promise<{ ok: boolean; sent?: number; vkError?: VkApiError | null }> {
   const job = CRON_JOBS[jobName];
   if (!job) {
     return { ok: false };
@@ -308,7 +313,7 @@ export async function runCronJob(jobName: string): Promise<{ ok: boolean; sent?:
     return { ok: true, sent };
   }
 
-  const text = job.hash ? `${job.text}\n${job.hash}` : job.text!;
+  const text = job.text!;
 
   if (job.isDiagnostics) {
     const enabledTracks = await getEnabledTracks();
@@ -317,22 +322,24 @@ export async function runCronJob(jobName: string): Promise<{ ok: boolean; sent?:
     }
     const result = await sendPush({
       text,
+      hash: job.hash,
       targetType: 'track',
       targetTracks: enabledTracks,
       category: job.category,
       skipBroadcastLog: true,
     });
-    return { ok: true, sent: result.sent };
+    return { ok: true, sent: result.sent, vkError: result.vkError };
   }
 
   const result = await sendPush({
     text,
+    hash: job.hash,
     targetType: 'all',
     category: job.category,
     skipBroadcastLog: true,
   });
 
-  return { ok: true, sent: result.sent };
+  return { ok: true, sent: result.sent, vkError: result.vkError };
 }
 
 export function listCronJobs(): string[] {

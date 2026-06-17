@@ -18,6 +18,10 @@ cronRouter.post('/:job', async (req, res) => {
       res.status(404).json({ error: 'Job not found' });
       return;
     }
+    if (result.vkError && (result.sent ?? 0) === 0) {
+      res.status(502).json(result);
+      return;
+    }
     res.json(result);
   } catch (error) {
     console.error('Cron error:', error);
