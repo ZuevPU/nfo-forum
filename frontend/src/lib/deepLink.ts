@@ -62,3 +62,40 @@ export function consumePendingDeepLink(): string | null {
 export function resolveActiveDeepLinkRoute(): string | null {
   return resolveDeepLinkRoute() ?? peekPendingDeepLink();
 }
+
+export function resolveTargetDeepLinkRoute(): string | null {
+  return peekPendingDeepLink() ?? resolveDeepLinkRoute();
+}
+
+export function finalizeDeepLinkApply(): void {
+  consumePendingDeepLink();
+  clearDeepLinkFromUrl();
+}
+
+export function clearDeepLinkFromUrl(): void {
+  try {
+    const url = new URL(window.location.href);
+    url.hash = '';
+    url.searchParams.delete('hash');
+    const search = url.searchParams.toString();
+    const next = url.pathname + (search ? `?${search}` : '');
+    window.history.replaceState(window.history.state, '', next);
+  } catch {
+    // ignore
+  }
+}
+
+export function isCurrentPathDeepLink(pathname: string, route: string): boolean {
+  if (pathname === route) return true;
+
+  const routeSegments = route.split('/').filter(Boolean);
+  const pathSegments = pathname.split('/').filter(Boolean);
+
+  if (routeSegments.length === 1) {
+    return pathSegments[0] === routeSegments[0];
+  }
+
+  if (pathSegments.length < routeSegments.length) return false;
+
+  return routeSegments.every((segment, index) => pathSegments[index] === segment);
+}

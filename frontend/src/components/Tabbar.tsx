@@ -17,7 +17,7 @@ export function Tabbar() {
     <FixedLayout vertical="bottom" filled>
       <nav className="nfo-bot-nav" aria-label="Навигация">
         {tabs.map(({ path, label, emoji }) => {
-          const active = location.pathname === path;
+          const active = location.pathname === path || location.pathname.startsWith(`${path}/`);
           return (
             <button
               key={path}

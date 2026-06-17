@@ -33,13 +33,19 @@ function HashRedirect() {
   const { status } = useAuthContext();
   const deepLink = resolveActiveDeepLinkRoute();
 
-  if (deepLink && status === 'authenticated') {
-    return <Navigate to={deepLink} replace />;
+  if (status === 'needs_registration') {
+    return <Navigate to="/welcome" replace />;
   }
 
-  return status === 'needs_registration'
-    ? <Navigate to="/welcome" replace />
-    : <Navigate to="/home" replace />;
+  if (deepLink) {
+    return (
+      <Panel id="deeplink-loading">
+        <div style={{ padding: 48, textAlign: 'center' }}>Загрузка...</div>
+      </Panel>
+    );
+  }
+
+  return <Navigate to="/home" replace />;
 }
 
 export function AppRouter() {
@@ -90,7 +96,7 @@ export function AppRouter() {
           <Route path="/settings" element={<SettingsPanel />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/" element={<HashRedirect />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
       </div>
       {showTabbar && <Tabbar />}

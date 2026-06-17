@@ -5,8 +5,8 @@ import {
   Spinner,
   PullToRefresh,
 } from '@vkontakte/vkui';
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { pickImage } from '../lib/vk-bridge';
 import { EmptyState } from '../components/EmptyState';
 import { PanelLayout } from '../components/PanelLayout';
@@ -25,6 +25,7 @@ import {
 
 export function TasksPanel() {
   const { taskId } = useParams<{ taskId?: string }>();
+  const navigate = useNavigate();
   const { setBackHandler } = useLayout();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
@@ -37,6 +38,7 @@ export function TasksPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [taskSuccess, setTaskSuccess] = useState<{ points?: number; pendingReview?: boolean } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [resolvingTask, setResolvingTask] = useState(Boolean(taskId));
 
   const load = () => {
     Promise.all([fetchTasks(), fetchDailyFocus()])
@@ -50,14 +52,35 @@ export function TasksPanel() {
 
   useEffect(() => { load(); }, []);
 
+  const closeTaskDetail = useCallback(() => {
+    setSelectedTask(null);
+    setAnswer('');
+    setPhotos([]);
+    if (taskId) navigate('/tasks', { replace: true });
+  }, [taskId, navigate]);
+
   useEffect(() => {
-    if (!taskId || selectedTask) return;
+    if (!taskId) {
+      setResolvingTask(false);
+      return;
+    }
+    if (selectedTask) {
+      setResolvingTask(false);
+      return;
+    }
+
     const id = Number(taskId);
-    if (Number.isNaN(id)) return;
+    if (Number.isNaN(id)) {
+      setResolvingTask(false);
+      return;
+    }
+
+    setResolvingTask(true);
 
     const fromList = tasks.find((t) => t.id === id);
     if (fromList) {
       setSelectedTask(fromList);
+      setResolvingTask(false);
       return;
     }
 
@@ -68,7 +91,10 @@ export function TasksPanel() {
       .then((data) => {
         if (!cancelled) setSelectedTask(taskFromDetail(data));
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setResolvingTask(false);
+      });
 
     return () => {
       cancelled = true;
@@ -87,13 +113,11 @@ export function TasksPanel() {
       return;
     }
     setBackHandler(() => {
-      setSelectedTask(null);
-      setAnswer('');
-      setPhotos([]);
+      closeTaskDetail();
       return true;
     });
     return () => setBackHandler(null);
-  }, [selectedTask, setBackHandler]);
+  }, [selectedTask, setBackHandler, closeTaskDetail]);
 
   const handleUploadPhoto = async () => {
     if (photos.length >= 3) return;
@@ -140,9 +164,7 @@ export function TasksPanel() {
         points: status === 'approved' ? selectedTask.points : undefined,
         pendingReview: status === 'pending',
       });
-      setSelectedTask(null);
-      setAnswer('');
-      setPhotos([]);
+      closeTaskDetail();
       load();
     } catch (e) {
       console.error(e);
@@ -177,7 +199,7 @@ export function TasksPanel() {
           </Div>
         </Group>
       )}
-      {loading ? (
+      {loading || (taskId && resolvingTask && !selectedTask) ? (
         <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="l" /></Div>
       ) : selectedTask ? (
         <Group>
@@ -216,7 +238,7 @@ export function TasksPanel() {
           )}
           <Div style={{ display: 'flex', gap: 8 }}>
             <Button size="l" stretched loading={submitting} onClick={() => void handleSubmit()}>Отправить</Button>
-            <Button size="l" mode="secondary" onClick={() => { setSelectedTask(null); setPhotos([]); setAnswer(''); }}>Назад</Button>
+            <Button size="l" mode="secondary" onClick={closeTaskDetail}>Назад</Button>
           </Div>
         </Group>
       ) : tasks.length === 0 ? (
@@ -228,7 +250,7 @@ export function TasksPanel() {
             <div key={t.id} className="nfo-card" style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1 }} onClick={() => {
               if (t.status === 'approved') return;
               if (t.isRandomDistribution && !t.networkingStatus) return;
-              setSelectedTask(t);
+              navigate(`/tasks/${t.id}`);
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>{t.title}</div>

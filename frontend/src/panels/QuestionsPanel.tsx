@@ -45,11 +45,19 @@ export function QuestionsPanel() {
   useEffect(() => {
     if (!questionId || loading) return;
     const el = document.getElementById(`question-${questionId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!el) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      el.scrollIntoView({ block: 'center' });
       el.style.outline = '2px solid var(--nfo-primary)';
       el.style.borderRadius = '12px';
-    }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      el.style.outline = '';
+      el.style.borderRadius = '';
+    };
   }, [questionId, loading, questions]);
 
   useEffect(() => {

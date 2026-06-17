@@ -1,10 +1,11 @@
-import { useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLayoutEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import {
-  capturePendingDeepLink,
-  consumePendingDeepLink,
+  finalizeDeepLinkApply,
+  isCurrentPathDeepLink,
   resolveDeepLinkRoute,
+  resolveTargetDeepLinkRoute,
   routeFromFragment,
 } from '../lib/deepLink';
 import { bridge } from '../lib/vk-bridge';
@@ -17,38 +18,50 @@ function routeFromLocationPayload(location: string): string | null {
 
 export function useDeepLink() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { status } = useAuthContext();
+  const appliedRef = useRef(false);
 
-  const applyDeepLink = useCallback(() => {
-    if (status !== 'authenticated') return;
-
-    const pending = consumePendingDeepLink();
-    if (pending) {
-      navigate(pending, { replace: true });
+  useLayoutEffect(() => {
+    if (status !== 'authenticated') {
+      appliedRef.current = false;
       return;
     }
 
-    const route = resolveDeepLinkRoute();
-    if (route) navigate(route, { replace: true });
-  }, [status, navigate]);
+    const target = resolveTargetDeepLinkRoute();
+    if (!target) {
+      if (appliedRef.current) finalizeDeepLinkApply();
+      return;
+    }
 
-  useEffect(() => {
-    applyDeepLink();
-  }, [applyDeepLink]);
+    if (isCurrentPathDeepLink(location.pathname, target)) {
+      appliedRef.current = true;
+      finalizeDeepLinkApply();
+      return;
+    }
 
-  useEffect(() => {
+    if (appliedRef.current) return;
+
+    appliedRef.current = true;
+    finalizeDeepLinkApply();
+    navigate(target, { replace: true });
+  }, [status, location.pathname, navigate]);
+
+  useLayoutEffect(() => {
     if (status !== 'authenticated') return;
 
     const handler = (event: { detail?: { type?: string; data?: unknown } }) => {
       if (event.detail?.type !== 'VKWebAppLocationChanged') return;
 
-      capturePendingDeepLink();
-
       const data = event.detail.data as { location?: string } | undefined;
       const route = data?.location ? routeFromLocationPayload(data.location) : resolveDeepLinkRoute();
-      if (route) navigate(route, { replace: true });
+      if (!route || isCurrentPathDeepLink(location.pathname, route)) return;
+
+      appliedRef.current = false;
+      finalizeDeepLinkApply();
+      navigate(route, { replace: true });
     };
 
     bridge.subscribe(handler);
-  }, [status, navigate]);
+  }, [status, location.pathname, navigate]);
 }

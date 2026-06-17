@@ -88,7 +88,11 @@ export function ExchangeIncomingPanel() {
             </Button>
           </Div>
         </Group>
-      ) : null}
+      ) : (
+        <Div style={{ padding: 24, textAlign: 'center', color: 'var(--vkui--color_text_secondary)' }}>
+          Вопрос не найден
+        </Div>
+      )}
     </Panel>
   );
 }
