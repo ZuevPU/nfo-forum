@@ -14,7 +14,7 @@
 | Десктопная версия | `web` или `web_dev` |
 | Мобильная версия сайта | `mvk` или `mvk_dev` |
 
-**Не использовать:** Railway URL, `https://vk.com/app54627015`.
+**Не использовать:** URL backend (`*.twc1.net`), `https://vk.com/app54627015`.
 
 Если деплoy завершился timeout — в терминале может быть блок «Текущие URL из apps.get».
 
@@ -25,8 +25,8 @@
 [dev.vk.com → Разработка](https://dev.vk.com/ru/mini-apps/settings)
 
 - [ ] Включить **подпись launch params**
-- [ ] **Защищённый ключ** = тот же `VK_APP_SECRET`, что на Railway (`nfo-backend`)
-- [ ] На Railway: `SKIP_VK_SIGN=false`
+- [ ] **Защищённый ключ** = тот же `VK_APP_SECRET`, что на backend (Timeweb)
+- [ ] На Timeweb: `SKIP_VK_SIGN=false`
 
 Без совпадения ключей API вернёт `403 Invalid VK signature`.
 

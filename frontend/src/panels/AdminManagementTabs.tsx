@@ -1,4 +1,4 @@
-import { Div, FormItem, Input, NativeSelect, Checkbox } from '@vkontakte/vkui';
+import { Div, FormItem, Input, NativeSelect, Checkbox, Textarea } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import {
   adjustUserPoints,
@@ -208,17 +208,43 @@ export function AdminActivityTab() {
 export function AdminSettingsTab() {
   const [config, setConfig] = useState<Record<string, number>>({});
   const [reflectionThresholds, setReflectionThresholds] = useState<number[]>([0, 30, 70, 120, 200]);
-  const [checkin, setCheckin] = useState<{ enabledTracks: string[]; slots: string[] }>({ enabledTracks: [], slots: [] });
+  const [checkin, setCheckin] = useState({
+    enabledTracks: [] as string[],
+    slots: [] as string[],
+    title: 'Как ты сейчас?',
+    subtitle: '30 секунд',
+  });
   const [exchangeSlots, setExchangeSlots] = useState<string[]>([]);
-  const [nfoDay, setNfoDay] = useState({ publishHour: 19, publishMinute: 30, points: 10 });
+  const [nfoDay, setNfoDay] = useState({
+    publishHour: 19,
+    publishMinute: 30,
+    points: 10,
+    question: '',
+    panelTitle: '',
+    panelSubtitle: '',
+    factorsText: '',
+  });
   const [dailyFocusTitle, setDailyFocusTitle] = useState('');
 
   useEffect(() => {
     fetchPointsSettings().then((r) => setConfig(r.config)).catch(console.error);
     fetchReflectionLevelSettings().then((r) => setReflectionThresholds(r.thresholds)).catch(console.error);
-    fetchCheckinSettings().then(setCheckin).catch(console.error);
+    fetchCheckinSettings().then((r) => setCheckin({
+      enabledTracks: r.enabledTracks ?? [],
+      slots: r.slots ?? [],
+      title: r.title ?? 'Как ты сейчас?',
+      subtitle: r.subtitle ?? '30 секунд',
+    })).catch(console.error);
     fetchExchangeSlots().then((r) => setExchangeSlots(r.slots)).catch(console.error);
-    fetchNfoDaySettings().then(setNfoDay).catch(console.error);
+    fetchNfoDaySettings().then((r) => setNfoDay({
+      publishHour: r.publishHour,
+      publishMinute: r.publishMinute,
+      points: r.points,
+      question: r.question ?? '',
+      panelTitle: r.panelTitle ?? '',
+      panelSubtitle: r.panelSubtitle ?? '',
+      factorsText: (r.factors ?? []).join('\n'),
+    })).catch(console.error);
     fetchDailyFocusSettings().then((r) => setDailyFocusTitle(r.title)).catch(console.error);
   }, []);
 
@@ -288,8 +314,15 @@ export function AdminSettingsTab() {
             onChange={(e) => setCheckin((c) => ({ ...c, slots: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }))}
           />
         </FormItem>
+        <FormItem top="Заголовок экрана чек-ина">
+          <Input value={checkin.title} onChange={(e) => setCheckin((c) => ({ ...c, title: e.target.value }))} />
+        </FormItem>
+        <FormItem top="Подзаголовок">
+          <Input value={checkin.subtitle} onChange={(e) => setCheckin((c) => ({ ...c, subtitle: e.target.value }))} />
+        </FormItem>
         <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45, marginBottom: 12 }}>
-          После ответа чек-ин недоступен до следующего слота. Вопросы фиксированы в приложении (энергия + настроение).
+          Слоты задают, когда чек-ин открыт (утро / обед / вечер). После ответа форма закрыта до следующего слота.
+          Эмоции и шкала 0–10 пока фиксированы в приложении. Текстовые вопросы «состояния» — во вкладке «Вопросы», не здесь.
         </div>
         <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveCheckinSettings(checkin)}>
           Сохранить чек-ин
@@ -309,8 +342,20 @@ export function AdminSettingsTab() {
         </button>
       </div>
 
-      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Вопрос дня НФО</div>
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Вечерняя рефлексия НФО</div>
       <div className="nfo-admin-form-card">
+        <FormItem top="Заголовок экрана">
+          <Input value={nfoDay.panelTitle} onChange={(e) => setNfoDay((c) => ({ ...c, panelTitle: e.target.value }))} placeholder="Каким было НФО сегодня?" />
+        </FormItem>
+        <FormItem top="Подзаголовок">
+          <Input value={nfoDay.panelSubtitle} onChange={(e) => setNfoDay((c) => ({ ...c, panelSubtitle: e.target.value }))} placeholder="Вечерняя рефлексия" />
+        </FormItem>
+        <FormItem top="Текст вопроса">
+          <Textarea value={nfoDay.question} onChange={(e) => setNfoDay((c) => ({ ...c, question: e.target.value }))} placeholder="Каким НФО было для тебя сегодня?" />
+        </FormItem>
+        <FormItem top="Плашки факторов (по одной на строку, пусто = список по умолчанию)">
+          <Textarea rows={4} value={nfoDay.factorsText} onChange={(e) => setNfoDay((c) => ({ ...c, factorsText: e.target.value }))} />
+        </FormItem>
         <FormItem top="Час публикации (MSK)">
           <Input type="number" min={0} max={23} value={String(nfoDay.publishHour)} onChange={(e) => setNfoDay((c) => ({ ...c, publishHour: Number(e.target.value) }))} />
         </FormItem>
@@ -320,8 +365,16 @@ export function AdminSettingsTab() {
         <FormItem top="Баллы">
           <Input type="number" value={String(nfoDay.points)} onChange={(e) => setNfoDay((c) => ({ ...c, points: Number(e.target.value) }))} />
         </FormItem>
-        <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveNfoDaySettings(nfoDay)}>
-          Сохранить НФО день
+        <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveNfoDaySettings({
+          publishHour: nfoDay.publishHour,
+          publishMinute: nfoDay.publishMinute,
+          points: nfoDay.points,
+          question: nfoDay.question || undefined,
+          panelTitle: nfoDay.panelTitle || undefined,
+          panelSubtitle: nfoDay.panelSubtitle || undefined,
+          factors: nfoDay.factorsText.split('\n').map((s) => s.trim()).filter(Boolean),
+        })}>
+          Сохранить вечернюю рефлексию
         </button>
       </div>
 

@@ -25,7 +25,7 @@
     "deploy:vk:dev": "powershell -File deploy/deploy-vk-hosting.ps1 -Environment dev",
     "deploy:vk:prod": "powershell -File deploy/deploy-vk-hosting.ps1 -Environment production",
     "deploy:vk:curl": "node deploy/deploy-vk-curl.mjs",
-    "deploy:backend": "powershell -File deploy/deploy-backend-railway.ps1",
+    "deploy:backend": "powershell -File deploy/deploy-backend-timeweb.ps1",
     "verify:prod": "powershell -File deploy/verify-production.ps1"
   }
 }

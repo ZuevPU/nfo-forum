@@ -1,6 +1,8 @@
 # Деплой «Форум НФО»
 
-## 1. Backend (Docker / Railway / Render)
+## 1. Backend (Timeweb Cloud / Docker)
+
+Production: **https://zuevpu-nfo-forum-d400.twc1.net** — см. [TIMEWEB.md](./TIMEWEB.md).
 
 ### Переменные окружения (production)
 
@@ -27,7 +29,16 @@ docker build -f backend/Dockerfile -t nfo-backend .
 docker run -p 3001:3001 --env-file .env nfo-backend
 ```
 
-### Fly.io (рекомендуется для этого проекта)
+### Timeweb Cloud (основной способ)
+
+```powershell
+npm run deploy:backend    # сборка + миграции + инструкция редеплоя в панели
+npm run verify:prod       # smoke после редеплоя
+```
+
+Сборка frontend: `.\deploy\build-frontend.ps1`
+
+### Fly.io (опционально)
 
 1. `flyctl auth login`
 2. Скопируйте [`.env.production.example`](../.env.production.example) → `.env.production` (не коммитить)

@@ -424,6 +424,8 @@ export async function getCheckinSettings() {
   const defaults = {
     enabledTracks: [] as string[],
     slots: ['08:30', '13:15', '19:30'],
+    title: 'Как ты сейчас?',
+    subtitle: '30 секунд',
   };
   if (setting?.value && typeof setting.value === 'object') {
     return { ...defaults, ...(setting.value as object) };
@@ -434,6 +436,8 @@ export async function getCheckinSettings() {
 export async function setCheckinSettings(value: {
   enabledTracks: string[];
   slots: string[];
+  title?: string;
+  subtitle?: string;
 }) {
   const [existing] = await db
     .select()
@@ -485,11 +489,19 @@ export async function getNfoDaySettings() {
     publishHour?: number;
     publishMinute?: number;
     points?: number;
+    question?: string;
+    panelTitle?: string;
+    panelSubtitle?: string;
+    factors?: string[];
   };
   return {
     publishHour: value.publishHour ?? 19,
     publishMinute: value.publishMinute ?? 30,
     points: value.points ?? 10,
+    question: value.question ?? '',
+    panelTitle: value.panelTitle ?? '',
+    panelSubtitle: value.panelSubtitle ?? '',
+    factors: value.factors ?? [],
   };
 }
 
@@ -497,6 +509,10 @@ export async function setNfoDaySettings(value: {
   publishHour: number;
   publishMinute: number;
   points: number;
+  question?: string;
+  panelTitle?: string;
+  panelSubtitle?: string;
+  factors?: string[];
 }) {
   const [existing] = await db
     .select()

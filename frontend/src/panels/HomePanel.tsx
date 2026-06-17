@@ -230,7 +230,7 @@ export function HomePanel() {
           </SimpleCell>
 
           <SimpleCell
-            subtitle={user.messagesFromGroupAllowed ? 'Разрешено' : 'Нужно разрешить в VK для получения сообщений'}
+            subtitle="Личные сообщения от сообщества «Цифровой Машук»"
           >
             Сообщения от сообщества
           </SimpleCell>

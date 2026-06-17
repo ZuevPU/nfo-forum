@@ -212,10 +212,26 @@ export function getAdminExportXlsxUrl(type: string) {
 }
 
 export function fetchNfoDaySettings() {
-  return apiRequest<{ publishHour: number; publishMinute: number; points: number }>('/api/admin/settings/nfo-day');
+  return apiRequest<{
+    publishHour: number;
+    publishMinute: number;
+    points: number;
+    question?: string;
+    panelTitle?: string;
+    panelSubtitle?: string;
+    factors?: string[];
+  }>('/api/admin/settings/nfo-day');
 }
 
-export function saveNfoDaySettings(data: { publishHour: number; publishMinute: number; points: number }) {
+export function saveNfoDaySettings(data: {
+  publishHour: number;
+  publishMinute: number;
+  points: number;
+  question?: string;
+  panelTitle?: string;
+  panelSubtitle?: string;
+  factors?: string[];
+}) {
   return apiRequest('/api/admin/settings/nfo-day', { method: 'POST', body: data });
 }
 
@@ -244,10 +260,20 @@ export function fetchNfoDayStats() {
 }
 
 export function fetchCheckinSettings() {
-  return apiRequest<{ enabledTracks: string[]; slots: string[] }>('/api/admin/settings/checkin');
+  return apiRequest<{
+    enabledTracks: string[];
+    slots: string[];
+    title?: string;
+    subtitle?: string;
+  }>('/api/admin/settings/checkin');
 }
 
-export function saveCheckinSettings(data: { enabledTracks: string[]; slots: string[] }) {
+export function saveCheckinSettings(data: {
+  enabledTracks: string[];
+  slots: string[];
+  title?: string;
+  subtitle?: string;
+}) {
   return apiRequest('/api/admin/settings/checkin', { method: 'POST', body: data });
 }
 

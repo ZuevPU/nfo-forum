@@ -56,6 +56,8 @@ export interface NfoDayConfig {
   publishMinute: number;
   points: number;
   isOpen?: boolean;
+  panelTitle?: string;
+  panelSubtitle?: string;
 }
 
 export interface NfoDayReflection {

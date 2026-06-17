@@ -105,7 +105,13 @@ export function StateCheckinPanel() {
   };
 
   return (
-    <PanelLayout id="checkin" title="Как ты сейчас?" subtitle="30 секунд" useGradient backToHome>
+    <PanelLayout
+      id="checkin"
+      title={status?.title ?? 'Как ты сейчас?'}
+      subtitle={status?.subtitle ?? '30 секунд'}
+      useGradient
+      backToHome
+    >
       {!canSubmit && (
         <Group>
           <Div style={{ padding: '12px 16px' }}>

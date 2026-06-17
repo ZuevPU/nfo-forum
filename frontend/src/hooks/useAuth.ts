@@ -2,10 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { login, register, deleteAccount, updateMessagesPermission } from '../api/auth';
 import { ApiPausedError } from '../api/client';
 import type { Track } from '../constants/tracks';
-import { DEV_VK_ID, getLaunchParams, getVkUserInfo, requestVkMessagesFromGroup } from '../lib/vk-bridge';
+import { MESSAGES_PERMISSION_KEY } from '../hooks/useCommunityMessagesOptIn';
+import { DEV_VK_ID, getLaunchParams, getVkUserInfo } from '../lib/vk-bridge';
 import type { AuthStatus, UserDto, VkUserInfo } from '../types/auth';
-
-const MESSAGES_PERMISSION_KEY = 'nfo_vk_messages_from_group';
 
 async function syncStoredMessagesPermission(user: UserDto): Promise<UserDto> {
   if (user.messagesFromGroupAllowed) return user;
@@ -109,10 +108,7 @@ export function useAuth(): UseAuthResult {
           track,
         });
 
-        const allowed = await requestVkMessagesFromGroup(true);
-        const finalUser = allowed
-          ? (await updateMessagesPermission(true)).user
-          : created;
+        const finalUser = await syncStoredMessagesPermission(created);
 
         setUser(finalUser);
         setStatus('authenticated');

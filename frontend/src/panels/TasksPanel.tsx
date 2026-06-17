@@ -222,6 +222,39 @@ export function TasksPanel() {
       {loading || (taskId && resolvingTask && !selectedTask) ? (
         <Div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="l" /></Div>
       ) : selectedTask ? (
+        selectedTask.isRandomDistribution &&
+        selectedTask.networkingStatus !== 'paired' &&
+        selectedTask.status !== 'approved' ? (
+        <Group>
+          <Div style={{ padding: '12px 16px' }}>
+            <div className="nfo-card" style={{ margin: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTask.title}</div>
+              <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                {selectedTask.description}
+              </div>
+              <div style={{ marginTop: 12, fontSize: 13, color: '#f39c12', lineHeight: 1.45 }}>
+                {!selectedTask.networkingStatus
+                  ? 'Сначала подай заявку на нетворкинг — после назначения партнёра откроется форма задания.'
+                  : 'Ожидаем партнёра. Как только пара будет готова, нажми «Выполнить» в списке заданий.'}
+              </div>
+              {!selectedTask.networkingStatus && (
+                <Button
+                  size="m"
+                  mode="primary"
+                  style={{ marginTop: 12 }}
+                  loading={networkingLoading}
+                  onClick={() => void handleApplyNetworking(selectedTask)}
+                >
+                  Подать заявку на нетворкинг
+                </Button>
+              )}
+            </div>
+          </Div>
+          <Div style={{ padding: '0 16px 16px' }}>
+            <Button size="l" mode="outline" stretched onClick={closeTaskDetail}>Назад к списку</Button>
+          </Div>
+        </Group>
+        ) : (
         <Group>
           <Div style={{ padding: '12px 16px' }}>
             <div className="nfo-card" style={{ margin: 0 }}>
@@ -261,6 +294,7 @@ export function TasksPanel() {
             <Button size="l" mode="outline" onClick={closeTaskDetail}>Назад</Button>
           </Div>
         </Group>
+        )
       ) : tasks.length === 0 ? (
         <EmptyState message="Задания скоро появятся — следи за уведомлениями" />
       ) : (
@@ -269,8 +303,9 @@ export function TasksPanel() {
           {tasks.map((t) => {
             const canOpen =
               t.status !== 'approved' &&
-              (!t.isRandomDistribution || t.networkingStatus === 'paired' || t.networkingStatus === 'waiting');
+              (!t.isRandomDistribution || t.networkingStatus === 'paired');
             const needsNetworking = t.isRandomDistribution && !t.networkingStatus;
+            const waitingNetworking = t.isRandomDistribution && t.networkingStatus === 'waiting';
 
             return (
             <div
@@ -297,8 +332,10 @@ export function TasksPanel() {
                       </Button>
                     </>
                   )}
-                  {t.networkingStatus === 'waiting' && (
-                    <div style={{ fontSize: 11, color: '#f39c12' }}>Ожидаем партнёра...</div>
+                  {waitingNetworking && (
+                    <div style={{ fontSize: 11, color: '#f39c12' }}>
+                      Ожидаем партнёра — «Выполнить» откроется после назначения пары
+                    </div>
                   )}
                   {t.networkingStatus === 'paired' && t.partner && (
                     <div style={{ fontSize: 11, color: '#27ae60' }}>

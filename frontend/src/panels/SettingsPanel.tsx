@@ -13,11 +13,11 @@ import {
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { updateNotificationPrefs, updateProfile, updateMessagesPermission } from '../api/auth';
+import { updateNotificationPrefs, updateProfile } from '../api/auth';
 import { submitFeedback } from '../api/home';
 import { PanelLayout } from '../components/PanelLayout';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
-import { requestVkMessagesFromGroup } from '../lib/vk-bridge';
+import { useCommunityMessagesOptIn } from '../hooks/useCommunityMessagesOptIn';
 import { useAuthContext } from '../contexts/AuthContext';
 
 const APP_VERSION = '1.1.0';
@@ -39,8 +39,17 @@ export function SettingsPanel() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
-  const [messagesLoading, setMessagesLoading] = useState(false);
-  const [messagesHint, setMessagesHint] = useState<string | null>(null);
+
+  const {
+    allowed: messagesAllowed,
+    loading: messagesLoading,
+    hint: messagesHint,
+    toggle: toggleCommunityMessages,
+  } = useCommunityMessagesOptIn({
+    persist: true,
+    serverAllowed: user?.messagesFromGroupAllowed,
+    onSuccess: () => void refreshUser(),
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -69,27 +78,8 @@ export function SettingsPanel() {
     await refreshUser();
   };
 
-  const handleToggleCommunityMessages = async (enabled: boolean) => {
-    setMessagesHint(null);
-    setMessagesLoading(true);
-    try {
-      if (enabled) {
-        const allowed = await requestVkMessagesFromGroup(true);
-        if (!allowed) {
-          setMessagesHint('Разреши сообщения от сообщества во всплывающем окне VK — иначе уведомления не придут.');
-          return;
-        }
-        await updateMessagesPermission(true);
-      } else {
-        await updateMessagesPermission(false);
-      }
-      await refreshUser();
-    } catch (e) {
-      console.error(e);
-      setMessagesHint('Не удалось сохранить настройку. Попробуй ещё раз.');
-    } finally {
-      setMessagesLoading(false);
-    }
+  const handleToggleCommunityMessages = (enabled: boolean) => {
+    void toggleCommunityMessages(enabled);
   };
 
   const handleFeedbackSubmit = async () => {
@@ -139,12 +129,12 @@ export function SettingsPanel() {
 
         <Group header="Уведомления">
           <SimpleCell
-            subtitle="Личные сообщения от сообщества Форума НФО"
+            subtitle="Личные сообщения от сообщества «Цифровой Машук»"
             after={
               <Switch
-                checked={user.messagesFromGroupAllowed ?? false}
+                checked={messagesAllowed}
                 disabled={messagesLoading}
-                onChange={(e) => void handleToggleCommunityMessages(e.target.checked)}
+                onChange={(e) => handleToggleCommunityMessages(e.target.checked)}
               />
             }
           >

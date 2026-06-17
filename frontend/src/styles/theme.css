@@ -323,6 +323,111 @@ body {
   font-weight: 600;
 }
 
+/* Registration step 1 — community messages */
+.nfo-register-messages__cta {
+  color: #e74c3c;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.nfo-register-messages__card {
+  background: #fff;
+  border: 2px solid #d0d4ff;
+  border-radius: 16px;
+  padding: 18px 16px;
+}
+
+.nfo-register-messages__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.nfo-register-messages__text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vkui--color_text_secondary);
+  margin-bottom: 16px;
+}
+
+.nfo-register-messages__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #f5f6ff;
+  border-radius: 12px;
+}
+
+.nfo-register-messages__switch-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nfo-primary);
+  flex: 1;
+}
+
+.nfo-register-messages__switch-wrap {
+  transform: scale(1.4);
+  transform-origin: center right;
+}
+
+.nfo-register-messages__warn {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--vkui--color_text_secondary);
+  text-align: center;
+}
+
+/* Compact banner / home opt-in */
+.nfo-messages-optin__card {
+  background: #fff8e6;
+  border: 1px solid #f0d78c;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.nfo-messages-optin__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #8a6d1d;
+}
+
+.nfo-messages-optin__text {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #6b5a2a;
+}
+
+.nfo-messages-optin__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 10px;
+}
+
+.nfo-messages-optin__switch-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5a4a1a;
+}
+
+.nfo-messages-optin__hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #c0392b;
+}
+
 .nfo-pulse-dot {
   width: 8px;
   height: 8px;

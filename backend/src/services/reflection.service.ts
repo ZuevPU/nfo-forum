@@ -96,12 +96,25 @@ export async function getNfoDayConfig() {
     .where(eq(systemSettings.key, 'nfo_day_config'))
     .limit(1);
 
-  const value = (setting?.value ?? {}) as { publishHour?: number; publishMinute?: number; points?: number };
+  const value = (setting?.value ?? {}) as {
+    publishHour?: number;
+    publishMinute?: number;
+    points?: number;
+    question?: string;
+    panelTitle?: string;
+    panelSubtitle?: string;
+    factors?: string[];
+  };
   const publishHour = value.publishHour ?? 19;
   const publishMinute = value.publishMinute ?? 30;
+  const customFactors = Array.isArray(value.factors)
+    ? value.factors.filter((f) => typeof f === 'string' && f.trim())
+    : [];
   return {
-    question: NFO_DAY_QUESTION,
-    factors: [...NFO_DAY_FACTORS],
+    question: value.question?.trim() || NFO_DAY_QUESTION,
+    factors: customFactors.length > 0 ? customFactors : [...NFO_DAY_FACTORS],
+    panelTitle: value.panelTitle?.trim() || 'Каким было НФО сегодня?',
+    panelSubtitle: value.panelSubtitle?.trim() || 'Вечерняя рефлексия',
     publishHour,
     publishMinute,
     points: value.points ?? 10,
@@ -118,7 +131,9 @@ export async function submitNfoDayReflection(
     throw new Error('Select 1 to 3 factors');
   }
 
-  const invalid = factors.filter((f) => !NFO_DAY_FACTORS.includes(f as (typeof NFO_DAY_FACTORS)[number]));
+  const config = await getNfoDayConfig();
+  const allowedFactors = new Set(config.factors);
+  const invalid = factors.filter((f) => !allowedFactors.has(f));
   if (invalid.length > 0) throw new Error('Invalid factors');
 
   const today = moscowDateString();
@@ -130,7 +145,6 @@ export async function submitNfoDayReflection(
 
   if (existing) throw new Error('Already submitted today');
 
-  const config = await getNfoDayConfig();
   if (!isNfoDayTimeOpen(config.publishHour, config.publishMinute)) {
     throw new Error('NFO day reflection is not open yet');
   }

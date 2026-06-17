@@ -71,7 +71,7 @@ npm run deploy
 
 ## Размещение в кабинете VK
 
-Вставляйте URL **из вывода деплоя** (HTTPS + `index.html`), не Railway и не `vk.com/app54627015`.
+Вставляйте URL **из вывода деплоя** (HTTPS + `index.html`), не URL backend и не `vk.com/app54627015`.
 
 Пример:
 
@@ -84,7 +84,7 @@ mvk:    https://....vk-apps.com/.../index.html
 ## Конфигурация
 
 - [`frontend/vk-hosting-config.json`](../frontend/vk-hosting-config.json) — `app_id: 54627015`, `static_path: dist`
-- Сборка: `VITE_API_URL` из `.env.production` → Railway backend
+- Сборка: `VITE_API_URL` из `.env.production` → Timeweb backend (`https://zuevpu-nfo-forum-d400.twc1.net`)
 - Режим dev/prod переопределяется через `MINI_APPS_ENVIRONMENT` в скрипте
 
 ## Ограничения VK

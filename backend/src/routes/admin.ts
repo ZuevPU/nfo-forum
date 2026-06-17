@@ -190,7 +190,12 @@ adminRouter.get('/settings/checkin', async (_req, res) => {
 });
 
 adminRouter.post('/settings/checkin', async (req, res) => {
-  await setCheckinSettings(req.body as { enabledTracks: string[]; slots: string[] });
+  await setCheckinSettings(req.body as {
+    enabledTracks: string[];
+    slots: string[];
+    title?: string;
+    subtitle?: string;
+  });
   res.json({ ok: true });
 });
 
@@ -213,15 +218,23 @@ adminRouter.get('/settings/nfo-day', async (_req, res) => {
 });
 
 adminRouter.post('/settings/nfo-day', async (req, res) => {
-  const { publishHour, publishMinute, points } = req.body as {
+  const body = req.body as {
     publishHour?: number;
     publishMinute?: number;
     points?: number;
+    question?: string;
+    panelTitle?: string;
+    panelSubtitle?: string;
+    factors?: string[];
   };
   await setNfoDaySettings({
-    publishHour: publishHour ?? 19,
-    publishMinute: publishMinute ?? 30,
-    points: points ?? 10,
+    publishHour: body.publishHour ?? 19,
+    publishMinute: body.publishMinute ?? 30,
+    points: body.points ?? 10,
+    question: body.question,
+    panelTitle: body.panelTitle,
+    panelSubtitle: body.panelSubtitle,
+    factors: body.factors,
   });
   res.json({ ok: true });
 });

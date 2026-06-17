@@ -65,8 +65,8 @@ export function NfoDayPanel() {
   return (
     <PanelLayout
       id="nfo-day"
-      title="Каким было НФО сегодня?"
-      subtitle="Вечерняя рефлексия"
+      title={config?.panelTitle ?? 'Каким было НФО сегодня?'}
+      subtitle={config?.panelSubtitle ?? 'Вечерняя рефлексия'}
       loading={loading}
       error={error}
       useGradient

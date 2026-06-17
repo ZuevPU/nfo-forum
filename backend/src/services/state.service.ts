@@ -66,6 +66,8 @@ export async function getCheckinStatus(user: UserDto) {
     nextSlotAt: next?.slot ?? null,
     nextSlotLabel: next?.label ?? null,
     answeredInCurrentSlot,
+    title: settings.title ?? 'Как ты сейчас?',
+    subtitle: settings.subtitle ?? '30 секунд',
   };
 }
 

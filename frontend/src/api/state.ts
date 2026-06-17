@@ -27,6 +27,8 @@ export interface CheckinStatus {
   nextSlotAt: string | null;
   nextSlotLabel: string | null;
   answeredInCurrentSlot: boolean;
+  title?: string;
+  subtitle?: string;
 }
 
 export interface Checkin {

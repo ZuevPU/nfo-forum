@@ -423,6 +423,10 @@ export function AdminPanel() {
               <option value="yes">Да</option>
             </NativeSelect>
           </FormItem>
+          <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45, marginBottom: 12 }}>
+            Для задания «познакомиться через нетворкинг»: <strong>Нетворкинг = Да</strong>, <strong>Авто-подтверждение = Нет</strong>.
+            Участник: заявка → ожидание пары → «Выполнить» → форма ответа. Если авто-подтверждение включено, пустой ответ сразу засчитывается.
+          </div>
           <FormItem top="Фокус дня">
             <NativeSelect value={newTaskIsFocusOfDay ? 'yes' : 'no'} onChange={(e) => setNewTaskIsFocusOfDay(e.target.value === 'yes')}>
               <option value="no">Нет</option>
@@ -614,6 +618,14 @@ export function AdminPanel() {
         </div>
       ) : tab === 'reflection' ? (
         <div className="nfo-admin-section">
+          <div
+            className="nfo-admin-form-card"
+            style={{ marginBottom: 12, fontSize: 12, lineHeight: 1.5, color: 'var(--vkui--color_text_secondary)' }}
+          >
+            <strong>Блок из нескольких вопросов</strong> (вечерняя рефлексия на /questions): создай 2–3 вопроса с
+            одинаковым <strong>ID группы</strong> (например <code>evening-day1</code>), задай время публикации и закрытия.
+            Тип «Состояние (чек-ин)» здесь — это <em>не</em> экран /checkin (энергия + настроение в Настройках).
+          </div>
           <div className="nfo-sec-title">Новый вопрос</div>
           <div className="nfo-admin-form-card">
           <FormItem top="Текст вопроса">
@@ -719,6 +731,23 @@ export function AdminPanel() {
                 meta={`${r.type} · ${r.allowMultiple ? 'повторно' : '1×'} · ${new Date(r.publishTime).toLocaleString('ru-RU')}${r.endTime ? ` – ${new Date(r.endTime).toLocaleString('ru-RU')}` : ''} · ${r.points} б.`}
                 actions={
                   <>
+                    <button
+                      type="button"
+                      className="nfo-admin-btn-outline"
+                      onClick={() => void createReflectionQuestion({
+                        text: r.text,
+                        type: r.type,
+                        publishTime: r.publishTime,
+                        endTime: r.endTime,
+                        points: r.points,
+                        sendNotification: false,
+                        groupId: r.groupId,
+                        track: r.track,
+                        allowMultiple: r.allowMultiple ?? false,
+                      }).then(load)}
+                    >
+                      Копировать
+                    </button>
                     <button
                       type="button"
                       className="nfo-admin-btn-outline"
