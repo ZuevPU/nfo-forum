@@ -269,7 +269,7 @@ export function HomePanel() {
 
   return (
     <>
-      <Panel id="home">
+      <Panel id="home" className="nfo-home">
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
       <GradientHeader title="Главная" subtitle="Форум неформального образования" variant="main">
         <div className="nfo-home-header-meta">
@@ -278,16 +278,14 @@ export function HomePanel() {
         </div>
         <UserProfileCard user={data?.user ?? user} trackRank={data?.trackRank} />
       </GradientHeader>
-      
+
       {data?.focusOfDay && (
-        <Group>
-          <Div style={{ padding: '0 16px' }}>
-            <div className="nfo-focus-day" style={{ cursor: 'default' }}>
-              <div className="nfo-focus-day__label">Фокус дня</div>
-              <div className="nfo-focus-day__title">{data.focusOfDay.title}</div>
-            </div>
-          </Div>
-        </Group>
+        <Div className="nfo-home-focus-wrap">
+          <div className="nfo-focus-day" style={{ cursor: 'default' }}>
+            <div className="nfo-focus-day__label">Фокус дня</div>
+            <div className="nfo-focus-day__title">{data.focusOfDay.title}</div>
+          </div>
+        </Div>
       )}
 
       <Group header={<div className="nfo-sec-title">Сейчас в программе</div>}>
@@ -441,8 +439,8 @@ export function HomePanel() {
             </div>
           </div>
           <div className="nfo-card" style={{ margin: 0, display: 'flex', flexDirection: 'column', height: '100%', cursor: 'pointer' }} onClick={() => navigate('/reflection-level')}>
-            <div style={{ fontSize: 20 }}>💭</div>
-            <Headline level="2" weight="2" style={{ marginTop: 'auto' }}>Ур. {user.reflectionLevel}</Headline>
+            <ActivityIcon emoji="🧠" variant="purple" />
+            <Headline level="2" weight="2" style={{ marginTop: 8 }}>Ур. {user.reflectionLevel}</Headline>
             <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)' }}>рефлексия · {user.reflectionPoints} б.</div>
             <div style={{ marginTop: 8 }}>
               <ProgressBar value={reflectionProgress} max={100} />

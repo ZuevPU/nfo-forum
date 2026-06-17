@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, lte, or } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, isNull, lte, or } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { broadcasts, events, reflectionQuestions, systemSettings } from '../db/schema.js';
 import type { NotificationCategory } from '../constants/notifications.js';
@@ -126,19 +126,30 @@ async function runScheduledBroadcasts(): Promise<number> {
   const pending = await db
     .select()
     .from(broadcasts)
-    .where(and(isNull(broadcasts.sentAt), lte(broadcasts.scheduledAt, now)));
+    .where(
+      and(
+        isNull(broadcasts.sentAt),
+        isNotNull(broadcasts.scheduledAt),
+        lte(broadcasts.scheduledAt, now),
+      ),
+    );
 
   let sent = 0;
   for (const b of pending) {
     if (!b.scheduledAt) continue;
 
-    const { sent: sentCount } = await deliverPush({
+    const { sent: sentCount, vkError } = await deliverPush({
       text: b.text,
       image: b.image ?? undefined,
       targetType: b.targetType as 'all' | 'track' | 'user',
       targetTracks: b.targetTracks ?? undefined,
       targetUserId: b.targetUserId ?? undefined,
     });
+
+    if (vkError) {
+      console.error(`[cron] scheduled broadcast #${b.id} failed:`, vkError);
+      continue;
+    }
 
     await db.update(broadcasts).set({ sentAt: new Date() }).where(eq(broadcasts.id, b.id));
     sent += sentCount;

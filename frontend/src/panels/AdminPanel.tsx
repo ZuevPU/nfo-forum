@@ -53,7 +53,7 @@ import {
 import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab, AdminReflectionAnswersTab, AdminNfoStatsTab, AdminActivityTab } from './AdminManagementTabs';
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
-import { uploadFiles } from '../lib/vk-bridge';
+import { pickImage } from '../lib/vk-bridge';
 
 export function AdminPanel() {
   const { user } = useAuthContext();
@@ -125,6 +125,8 @@ export function AdminPanel() {
 
   const [pushText, setPushText] = useState('');
   const [pushImage, setPushImage] = useState<string | null>(null);
+  const [pushImageUrl, setPushImageUrl] = useState('');
+  const [pushImageError, setPushImageError] = useState<string | null>(null);
   const [pushUploading, setPushUploading] = useState(false);
   const [pushTarget, setPushTarget] = useState<'all' | 'track' | 'user'>('all');
   const [pushTracks, setPushTracks] = useState<string[]>([TRACKS[0]]);
@@ -133,16 +135,37 @@ export function AdminPanel() {
 
   const handleUploadPushImage = async () => {
     setPushUploading(true);
+    setPushImageError(null);
     try {
-      const urls = await uploadFiles(1);
-      if (urls.length > 0) {
-        setPushImage(urls[0]);
+      const picked = await pickImage();
+      if (!picked) {
+        setPushImageError('Не удалось выбрать фото. Попробуй JPG или PNG до 10 МБ.');
+        return;
       }
+      if (picked.startsWith('data:')) {
+        setPushImageError('Для рассылки нужна ссылка на изображение. На десктопе вставьте URL в поле ниже.');
+        return;
+      }
+      setPushImage(picked);
+      setPushImageUrl('');
     } catch (e) {
       console.error('Upload failed:', e);
+      setPushImageError('Не удалось прикрепить фото.');
     } finally {
       setPushUploading(false);
     }
+  };
+
+  const resolvePushImage = (): string | undefined => {
+    const uploaded = pushImage?.trim();
+    if (uploaded && (uploaded.startsWith('http://') || uploaded.startsWith('https://'))) {
+      return uploaded;
+    }
+    const manual = pushImageUrl.trim();
+    if (manual && (manual.startsWith('http://') || manual.startsWith('https://'))) {
+      return manual;
+    }
+    return undefined;
   };
 
   const load = () => {
@@ -689,7 +712,7 @@ export function AdminPanel() {
                   type="button"
                   className="nfo-admin-btn-danger"
                   style={{ position: 'absolute', top: 4, right: 4, padding: '2px 8px', fontSize: 11 }}
-                  onClick={() => setPushImage(null)}
+                  onClick={() => { setPushImage(null); setPushImageError(null); }}
                 >
                   ✕
                 </button>
@@ -699,6 +722,19 @@ export function AdminPanel() {
                 Прикрепить фото
               </Button>
             )}
+            {pushImageError && (
+              <div style={{ marginTop: 8, fontSize: 12, color: '#e74c3c' }}>{pushImageError}</div>
+            )}
+          </FormItem>
+          <FormItem top="Или ссылка на изображение (https)">
+            <Input
+              value={pushImageUrl}
+              placeholder="https://..."
+              onChange={(e) => {
+                setPushImageUrl(e.target.value);
+                setPushImageError(null);
+              }}
+            />
           </FormItem>
           <FormItem top="Аудитория">
             <NativeSelect value={pushTarget} onChange={(e) => setPushTarget(e.target.value as 'all' | 'track' | 'user')}>
@@ -737,9 +773,15 @@ export function AdminPanel() {
           <button
             type="button"
             className="nfo-admin-btn-primary stretched"
-            onClick={() => void sendAdminPush({
+            onClick={() => {
+              const image = resolvePushImage();
+              if (pushImageUrl.trim() && !image) {
+                setPushImageError('Укажите корректную ссылку, начинающуюся с https://');
+                return;
+              }
+              void sendAdminPush({
               text: pushText,
-              image: pushImage || undefined,
+              image,
               target_type: pushTarget,
               target_tracks: pushTarget === 'track' && pushTracks.length ? pushTracks : undefined,
               target_user_id: pushTarget === 'user' ? Number(pushUserId) : undefined,
@@ -747,10 +789,13 @@ export function AdminPanel() {
             }).then(() => {
               setPushText('');
               setPushImage(null);
+              setPushImageUrl('');
+              setPushImageError(null);
               setPushUserId('');
               setPushScheduledAt('');
               load();
-            })}
+            });
+            }}
           >
             Отправить
           </button>
@@ -762,7 +807,11 @@ export function AdminPanel() {
             <AdminListCard
               key={b.id}
               title={b.text}
-              meta={`${b.targetType} · ${b.scheduledAt ? `Запланировано: ${new Date(b.scheduledAt).toLocaleString('ru-RU')}` : `Отправлено: ${new Date(b.sentAt || b.createdAt).toLocaleString('ru-RU')}`}`}
+              meta={`${b.targetType} · ${
+                !b.sentAt && b.scheduledAt
+                  ? `Ожидает отправки: ${new Date(b.scheduledAt).toLocaleString('ru-RU')}`
+                  : `Отправлено: ${new Date(b.sentAt || b.createdAt).toLocaleString('ru-RU')}`
+              }`}
             />
           ))}
         </div>

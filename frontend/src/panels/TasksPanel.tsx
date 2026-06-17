@@ -6,7 +6,7 @@ import {
   PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
-import { pickImageAsDataUrl } from '../lib/vk-bridge';
+import { pickImage } from '../lib/vk-bridge';
 import { EmptyState } from '../components/EmptyState';
 import { PanelLayout } from '../components/PanelLayout';
 import { TaskSuccessBanner } from '../components/TaskSuccessBanner';
@@ -71,7 +71,7 @@ export function TasksPanel() {
     setUploading(true);
     setUploadError(null);
     try {
-      const dataUrl = await pickImageAsDataUrl();
+      const dataUrl = await pickImage();
       if (dataUrl) {
         setPhotos((prev) => [...prev, dataUrl].slice(0, 3));
       } else {

@@ -19,8 +19,7 @@ export function WelcomePanel() {
           color: '#fff',
         }}
       >
-        <CharacterIllustration size={120} />
-        <Spacing size={10} />
+        <CharacterIllustration size={120} className="nfo-welcome-character" />
         <Headline level="1" weight="1" style={{ color: '#fff', textAlign: 'center' }}>
           Привет!
         </Headline>

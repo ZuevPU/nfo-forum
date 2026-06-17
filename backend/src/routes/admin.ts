@@ -270,13 +270,18 @@ adminRouter.post('/push/send', async (req: AuthenticatedRequest, res) => {
     res.status(400).json({ error: 'text and target_type are required' });
     return;
   }
+  const scheduledAt = scheduled_at ? new Date(scheduled_at) : undefined;
+  if (scheduled_at && (!scheduledAt || Number.isNaN(scheduledAt.getTime()))) {
+    res.status(400).json({ error: 'Invalid scheduled_at' });
+    return;
+  }
   const result = await sendPush({
     text,
     image,
     targetType: target_type,
     targetTracks: target_tracks,
     targetUserId: target_user_id,
-    scheduledAt: scheduled_at ? new Date(scheduled_at) : undefined,
+    scheduledAt,
   });
   res.json(result);
 });

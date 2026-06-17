@@ -249,11 +249,48 @@ export function pickImageAsDataUrl(): Promise<string | null> {
         return;
       }
       const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : null;
+        if (!result) {
+          resolve(null);
+          return;
+        }
+        void compressDataUrl(result).then(resolve);
+      };
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     };
     input.click();
+  });
+}
+
+function compressDataUrl(dataUrl: string, maxSize = 1600, quality = 0.85): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        if (width >= height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
   });
 }
 
@@ -269,8 +306,16 @@ export async function uploadFiles(count = 1): Promise<string[]> {
     if (isDevMode()) {
       return [`https://placehold.co/200x200?text=dev+photo`];
     }
-    throw new Error('File upload failed');
+    return [];
   }
+}
+
+export async function pickImage(): Promise<string | null> {
+  if (!isDevMode()) {
+    const urls = await uploadFiles(1);
+    if (urls[0]) return urls[0];
+  }
+  return pickImageAsDataUrl();
 }
 
 export { bridge };

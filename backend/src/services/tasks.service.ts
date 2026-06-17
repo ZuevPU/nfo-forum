@@ -4,26 +4,7 @@ import { systemSettings, taskSubmissions, tasks } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import { awardPoints } from './points.service.js';
 import { getNetworkingPartner, joinNetworkingQueue } from './taskNetworking.service.js';
-
-const MAX_PHOTOS = 3;
-const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-
-function validatePhotos(photos?: string[]) {
-  if (!photos?.length) return;
-  if (photos.length > MAX_PHOTOS) throw new Error(`Maximum ${MAX_PHOTOS} photos allowed`);
-  for (const photo of photos) {
-    if (photo.startsWith('data:')) {
-      const base64 = photo.split(',')[1] ?? '';
-      const bytes = Math.ceil((base64.length * 3) / 4);
-      if (bytes > MAX_PHOTO_BYTES) throw new Error('Photo exceeds 10 MB limit');
-      if (!/^data:image\/(jpeg|jpg|png);/i.test(photo)) {
-        throw new Error('Only jpg and png images are allowed');
-      }
-    } else if (!/^https?:\/\/.+\.(jpg|jpeg|png)/i.test(photo)) {
-      throw new Error('Invalid photo URL');
-    }
-  }
-}
+import { validatePhotos } from '../utils/photoValidation.js';
 
 export async function getTasks(user: UserDto) {
   const allTasks = await db.select().from(tasks);
