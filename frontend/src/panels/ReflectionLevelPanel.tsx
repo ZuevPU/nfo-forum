@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchReflectionLevel, type ReflectionLevelData } from '../api/rating';
 import { GradientHeader } from '../components/GradientHeader';
-import { REFLECTION_LEVEL_DESCRIPTIONS, REFLECTION_LEVEL_NAMES, DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
+import { REFLECTION_LEVEL_DESCRIPTIONS, REFLECTION_LEVEL_NAMES, REFLECTION_LEVEL_SCENARIOS, DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress, SECTION_MAX_TOTALS } from '../constants/reflectionLevels';
 import { useAuthContext } from '../contexts/AuthContext';
 
 export function ReflectionLevelPanel() {
@@ -66,10 +66,23 @@ export function ReflectionLevelPanel() {
                   <Progress value={Math.min(100, Math.max(0, progress))} />
                 </div>
                 <div style={{ fontSize: 13, marginTop: 8, color: 'var(--vkui--color_text_secondary)' }}>
-                  {reflectionPoints} баллов рефлексии
+                  {reflectionPoints} баллов рефлексии (макс. {SECTION_MAX_TOTALS.reflectionWithExchange})
                   {pointsToNextLevel > 0 && nextLevel != null && ` · ${pointsToNextLevel} до ${nextLevel} ур.`}
                 </div>
               </Div>
+            </Group>
+
+            <Group header={<div className="nfo-sec-title">Как набрать уровень</div>}>
+              {[1, 2, 3, 4, 5].map((lvl) => {
+                const min = thresholds[lvl - 1] ?? 0;
+                const max = thresholds[lvl] != null ? thresholds[lvl] - 1 : SECTION_MAX_TOTALS.reflectionWithExchange;
+                const rangeLabel = lvl >= thresholds.length ? `${min}+` : `${min}–${max}`;
+                return (
+                  <SimpleCell key={lvl} subtitle={REFLECTION_LEVEL_SCENARIOS[lvl] ?? ''}>
+                    Ур. {lvl} ({rangeLabel} б.): {REFLECTION_LEVEL_NAMES[lvl] ?? ''}
+                  </SimpleCell>
+                );
+              })}
             </Group>
 
             <Group header={<div className="nfo-sec-title">Пороги уровней</div>}>

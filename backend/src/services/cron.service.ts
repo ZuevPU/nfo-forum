@@ -43,13 +43,6 @@ const CRON_JOBS: Record<
     hash: entityLink('tasks'),
     category: 'tasks',
   },
-  'lunch-exchange': {
-    text: 'Обед — время обмена опытом! Задай вопрос или ответь коллегам.',
-    hour: 13,
-    minute: 15,
-    hash: entityLink('exchange'),
-    category: 'exchange',
-  },
   'evening-reflection': {
     text: 'Вечерняя рефлексия открыта. Поделись мыслями о прошедшем дне.',
     hour: 19,

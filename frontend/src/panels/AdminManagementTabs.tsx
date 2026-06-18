@@ -11,6 +11,8 @@ import {
   saveCheckinSettings,
   fetchExchangeSlots,
   saveExchangeSlots,
+  fetchInsightsSettings,
+  saveInsightsSettings,
   fetchNfoDaySettings,
   saveNfoDaySettings,
   fetchDailyFocusSettings,
@@ -260,6 +262,8 @@ export function AdminSettingsTab() {
   });
   const [exportLoading, setExportLoading] = useState<string | null>(null);
   const [exchangeSlots, setExchangeSlots] = useState<string[]>([]);
+  const [insightsSettings, setInsightsSettings] = useState({ prompt: '', placeholder: '' });
+  const [insightsSaveMessage, setInsightsSaveMessage] = useState<string | null>(null);
   const [nfoDay, setNfoDay] = useState({
     publishHour: 19,
     publishMinute: 30,
@@ -303,6 +307,7 @@ export function AdminSettingsTab() {
     });
     }).catch(console.error);
     fetchExchangeSlots().then((r) => setExchangeSlots(r.slots)).catch(console.error);
+    fetchInsightsSettings().then((r) => setInsightsSettings({ prompt: r.prompt, placeholder: r.placeholder })).catch(console.error);
     fetchNfoDaySettings().then((r) => setNfoDay({
       publishHour: r.publishHour,
       publishMinute: r.publishMinute,
@@ -444,6 +449,9 @@ export function AdminSettingsTab() {
       </div>
 
       <div className="nfo-sec-title" style={{ marginTop: 12 }}>Слоты «Обмена опытом»</div>
+      <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: 8, lineHeight: 1.45 }}>
+        Рассылка «Время обмена опытом!…» — только в указанные слоты (±5 мин, МСК). Отдельно участникам может прийти «Тебе назначен вопрос…» — когда одобрили чужой вопрос и система выбрала ответчиков; это не слот и время случайное.
+      </div>
       <div className="nfo-admin-form-card">
         <FormItem top="Время рассылки (HH:MM через запятую)">
           <Input
@@ -454,6 +462,37 @@ export function AdminSettingsTab() {
         <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveExchangeSlots(exchangeSlots)}>
           Сохранить слоты
         </button>
+      </div>
+
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Озарения и важные мысли</div>
+      <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: 8, lineHeight: 1.45 }}>
+        Постоянный блок на экране «Вопросы». Вопросы с groupId <code>program-insights</code> в «Вопросах программы» не показываются — используйте этот текст. Лимиты баллов — в «Система баллов» (строка «Озарение»).
+      </div>
+      <div className="nfo-admin-form-card">
+        <FormItem top="Текст-подсказка над полем">
+          <Textarea rows={2} value={insightsSettings.prompt} onChange={(e) => setInsightsSettings((s) => ({ ...s, prompt: e.target.value }))} />
+        </FormItem>
+        <FormItem top="Placeholder в поле ввода">
+          <Input value={insightsSettings.placeholder} onChange={(e) => setInsightsSettings((s) => ({ ...s, placeholder: e.target.value }))} />
+        </FormItem>
+        <button
+          type="button"
+          className="nfo-admin-btn-primary"
+          onClick={() => {
+            setInsightsSaveMessage(null);
+            void saveInsightsSettings(insightsSettings)
+              .then((r) => {
+                setInsightsSettings({ prompt: r.settings.prompt, placeholder: r.settings.placeholder });
+                setInsightsSaveMessage('Сохранено');
+              })
+              .catch((e) => setInsightsSaveMessage(e instanceof Error ? e.message : 'Ошибка'));
+          }}
+        >
+          Сохранить озарения
+        </button>
+        {insightsSaveMessage && (
+          <div style={{ marginTop: 8, fontSize: 13, color: 'var(--nfo-green)' }}>{insightsSaveMessage}</div>
+        )}
       </div>
 
       <div className="nfo-sec-title" style={{ marginTop: 12 }}>Вечерняя рефлексия НФО</div>

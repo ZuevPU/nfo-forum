@@ -6,6 +6,7 @@ import type { UserDto } from '../types/api.js';
 import { moscowDateString } from '../utils/moscowTime.js';
 import { isNfoDayTimeOpen } from '../utils/slotMatching.js';
 import { awardAction } from './pointsConfig.service.js';
+import { INSIGHTS_QUESTION_GROUP_ID } from '../constants/insights.js';
 import { resolveReflectionActionId } from '../constants/pointsSystem.js';
 
 export async function getQuestions(user: UserDto) {
@@ -27,6 +28,7 @@ export async function getQuestions(user: UserDto) {
     .filter((q) => q.publishTime != null && q.publishTime <= now)
     .filter((q) => !q.track || q.track === user.track)
     .filter((q) => !q.endTime || q.endTime > now)
+    .filter((q) => q.groupId !== INSIGHTS_QUESTION_GROUP_ID && q.type !== 'insight')
     .map((q) => ({
       id: q.id,
       text: q.text,
@@ -66,13 +68,11 @@ export async function submitAnswer(user: UserDto, questionId: number, answerText
     .values({ userId: user.id, questionId, answerText })
     .returning();
 
-  if (!existingAnswer) {
-    const actionId = resolveReflectionActionId(question.type, question.groupId);
-    await awardAction(user.id, actionId, created.id, {
-      pointsOverride: question.points,
-      skipIfSourceIdExists: true,
-    });
-  }
+  const actionId = resolveReflectionActionId(question.type, question.groupId);
+  await awardAction(user.id, actionId, created.id, {
+    pointsOverride: question.points,
+    skipIfSourceIdExists: true,
+  });
   return created;
 }
 
@@ -215,6 +215,11 @@ export async function getNfoDayReflectionToday(userId: number) {
     .limit(1);
 
   return row ?? null;
+}
+
+export async function getInsightsConfig() {
+  const { getInsightsSettings } = await import('./admin.service.js');
+  return getInsightsSettings();
 }
 
 export async function listProgramInsights(userId: number, limit = 20) {

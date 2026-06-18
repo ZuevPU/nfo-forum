@@ -1,9 +1,11 @@
 import { Button, Div, FormItem, Textarea } from '@vkontakte/vkui';
 import { useCallback, useEffect, useState } from 'react';
-import { fetchProgramInsights, submitProgramInsight, type ProgramInsight } from '../api/reflection';
+import { fetchInsightsConfig, fetchProgramInsights, submitProgramInsight, type ProgramInsight } from '../api/reflection';
 
 export function ProgramInsightsSection() {
   const [insights, setInsights] = useState<ProgramInsight[]>([]);
+  const [prompt, setPrompt] = useState('');
+  const [placeholder, setPlaceholder] = useState('');
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -11,8 +13,12 @@ export function ProgramInsightsSection() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetchProgramInsights()
-      .then((r) => setInsights(r.insights))
+    Promise.all([fetchProgramInsights(), fetchInsightsConfig()])
+      .then(([insightsRes, config]) => {
+        setInsights(insightsRes.insights);
+        setPrompt(config.prompt);
+        setPlaceholder(config.placeholder);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -26,7 +32,7 @@ export function ProgramInsightsSection() {
     try {
       const result = await submitProgramInsight(text.trim());
       setText('');
-      setMessage(result.pointsAwarded > 0 ? `+${result.pointsAwarded} баллов рефлексии` : 'Запись сохранена (лимит баллов достигнут)');
+      setMessage(result.pointsAwarded > 0 ? `+${result.pointsAwarded} баллов рефлексии` : 'Запись сохранена');
       load();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Ошибка сохранения');
@@ -37,11 +43,13 @@ export function ProgramInsightsSection() {
 
   return (
     <Div style={{ padding: '8px 16px 12px' }}>
-      <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45, marginBottom: 12 }}>
-        Зафиксируй озарение или важную мысль по ходу программы. До 10 записей, по 3 балла рефлексии (макс. 30).
-      </div>
+      {prompt && (
+        <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45, marginBottom: 12 }}>
+          {prompt}
+        </div>
+      )}
       <FormItem top="Озарение / важная мысль">
-        <Textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Что важного понял(а) или заметил(а)..." />
+        <Textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} />
       </FormItem>
       <Button size="m" mode="primary" stretched loading={submitting} disabled={!text.trim()} onClick={() => void handleSubmit()}>
         Сохранить

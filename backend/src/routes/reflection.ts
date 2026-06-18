@@ -11,6 +11,7 @@ import {
   submitNfoDayReflection,
   listProgramInsights,
   createProgramInsight,
+  getInsightsConfig,
 } from '../services/reflection.service.js';
 
 export const reflectionRouter = Router();
@@ -104,6 +105,15 @@ reflectionRouter.get('/nfo-day/today', requireUser, async (req: AuthenticatedReq
     });
   } catch (error) {
     console.error('NFO day today error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+reflectionRouter.get('/insights/config', requireUser, async (_req, res) => {
+  try {
+    res.json(await getInsightsConfig());
+  } catch (error) {
+    console.error('Insights config error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

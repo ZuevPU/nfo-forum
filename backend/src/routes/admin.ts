@@ -37,6 +37,8 @@ import {
   setCheckinSettings,
   getExchangeSlotSettings,
   setExchangeSlotSettings,
+  getInsightsSettings,
+  setInsightsSettings,
   getNfoDaySettings,
   setNfoDaySettings,
   getDailyFocusSettings,
@@ -244,6 +246,19 @@ adminRouter.post('/settings/exchange-slots', async (req, res) => {
   }
   await setExchangeSlotSettings(slots);
   res.json({ ok: true });
+});
+
+adminRouter.get('/settings/insights', async (_req, res) => {
+  res.json(await getInsightsSettings());
+});
+
+adminRouter.post('/settings/insights', async (req, res) => {
+  const body = req.body as { prompt?: string; placeholder?: string };
+  const settings = await setInsightsSettings({
+    prompt: body.prompt ?? '',
+    placeholder: body.placeholder ?? '',
+  });
+  res.json({ ok: true, settings });
 });
 
 adminRouter.get('/settings/nfo-day', async (_req, res) => {

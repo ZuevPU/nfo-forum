@@ -39,6 +39,10 @@ export function fetchProgramInsights() {
   return apiRequest<{ insights: ProgramInsight[] }>('/api/reflection/insights');
 }
 
+export function fetchInsightsConfig() {
+  return apiRequest<{ prompt: string; placeholder: string }>('/api/reflection/insights/config');
+}
+
 export function submitProgramInsight(text: string) {
   return apiRequest<{ insight: ProgramInsight; pointsAwarded: number }>('/api/reflection/insights', {
     method: 'POST',

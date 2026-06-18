@@ -232,11 +232,11 @@ export function fetchPointsSettings() {
       optional?: boolean;
       note?: string;
     }>;
-    overrides: Record<string, { pointsPerAction?: number; maxTotal?: number; maxCount?: number }>;
+    overrides: Record<string, { pointsPerAction?: number; maxTotal?: number; maxCount?: number | null }>;
   }>('/api/admin/settings/points');
 }
 
-export function savePointsSettings(rules: Record<string, { pointsPerAction?: number; maxTotal?: number; maxCount?: number }>) {
+export function savePointsSettings(rules: Record<string, { pointsPerAction?: number; maxTotal?: number; maxCount?: number | null }>) {
   return apiRequest('/api/admin/settings/points', { method: 'POST', body: { rules } });
 }
 
@@ -364,6 +364,22 @@ export function fetchExchangeSlots() {
 
 export function saveExchangeSlots(slots: string[]) {
   return apiRequest('/api/admin/settings/exchange-slots', { method: 'POST', body: { slots } });
+}
+
+export interface InsightsSettings {
+  prompt: string;
+  placeholder: string;
+}
+
+export function fetchInsightsSettings() {
+  return apiRequest<InsightsSettings>('/api/admin/settings/insights');
+}
+
+export function saveInsightsSettings(data: InsightsSettings) {
+  return apiRequest<{ ok: true; settings: InsightsSettings }>('/api/admin/settings/insights', {
+    method: 'POST',
+    body: data,
+  });
 }
 
 export function fetchActivityLogs(limit = 200) {

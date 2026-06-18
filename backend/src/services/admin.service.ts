@@ -22,6 +22,7 @@ import { notifyUser, notifyUsersForTrack } from './push.service.js';
 import { entityLink } from '../utils/appLinks.js';
 import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
 import { DEFAULT_NFO_DAY_QUESTIONS } from '../constants/nfoFactors.js';
+import { DEFAULT_INSIGHTS_SETTINGS, type InsightsSettings } from '../constants/insights.js';
 import type { PointsConfigValue } from '../constants/pointsSystem.js';
 import { DEFAULT_POINTS_CONFIG } from '../constants/pointsSystem.js';
 
@@ -698,7 +699,41 @@ export async function getExchangeSlotSettings() {
     .from(systemSettings)
     .where(eq(systemSettings.key, 'exchange_slots'))
     .limit(1);
-  return (setting?.value as string[]) ?? ['13:15', '15:00'];
+  return (setting?.value as string[]) ?? [];
+}
+
+export async function getInsightsSettings(): Promise<InsightsSettings> {
+  const [setting] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'insights_settings'))
+    .limit(1);
+  const value = (setting?.value ?? {}) as Partial<InsightsSettings>;
+  return {
+    prompt: value.prompt?.trim() || DEFAULT_INSIGHTS_SETTINGS.prompt,
+    placeholder: value.placeholder?.trim() || DEFAULT_INSIGHTS_SETTINGS.placeholder,
+  };
+}
+
+export async function setInsightsSettings(data: InsightsSettings) {
+  const normalized: InsightsSettings = {
+    prompt: data.prompt.trim() || DEFAULT_INSIGHTS_SETTINGS.prompt,
+    placeholder: data.placeholder.trim() || DEFAULT_INSIGHTS_SETTINGS.placeholder,
+  };
+  const [existing] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, 'insights_settings'))
+    .limit(1);
+  if (existing) {
+    await db
+      .update(systemSettings)
+      .set({ value: normalized, updatedAt: new Date() })
+      .where(eq(systemSettings.id, existing.id));
+  } else {
+    await db.insert(systemSettings).values({ key: 'insights_settings', value: normalized });
+  }
+  return normalized;
 }
 
 export async function setExchangeSlotSettings(slots: string[]) {

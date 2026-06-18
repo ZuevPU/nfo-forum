@@ -19,7 +19,7 @@ type PointRule = {
   note?: string;
 };
 
-type RuleOverride = { pointsPerAction?: number; maxTotal?: number; maxCount?: number };
+type RuleOverride = { pointsPerAction?: number; maxTotal?: number; maxCount?: number | null };
 
 const SECTION_LABELS: Record<PointRule['section'], string> = {
   reflection: 'Рефлексия',
@@ -96,6 +96,7 @@ export function PointsSystemSettings({
       <div className="nfo-sec-title">Система баллов</div>
       <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: 8, lineHeight: 1.45 }}>
         Рефлексия и обмен начисляют баллы уровня рефлексии; задания — только рейтинг трека. Лимиты считаются по истории начислений.
+        Колонка «Кол-во» — необязательный потолок начислений; пусто = без лимита по числу попыток (остаётся только «Макс.» сумма). Ответы и записи сохраняются всегда.
       </div>
 
       {sections.map(({ section, label, rules: sectionRules, maxTotal, expectedMax }) => (
@@ -143,10 +144,10 @@ export function PointsSystemSettings({
                         placeholder="—"
                         onChange={(e) => {
                           const v = e.target.value;
-                          const num = v === '' ? undefined : Number(v);
+                          const num = v === '' ? null : Number(v);
                           setRules((prev) =>
                             prev.map((r) =>
-                              r.id === rule.id ? { ...r, maxCount: num } : r,
+                              r.id === rule.id ? { ...r, maxCount: num ?? undefined } : r,
                             ),
                           );
                           setOverrides((prev) => ({
