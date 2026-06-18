@@ -49,6 +49,13 @@ export function applyNetworkingTask(id: number) {
   );
 }
 
+export function applyNetworkingLunch() {
+  return apiRequest<{ applied: boolean }>('/api/networking-lunch/apply', {
+    method: 'POST',
+    body: {},
+  });
+}
+
 export function submitTask(id: number, answerText: string, photos?: string[]) {
   return apiRequest<{ submission: { status: string } }>(`/api/tasks/${id}/submit`, {
     method: 'POST',
@@ -74,6 +81,10 @@ export interface TaskItem {
   networkingStatus?: 'waiting' | 'paired' | null;
   partner?: { id: number; firstName: string; lastName: string | null; track: string | null } | null;
   partners?: { id: number; firstName: string; lastName: string | null; track: string | null }[];
+  isNetworkingLunch?: boolean;
+  lunchApplied?: boolean;
+  lunchTableNumber?: number | null;
+  lunchAssignmentsSent?: boolean;
 }
 
 export interface DailyFocus {

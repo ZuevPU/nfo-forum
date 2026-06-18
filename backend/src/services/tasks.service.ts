@@ -4,6 +4,7 @@ import { pointsHistory, systemSettings, taskSubmissions, tasks } from '../db/sch
 import type { UserDto } from '../types/api.js';
 import { awardPoints } from './points.service.js';
 import { getNetworkingState, joinNetworkingQueue } from './taskNetworking.service.js';
+import { getNetworkingLunchTaskId, getUserLunchStatus } from './networkingLunch.service.js';
 import { validatePhotos } from '../utils/photoValidation.js';
 
 export async function getTasks(user: UserDto) {
@@ -20,6 +21,8 @@ export async function getTasks(user: UserDto) {
     .select()
     .from(taskSubmissions)
     .where(eq(taskSubmissions.userId, user.id));
+
+  const lunchTaskId = await getNetworkingLunchTaskId();
 
   const baseTasks = userTasks.map((t) => {
     const subs = submissions.filter((s) => s.taskId === t.id);
@@ -45,6 +48,16 @@ export async function getTasks(user: UserDto) {
 
   return Promise.all(
     baseTasks.map(async (t) => {
+      if (lunchTaskId && t.id === lunchTaskId) {
+        const lunch = await getUserLunchStatus(user.id);
+        return {
+          ...t,
+          isNetworkingLunch: true,
+          lunchApplied: lunch.applied,
+          lunchTableNumber: lunch.tableNumber,
+          lunchAssignmentsSent: lunch.assignmentsSent,
+        };
+      }
       if (!t.isRandomDistribution) return t;
       const networking = await getNetworkingState(t.id, user.id, t.networkingContacts);
       return {

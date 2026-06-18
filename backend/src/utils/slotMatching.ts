@@ -26,9 +26,17 @@ export function isNfoDayTimeOpen(
   publishHour: number,
   publishMinute: number,
   now = new Date(),
+  closeHour?: number | null,
+  closeMinute?: number | null,
 ): boolean {
   const { hours, minutes } = moscowTimeParts(now);
-  return hours * 60 + minutes >= publishHour * 60 + publishMinute;
+  const nowTotal = hours * 60 + minutes;
+  const openTotal = publishHour * 60 + publishMinute;
+  if (nowTotal < openTotal) return false;
+  if (closeHour != null && closeMinute != null) {
+    return nowTotal < closeHour * 60 + closeMinute;
+  }
+  return true;
 }
 
 const CHECKIN_SLOT_LABELS = ['Утренний чек-in', 'Дневной чек-in', 'Вечерний чек-in'];
@@ -111,15 +119,19 @@ function slotStartMinutes(slot: string): number {
   return hour * 60 + minute;
 }
 
-/** Active slot by interval [slot[i], slot[i+1]) or [last, end of day). */
-export function getCurrentCheckinSlotIndex(slots: string[], now = new Date()): number | null {
+/** Active slot by fixed window [slot[i], slot[i] + windowMinutes). */
+export function getCurrentCheckinSlotIndex(
+  slots: string[],
+  now = new Date(),
+  windowMinutes = 120,
+): number | null {
   if (slots.length === 0) return null;
   const { hours, minutes } = moscowTimeParts(now);
   const nowTotal = hours * 60 + minutes;
 
   for (let i = 0; i < slots.length; i++) {
     const start = slotStartMinutes(slots[i]);
-    const end = i < slots.length - 1 ? slotStartMinutes(slots[i + 1]) : 24 * 60;
+    const end = Math.min(start + windowMinutes, 24 * 60);
     if (nowTotal >= start && nowTotal < end) return i;
   }
   return null;
@@ -142,15 +154,26 @@ export function getNextCheckinSlot(
   return null;
 }
 
-export function mapCheckinToSlotIndex(createdAt: Date, slots: string[]): number | null {
+export function mapCheckinToSlotIndex(
+  createdAt: Date,
+  slots: string[],
+  windowMinutes = 120,
+): number | null {
   if (slots.length === 0) return null;
   const { hours, minutes } = moscowTimeParts(createdAt);
   const total = hours * 60 + minutes;
 
   for (let i = 0; i < slots.length; i++) {
     const start = slotStartMinutes(slots[i]);
-    const end = i < slots.length - 1 ? slotStartMinutes(slots[i + 1]) : 24 * 60;
+    const end = Math.min(start + windowMinutes, 24 * 60);
     if (total >= start && total < end) return i;
   }
   return null;
+}
+
+export function slotWindowEndTime(slot: string, windowMinutes = 120): string {
+  const endTotal = Math.min(slotStartMinutes(slot) + windowMinutes, 24 * 60);
+  const h = Math.floor(endTotal / 60);
+  const m = endTotal % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }

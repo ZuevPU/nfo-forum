@@ -37,10 +37,10 @@ import {
   fetchBroadcasts,
   fetchPendingExchange,
   fetchPendingSubmissions,
+  fetchFeedbackMessages,
   fetchReflectionQuestions,
   moderateExchange,
   hideExchangeQuestion,
-  moderateSubmission,
   sendAdminPush,
   fetchPushStats,
   type PushSubscriptionStats,
@@ -63,8 +63,7 @@ import {
   type DiagnosticResult,
   type DiagnosticProfileFeedbackRow,
 } from '../api/admin';
-import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab, AdminReflectionAnswersTab, AdminNfoStatsTab, AdminActivityTab } from './AdminManagementTabs';
-import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
+import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab, AdminReflectionAnswersTab, AdminNfoStatsTab, AdminActivityTab, AdminTaskSubmissionsTab, AdminNetworkingLunchTab } from './AdminManagementTabs';
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
 import { pickImage } from '../lib/vk-bridge';
@@ -85,13 +84,13 @@ export function AdminPanel() {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [questions, setQuestions] = useState<PendingQuestion[]>([]);
   const [submissions, setSubmissions] = useState<PendingSubmission[]>([]);
+  const [feedbackCount, setFeedbackCount] = useState(0);
   const [reflections, setReflections] = useState<ReflectionQuestion[]>([]);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [diagTracks, setDiagTracks] = useState<string[]>([]);
   const [diagResults, setDiagResults] = useState<DiagnosticResult[]>([]);
   const [diagProfileFeedback, setDiagProfileFeedback] = useState<DiagnosticProfileFeedbackRow[]>([]);
   const [exchangeActivity, setExchangeActivity] = useState<ExchangeActivityRow[]>([]);
-  const [submissionComments, setSubmissionComments] = useState<Record<number, string>>({});
   const [exchangePublishTimes, setExchangePublishTimes] = useState<Record<number, string>>({});
 
   const [newEventTitle, setNewEventTitle] = useState('');
@@ -241,6 +240,7 @@ export function AdminPanel() {
       fetchAdminTasks(),
       fetchPendingExchange(),
       fetchPendingSubmissions(),
+      fetchFeedbackMessages(),
       fetchReflectionQuestions(),
       fetchBroadcasts(),
       fetchPushStats(),
@@ -249,11 +249,12 @@ export function AdminPanel() {
       fetchDiagnosticProfileFeedback(),
       fetchExchangeActivity(),
     ])
-      .then(([e, t, q, s, r, b, ps, ds, dr, dpf, ea]) => {
+      .then(([e, t, q, s, fb, r, b, ps, ds, dr, dpf, ea]) => {
         setEvents(e.events);
         setTasks(t.tasks);
         setQuestions(q.questions);
         setSubmissions(s.submissions);
+        setFeedbackCount(fb.messages.length);
         setReflections(r.questions);
         setBroadcasts(b.broadcasts);
         setPushStats(ps.stats);
@@ -285,56 +286,13 @@ export function AdminPanel() {
 
   useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    const sample = submissions.find((s) => s.photos?.length);
-    if (!sample?.photos?.[0]) return;
-    const raw = sample.photos[0];
-    const resolved = resolvePhotoUrl(raw);
-    // #region agent log
-    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
-      body: JSON.stringify({
-        sessionId: '9d5534',
-        location: 'AdminPanel.tsx:submissions',
-        message: 'moderation photo display urls',
-        data: { submissionId: sample.id, apiFromServer: raw, resolved, viteApiUrl: import.meta.env.VITE_API_URL },
-        hypothesisId: 'C',
-        runId: 'pre-fix',
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [submissions]);
-
-  useEffect(() => {
-    const sample = taskAnswers.find((s) => s.photos?.length);
-    if (!sample?.photos?.[0]) return;
-    const raw = sample.photos[0];
-    const resolved = resolvePhotoUrl(raw);
-    // #region agent log
-    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
-      body: JSON.stringify({
-        sessionId: '9d5534',
-        location: 'AdminPanel.tsx:taskAnswers',
-        message: 'task answers photo display urls',
-        data: { submissionId: sample.id, apiFromServer: raw, resolved, viteApiUrl: import.meta.env.VITE_API_URL },
-        hypothesisId: 'C',
-        runId: 'pre-fix',
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [taskAnswers]);
-
   const tabBadges = useMemo(
     () => ({
       exchange: questions.length,
       submissions: submissions.length,
+      feedback: feedbackCount,
     }),
-    [questions.length, submissions.length],
+    [questions.length, submissions.length, feedbackCount],
   );
 
   if (user?.role !== 'admin') {
@@ -528,23 +486,6 @@ export function AdminPanel() {
                                 src={url}
                                 alt={`Фото ${i + 1}`}
                                 style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }}
-                                onError={() => {
-                                  // #region agent log
-                                  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
-                                    body: JSON.stringify({
-                                      sessionId: '9d5534',
-                                      location: 'AdminPanel.tsx:taskAnswersImg',
-                                      message: 'image load failed',
-                                      data: { stored, resolved: url },
-                                      hypothesisId: 'E',
-                                      runId: 'pre-fix',
-                                      timestamp: Date.now(),
-                                    }),
-                                  }).catch(() => {});
-                                  // #endregion
-                                }}
                               />
                             </a>
                           );
@@ -821,80 +762,9 @@ export function AdminPanel() {
           ))}
         </div>
       ) : tab === 'submissions' ? (
-        <div className="nfo-admin-section">
-          <div className="nfo-sec-title">Модерация заданий</div>
-          {submissions.length === 0 ? (
-            <div className="nfo-admin-empty">Нет ответов на проверке</div>
-          ) : (
-            submissions.map((s) => (
-              <AdminListCard
-                key={s.id}
-                title={s.taskTitle ?? `Задание #${s.taskId}`}
-                meta={[
-                  `${s.userName ?? 'Участник'}${s.userLastName ? ` ${s.userLastName}` : ''}`.trim(),
-                  s.userTrack ?? '—',
-                  s.createdAt ? new Date(s.createdAt).toLocaleString('ru-RU') : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              >
-                {s.answerText ? (
-                  <div style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{s.answerText}</div>
-                ) : (
-                  <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>Текст не указан</div>
-                )}
-                {s.photos && s.photos.length > 0 && (
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                    {s.photos.map((stored, i) => {
-                      const url = resolvePhotoUrl(stored);
-                      return (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" title="Открыть фото">
-                          <img
-                            src={url}
-                            alt={`Фото ${i + 1}`}
-                            style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }}
-                            onError={() => {
-                              // #region agent log
-                              fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
-                                body: JSON.stringify({
-                                  sessionId: '9d5534',
-                                  location: 'AdminPanel.tsx:moderationImg',
-                                  message: 'image load failed',
-                                  data: { stored, resolved: url },
-                                  hypothesisId: 'E',
-                                  runId: 'pre-fix',
-                                  timestamp: Date.now(),
-                                }),
-                              }).catch(() => {});
-                              // #endregion
-                            }}
-                          />
-                        </a>
-                      );
-                    })}
-                  </div>
-                )}
-                <FormItem top="Комментарий при отклонении">
-                  <Input
-                    value={submissionComments[s.id] ?? ''}
-                    onChange={(e) => setSubmissionComments((c) => ({ ...c, [s.id]: e.target.value }))}
-                    placeholder="Необязательно"
-                  />
-                </FormItem>
-                <div className="nfo-admin-actions">
-                  <button type="button" className="nfo-admin-btn-primary stretched" onClick={() => void moderateSubmission(s.id, 'approved').then(load)}>
-                    Принять
-                  </button>
-                  <button type="button" className="nfo-admin-btn-secondary stretched" onClick={() => void moderateSubmission(s.id, 'rejected', submissionComments[s.id]).then(load)}>
-                    Отклонить
-                  </button>
-                </div>
-              </AdminListCard>
-            ))
-          )}
-        </div>
+        <AdminTaskSubmissionsTab initialTaskId={taskAnswersTaskId} />
+      ) : tab === 'networking-lunch' ? (
+        <AdminNetworkingLunchTab />
       ) : tab === 'reflection' ? (
         <div className="nfo-admin-section">
           <div
@@ -1303,8 +1173,6 @@ export function AdminPanel() {
         <AdminNfoStatsTab />
       ) : tab === 'activity' ? (
         <AdminActivityTab />
-      ) : tab === 'analytics-dashboard' ? (
-        <AdminAnalyticsDashboard />
       ) : tab === 'settings' ? (
         <AdminSettingsTab />
       ) : null}

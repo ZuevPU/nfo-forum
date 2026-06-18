@@ -4,9 +4,10 @@ import { closeDatabase } from './db/index.js';
 import { stopScheduler, startScheduler } from './services/scheduler.service.js';
 
 const app = createApp();
+const host = '0.0.0.0';
 
-const server = app.listen(env.PORT, () => {
-  console.log(`Backend running on http://localhost:${env.PORT}`);
+const server = app.listen(env.PORT, host, () => {
+  console.log(`Backend running on http://${host}:${env.PORT}`);
   startScheduler();
 });
 

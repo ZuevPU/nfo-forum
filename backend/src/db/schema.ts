@@ -386,6 +386,38 @@ export const trainerSelfDiagnostics = pgTable('trainer_self_diagnostics', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+export const networkingLunchApplications = pgTable(
+  'networking_lunch_applications',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('applied'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('networking_lunch_applications_user_unique').on(table.userId)],
+);
+
+export const networkingLunchAssignments = pgTable(
+  'networking_lunch_assignments',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tableNumber: integer('table_number').notNull(),
+    isPinned: boolean('is_pinned').notNull().default(false),
+    sessionKey: text('session_key').notNull().default('default'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('networking_lunch_assignments_user_session').on(table.userId, table.sessionKey),
+    index('idx_networking_lunch_assignments_session_table').on(table.sessionKey, table.tableNumber),
+  ],
+);
+
 export const systemSettings = pgTable(
   'system_settings',
   {

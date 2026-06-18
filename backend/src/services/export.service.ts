@@ -173,20 +173,47 @@ export async function generateNfoDayCSV(): Promise<string> {
       date: nfoDayReflections.date,
       answer: nfoDayReflections.answerText,
       factors: nfoDayReflections.factors,
+      answers: nfoDayReflections.answers,
+      createdAt: nfoDayReflections.createdAt,
     })
     .from(nfoDayReflections)
     .innerJoin(users, eq(nfoDayReflections.userId, users.id))
     .orderBy(desc(nfoDayReflections.createdAt));
 
   return toCsv(
-    ['Имя', 'Фамилия', 'Трек', 'Дата', 'Ответ', 'Факторы'],
+    ['Имя', 'Фамилия', 'Трек', 'Дата программы', 'Время ответа', 'Тезис', 'Понимание', 'Факторы', 'Дополнительно'],
+    rows.map((r) => {
+      const payload = (r.answers ?? {}) as {
+        thesis?: string;
+        understanding?: string;
+        factors?: string[];
+        extra?: string | null;
+      };
+      return [
+        r.userName,
+        r.userLastName ?? '',
+        r.track ?? '',
+        r.date,
+        new Date(r.createdAt).toISOString(),
+        payload.thesis ?? r.answer ?? '',
+        payload.understanding ?? '',
+        (payload.factors ?? r.factors ?? []).join('; '),
+        payload.extra ?? '',
+      ];
+    }),
+  );
+}
+
+export async function generateFeedbackCSV(): Promise<string> {
+  const rows = await listFeedbackMessages();
+  return toCsv(
+    ['Имя', 'Фамилия', 'Трек', 'Сообщение', 'Дата'],
     rows.map((r) => [
-      r.userName,
-      r.userLastName ?? '',
+      r.firstName,
+      r.lastName ?? '',
       r.track ?? '',
-      r.date,
-      r.answer ?? '',
-      r.factors.join('; '),
+      r.text,
+      r.createdAt,
     ]),
   );
 }
@@ -335,6 +362,7 @@ const EXPORT_GENERATORS: Record<string, () => Promise<string>> = {
   rating: generateRatingCSV,
   checkins: generateCheckinsCSV,
   'nfo-day': generateNfoDayCSV,
+  feedback: generateFeedbackCSV,
   'points-history': generatePointsHistoryCSV,
   activity: generateActivityCSV,
   diagnostics: generateDiagnosticsCSV,

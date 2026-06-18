@@ -17,10 +17,6 @@ import {
   userActivityLogs,
 } from '../db/schema.js';
 import { normalizePhotoUrls } from '../utils/mediaUrls.js';
-import { env } from '../config/env.js';
-import { appendFileSync } from 'node:fs';
-import { dirname, resolve as pathResolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { awardPoints } from './points.service.js';
 import { userAlreadyAwardedForTask } from './tasks.service.js';
 import { notifyUser, notifyUsersForTrack } from './push.service.js';
@@ -28,20 +24,6 @@ import { assignRandomRespondents } from './exchange.service.js';
 import { entityLink } from '../utils/appLinks.js';
 import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
 import { DEFAULT_NFO_DAY_QUESTIONS } from '../constants/nfoFactors.js';
-
-// #region agent log
-const __agentLogPath = pathResolve(dirname(fileURLToPath(import.meta.url)), '../../../debug-9d5534.log');
-function agentLog(location: string, message: string, data: Record<string, unknown>, hypothesisId: string) {
-  try {
-    appendFileSync(
-      __agentLogPath,
-      `${JSON.stringify({ sessionId: '9d5534', location, message, data, hypothesisId, timestamp: Date.now(), runId: 'pre-fix' })}\n`,
-    );
-  } catch {
-    /* ignore */
-  }
-}
-// #endregion
 import { DEFAULT_INSIGHTS_SETTINGS, type InsightsSettings } from '../constants/insights.js';
 import type { PointsConfigValue } from '../constants/pointsSystem.js';
 import { DEFAULT_POINTS_CONFIG } from '../constants/pointsSystem.js';
@@ -335,23 +317,6 @@ export async function listPendingSubmissions() {
     .where(eq(taskSubmissions.status, 'pending'))
     .orderBy(desc(taskSubmissions.createdAt));
 
-  const pendingSample = rows.find((r) => r.photos?.length);
-  if (pendingSample?.photos?.[0]) {
-    // #region agent log
-    agentLog(
-      'admin.service.ts:listPendingSubmissions',
-      'pending submission photo urls',
-      {
-        submissionId: pendingSample.id,
-        raw: pendingSample.photos[0],
-        normalized: normalizePhotoUrls(pendingSample.photos)?.[0],
-        apiPublicUrl: env.API_PUBLIC_URL,
-      },
-      'A',
-    );
-    // #endregion
-  }
-
   return rows.map((row) => ({
     ...row,
     photos: normalizePhotoUrls(row.photos),
@@ -379,23 +344,48 @@ export async function listTaskSubmissions(taskId: number) {
     .where(eq(taskSubmissions.taskId, taskId))
     .orderBy(desc(taskSubmissions.createdAt));
 
-  const taskSample = rows.find((r) => r.photos?.length);
-  if (taskSample?.photos?.[0]) {
-    // #region agent log
-    agentLog(
-      'admin.service.ts:listTaskSubmissions',
-      'task submission photo urls',
-      {
-        taskId,
-        submissionId: taskSample.id,
-        raw: taskSample.photos[0],
-        normalized: normalizePhotoUrls(taskSample.photos)?.[0],
-        apiPublicUrl: env.API_PUBLIC_URL,
-      },
-      'B',
-    );
-    // #endregion
+  return rows.map((row) => ({
+    ...row,
+    photos: normalizePhotoUrls(row.photos),
+  }));
+}
+
+export async function listAllTaskSubmissions(filters: {
+  status?: 'pending' | 'approved' | 'rejected';
+  taskId?: number;
+  limit?: number;
+} = {}) {
+  const limit = Math.min(Math.max(filters.limit ?? 100, 1), 500);
+  const conditions = [];
+  if (filters.status) {
+    conditions.push(eq(taskSubmissions.status, filters.status));
   }
+  if (filters.taskId != null) {
+    conditions.push(eq(taskSubmissions.taskId, filters.taskId));
+  }
+
+  const rows = await db
+    .select({
+      id: taskSubmissions.id,
+      taskId: taskSubmissions.taskId,
+      userId: taskSubmissions.userId,
+      answerText: taskSubmissions.answerText,
+      photos: taskSubmissions.photos,
+      status: taskSubmissions.status,
+      adminComment: taskSubmissions.adminComment,
+      createdAt: taskSubmissions.createdAt,
+      updatedAt: taskSubmissions.updatedAt,
+      taskTitle: tasks.title,
+      userName: users.firstName,
+      userLastName: users.lastName,
+      userTrack: users.track,
+    })
+    .from(taskSubmissions)
+    .innerJoin(tasks, eq(taskSubmissions.taskId, tasks.id))
+    .innerJoin(users, eq(taskSubmissions.userId, users.id))
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(taskSubmissions.createdAt))
+    .limit(limit);
 
   return rows.map((row) => ({
     ...row,
@@ -680,6 +670,7 @@ export type CheckinSettingsValue = {
   energyHighLabel: string;
   emotionLabel: string;
   commentPlaceholder: string;
+  windowMinutes: number;
 };
 
 const DEFAULT_DAY_SLOTS = ['08:30', '13:15', '19:30'];
@@ -713,6 +704,7 @@ function normalizeCheckinSettings(raw: Partial<CheckinSettingsValue>): CheckinSe
     energyHighLabel: raw.energyHighLabel?.trim() || 'заряжен',
     emotionLabel: raw.emotionLabel?.trim() || 'Настроение',
     commentPlaceholder: raw.commentPlaceholder?.trim() || 'Моё состояние вызвано тем, что...',
+    windowMinutes: typeof raw.windowMinutes === 'number' && raw.windowMinutes > 0 ? raw.windowMinutes : 120,
   };
 }
 
@@ -822,6 +814,28 @@ export async function setExchangeSlotSettings(slots: string[]) {
   }
 }
 
+export async function getPushMascotMediaId(): Promise<string | undefined> {
+  return readMediaSetting('push_mascot_media_id');
+}
+
+export async function getPushCheckinMascotMediaId(): Promise<string | undefined> {
+  return (await readMediaSetting('push_mascot_checkin_media_id')) ?? (await getPushMascotMediaId());
+}
+
+async function readMediaSetting(key: string): Promise<string | undefined> {
+  const [row] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, key))
+    .limit(1);
+  if (!row?.value) return undefined;
+  if (typeof row.value === 'string') return row.value;
+  if (typeof row.value === 'object' && row.value && 'id' in row.value) {
+    return String((row.value as { id: string }).id);
+  }
+  return undefined;
+}
+
 export async function getNfoDaySettings() {
   const [setting] = await db
     .select()
@@ -837,6 +851,8 @@ export async function getNfoDaySettings() {
     panelSubtitle?: string;
     factors?: string[];
     questions?: typeof DEFAULT_NFO_DAY_QUESTIONS;
+    closeHour?: number;
+    closeMinute?: number;
   };
   const questions =
     Array.isArray(value.questions) && value.questions.length > 0
@@ -851,12 +867,16 @@ export async function getNfoDaySettings() {
     panelSubtitle: value.panelSubtitle ?? '',
     factors: value.factors ?? [],
     questions,
+    closeHour: value.closeHour ?? null,
+    closeMinute: value.closeMinute ?? null,
   };
 }
 
 export async function setNfoDaySettings(value: {
   publishHour?: number;
   publishMinute?: number;
+  closeHour?: number | null;
+  closeMinute?: number | null;
   points?: number;
   question?: string;
   panelTitle?: string;
@@ -868,6 +888,8 @@ export async function setNfoDaySettings(value: {
   const merged = {
     publishHour: value.publishHour ?? current.publishHour,
     publishMinute: value.publishMinute ?? current.publishMinute,
+    closeHour: value.closeHour !== undefined ? value.closeHour : current.closeHour,
+    closeMinute: value.closeMinute !== undefined ? value.closeMinute : current.closeMinute,
     points: value.points ?? current.points,
     question: value.question !== undefined ? value.question : current.question,
     panelTitle: value.panelTitle !== undefined ? value.panelTitle : current.panelTitle,

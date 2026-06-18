@@ -4,6 +4,7 @@ export type AdminTab =
   | 'exchange'
   | 'submissions'
   | 'reflection'
+  | 'networking-lunch'
   | 'push'
   | 'diagnostics'
   | 'users'
@@ -11,7 +12,6 @@ export type AdminTab =
   | 'reflection-answers'
   | 'nfo-stats'
   | 'activity'
-  | 'analytics-dashboard'
   | 'settings';
 
 export interface AdminTabItem {
@@ -31,21 +31,20 @@ export const ADMIN_TAB_GROUPS: AdminTabGroup[] = [
       { id: 'events', label: 'События' },
       { id: 'tasks', label: 'Задания' },
       { id: 'reflection', label: 'Вопросы' },
+      { id: 'networking-lunch', label: 'Нетворкинг-обед' },
     ],
   },
   {
     label: 'Модерация',
     tabs: [
       { id: 'exchange', label: 'Обмен' },
-      { id: 'submissions', label: 'Ответы' },
+      { id: 'submissions', label: 'Ответы на задания' },
+      { id: 'feedback', label: 'Обращения' },
     ],
   },
   {
     label: 'Коммуникации',
-    tabs: [
-      { id: 'push', label: 'Push' },
-      { id: 'feedback', label: 'Inbox' },
-    ],
+    tabs: [{ id: 'push', label: 'Push' }],
   },
   {
     label: 'Аналитика',
@@ -54,7 +53,6 @@ export const ADMIN_TAB_GROUPS: AdminTabGroup[] = [
       { id: 'reflection-answers', label: 'Рефл. ответы' },
       { id: 'nfo-stats', label: 'НФО день' },
       { id: 'activity', label: 'Активность' },
-      { id: 'analytics-dashboard', label: 'Дашборд' },
     ],
   },
   {

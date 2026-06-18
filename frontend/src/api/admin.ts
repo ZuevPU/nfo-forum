@@ -36,6 +36,21 @@ export function publishAdminTask(id: number) {
   return apiRequest(`/api/admin/tasks/${id}/publish`, { method: 'POST' });
 }
 
+export function fetchAllTaskSubmissions(params?: {
+  status?: 'pending' | 'approved' | 'rejected';
+  taskId?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.status) search.set('status', params.status);
+  if (params?.taskId != null) search.set('taskId', String(params.taskId));
+  if (params?.limit != null) search.set('limit', String(params.limit));
+  const qs = search.toString();
+  return apiRequest<{ submissions: TaskSubmissionRow[] }>(
+    `/api/admin/tasks/submissions${qs ? `?${qs}` : ''}`,
+  );
+}
+
 export function fetchTaskSubmissions(taskId: number) {
   return apiRequest<{ submissions: TaskSubmissionRow[] }>(`/api/admin/tasks/${taskId}/submissions`);
 }
@@ -255,6 +270,7 @@ export type AdminExportType =
   | 'rating'
   | 'checkins'
   | 'nfo-day'
+  | 'feedback'
   | 'points-history'
   | 'activity';
 
@@ -266,6 +282,8 @@ export function downloadAdminExport(type: AdminExportType, format: 'csv' | 'xlsx
 export interface NfoDaySettings {
   publishHour: number;
   publishMinute: number;
+  closeHour?: number | null;
+  closeMinute?: number | null;
   points: number;
   panelTitle?: string;
   panelSubtitle?: string;
@@ -286,6 +304,8 @@ export function fetchNfoDaySettings() {
 export function saveNfoDaySettings(data: {
   publishHour: number;
   publishMinute: number;
+  closeHour?: number | null;
+  closeMinute?: number | null;
   points: number;
   panelTitle?: string;
   panelSubtitle?: string;
@@ -489,6 +509,7 @@ export interface PendingSubmission {
 export interface TaskSubmissionRow {
   id: number;
   taskId: number;
+  taskTitle?: string;
   userId: number;
   userName: string;
   userLastName: string | null;
@@ -513,4 +534,90 @@ export interface ReflectionQuestion {
   groupId: string | null;
   track: string | null;
   allowMultiple?: boolean;
+}
+
+export interface NetworkingLunchConfig {
+  description: string;
+  publishHour: number;
+  publishMinute: number;
+  tableCount: number;
+  seatsPerTable: number;
+  taskId: number | null;
+  publishedAt: string | null;
+  assignmentsSentAt: string | null;
+  sessionKey: string;
+}
+
+export interface NetworkingLunchApplication {
+  userId: number;
+  firstName: string;
+  lastName: string | null;
+  track: string | null;
+  createdAt: string;
+  status: string;
+}
+
+export interface NetworkingLunchSeat {
+  userId: number;
+  firstName: string;
+  lastName: string | null;
+  track: string | null;
+  tableNumber: number;
+  isPinned: boolean;
+}
+
+export interface NetworkingLunchTable {
+  tableNumber: number;
+  seats: NetworkingLunchSeat[];
+}
+
+export function fetchNetworkingLunchConfig() {
+  return apiRequest<{ config: NetworkingLunchConfig }>('/api/admin/networking-lunch/config');
+}
+
+export function saveNetworkingLunchConfig(config: Partial<NetworkingLunchConfig>) {
+  return apiRequest<{ config: NetworkingLunchConfig }>('/api/admin/networking-lunch/config', {
+    method: 'PUT',
+    body: config,
+  });
+}
+
+export function fetchNetworkingLunchApplications() {
+  return apiRequest<{ applications: NetworkingLunchApplication[]; total: number }>(
+    '/api/admin/networking-lunch/applications',
+  );
+}
+
+export function fetchNetworkingLunchAssignments() {
+  return apiRequest<{ tables: NetworkingLunchTable[] }>('/api/admin/networking-lunch/assignments');
+}
+
+export function randomizeNetworkingLunch() {
+  return apiRequest<{ tables: NetworkingLunchTable[] }>('/api/admin/networking-lunch/randomize', {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export function saveNetworkingLunchAssignments(
+  assignments: { userId: number; tableNumber: number; isPinned?: boolean }[],
+) {
+  return apiRequest<{ tables: NetworkingLunchTable[] }>('/api/admin/networking-lunch/assignments', {
+    method: 'PUT',
+    body: { assignments },
+  });
+}
+
+export function removeNetworkingLunchAssignment(userId: number) {
+  return apiRequest<{ tables: NetworkingLunchTable[] }>(
+    `/api/admin/networking-lunch/assignments/${userId}`,
+    { method: 'DELETE' },
+  );
+}
+
+export function publishNetworkingLunch() {
+  return apiRequest<{ sent: number }>('/api/admin/networking-lunch/publish', {
+    method: 'POST',
+    body: {},
+  });
 }

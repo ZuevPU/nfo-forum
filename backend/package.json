@@ -12,6 +12,7 @@
     "promote-admin": "tsx src/scripts/promote-admin.ts",
     "push:diagnostics": "tsx src/scripts/push-diagnostics.ts",
     "db:migrate": "node scripts/apply-pending-migrations.mjs",
+    "db:seed-mascot": "node scripts/seed-push-mascot.mjs",
     "db:close-test-questions": "node scripts/close-test-questions.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push"

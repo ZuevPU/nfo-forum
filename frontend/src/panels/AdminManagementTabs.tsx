@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import {
   adjustUserPoints,
   fetchAdminUsers,
+  fetchAllTaskSubmissions,
   fetchFeedbackMessages,
+  moderateSubmission,
   fetchReflectionLevelSettings,
   fetchReflectionAnswers,
   fetchNfoDayStats,
@@ -26,8 +28,22 @@ import {
   type ReflectionAnswerRow,
   type NfoDayStats,
   type ActivityLogRow,
+  type TaskSubmissionRow,
+  fetchAdminTasks,
+  fetchNetworkingLunchConfig,
+  saveNetworkingLunchConfig,
+  fetchNetworkingLunchApplications,
+  fetchNetworkingLunchAssignments,
+  randomizeNetworkingLunch,
+  saveNetworkingLunchAssignments,
+  removeNetworkingLunchAssignment,
+  publishNetworkingLunch,
+  type NetworkingLunchConfig,
+  type NetworkingLunchApplication,
+  type NetworkingLunchTable,
 } from '../api/admin';
 import { AdminListCard } from '../components/AdminListCard';
+import { resolvePhotoUrl } from '../lib/mediaUrls';
 import { PointsSystemSettings } from '../components/PointsSystemSettings';
 import { inputTimeToMskParts, mskTimeToInput } from '../lib/datetimeMsk';
 import { TRACKS } from '../constants/tracks';
@@ -111,17 +127,140 @@ export function AdminFeedbackTab() {
 
   return (
     <div className="nfo-admin-section">
-      <div className="nfo-sec-title">Сообщения от участников</div>
-      {!messages.length && <div className="nfo-admin-empty">Нет сообщений</div>}
+      <div className="nfo-sec-title">Обращения к организаторам</div>
+      <div
+        style={{ marginBottom: 12, fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45 }}
+      >
+        Участники пишут через Главную → «Связь с организаторами» или Настройки → «Написать организатору».
+      </div>
+      <div className="nfo-admin-export-row" style={{ marginBottom: 12 }}>
+        <button type="button" className="nfo-admin-btn-secondary" onClick={() => void downloadAdminExport('feedback', 'csv').catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'))}>
+          CSV
+        </button>
+        <button type="button" className="nfo-admin-btn-outline" onClick={() => void downloadAdminExport('feedback', 'xlsx').catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'))}>
+          XLSX
+        </button>
+      </div>
+      {!messages.length && <div className="nfo-admin-empty">Пока нет обращений</div>}
       {messages.map((m) => (
         <AdminListCard
           key={m.id}
           title={`${m.firstName} ${m.lastName ?? ''}`.trim()}
           meta={`${m.track ?? '—'} · ${new Date(m.createdAt).toLocaleString('ru-RU')}`}
         >
-          <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.4 }}>{m.text}</div>
+          <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{m.text}</div>
         </AdminListCard>
       ))}
+    </div>
+  );
+}
+
+type SubmissionFilter = 'pending' | 'approved' | 'rejected' | 'all';
+
+function submissionStatusLabel(status: string) {
+  if (status === 'approved') return 'Принято';
+  if (status === 'rejected') return 'Отклонено';
+  if (status === 'pending') return 'На проверке';
+  return status;
+}
+
+export function AdminTaskSubmissionsTab({ initialTaskId }: { initialTaskId?: number | null }) {
+  const [filter, setFilter] = useState<SubmissionFilter>('pending');
+  const [taskId, setTaskId] = useState(initialTaskId != null ? String(initialTaskId) : '');
+  const [submissions, setSubmissions] = useState<TaskSubmissionRow[]>([]);
+  const [comments, setComments] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    setLoading(true);
+    fetchAllTaskSubmissions({
+      status: filter === 'all' ? undefined : filter,
+      taskId: taskId.trim() ? Number(taskId) : undefined,
+      limit: 200,
+    })
+      .then((r) => setSubmissions(r.submissions))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [filter, taskId]);
+
+  return (
+    <div className="nfo-admin-section">
+      <div className="nfo-sec-title">Ответы на задания</div>
+      <div className="nfo-admin-form-card" style={{ marginBottom: 12 }}>
+        <FormItem top="Статус">
+          <NativeSelect value={filter} onChange={(e) => setFilter(e.target.value as SubmissionFilter)}>
+            <option value="pending">На модерации</option>
+            <option value="approved">Принятые</option>
+            <option value="rejected">Отклонённые</option>
+            <option value="all">Все</option>
+          </NativeSelect>
+        </FormItem>
+        <FormItem top="ID задания (необязательно)">
+          <Input value={taskId} onChange={(e) => setTaskId(e.target.value)} placeholder="Например: 3" />
+        </FormItem>
+      </div>
+      {loading ? (
+        <Div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>Загрузка…</Div>
+      ) : submissions.length === 0 ? (
+        <div className="nfo-admin-empty">Нет ответов по выбранным фильтрам</div>
+      ) : (
+        submissions.map((s) => (
+          <AdminListCard
+            key={s.id}
+            title={s.taskTitle ?? `Задание #${s.taskId}`}
+            meta={[
+              `${s.userName} ${s.userLastName ?? ''}`.trim(),
+              s.userTrack ?? '—',
+              submissionStatusLabel(s.status),
+              new Date(s.createdAt).toLocaleString('ru-RU'),
+            ].filter(Boolean).join(' · ')}
+          >
+            {s.answerText ? (
+              <div style={{ marginTop: 4, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{s.answerText}</div>
+            ) : (
+              <div style={{ marginTop: 4, fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>Текст не указан</div>
+            )}
+            {s.photos && s.photos.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                {s.photos.map((stored, i) => {
+                  const url = resolvePhotoUrl(stored);
+                  return (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" title="Открыть фото">
+                      <img src={url} alt={`Фото ${i + 1}`} style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }} />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+            {s.status === 'pending' && (
+              <>
+                <FormItem top="Комментарий при отклонении">
+                  <Input
+                    value={comments[s.id] ?? ''}
+                    onChange={(e) => setComments((c) => ({ ...c, [s.id]: e.target.value }))}
+                    placeholder="Необязательно"
+                  />
+                </FormItem>
+                <div className="nfo-admin-actions">
+                  <button type="button" className="nfo-admin-btn-primary stretched" onClick={() => void moderateSubmission(s.id, 'approved').then(load)}>
+                    Принять
+                  </button>
+                  <button type="button" className="nfo-admin-btn-secondary stretched" onClick={() => void moderateSubmission(s.id, 'rejected', comments[s.id]).then(load)}>
+                    Отклонить
+                  </button>
+                </div>
+              </>
+            )}
+            {s.adminComment && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>
+                Комментарий модератора: {s.adminComment}
+              </div>
+            )}
+          </AdminListCard>
+        ))
+      )}
     </div>
   );
 }
@@ -267,6 +406,8 @@ export function AdminSettingsTab() {
   const [nfoDay, setNfoDay] = useState({
     publishHour: 19,
     publishMinute: 30,
+    closeHour: null as number | null,
+    closeMinute: null as number | null,
     points: 10,
     panelTitle: '',
     panelSubtitle: '',
@@ -311,6 +452,8 @@ export function AdminSettingsTab() {
     fetchNfoDaySettings().then((r) => setNfoDay({
       publishHour: r.publishHour,
       publishMinute: r.publishMinute,
+      closeHour: r.closeHour ?? null,
+      closeMinute: r.closeMinute ?? null,
       points: r.points,
       panelTitle: r.panelTitle ?? '',
       panelSubtitle: r.panelSubtitle ?? '',
@@ -528,6 +671,20 @@ export function AdminSettingsTab() {
             }}
           />
         </FormItem>
+        <FormItem top="Время закрытия (МСК, необязательно)">
+          <Input
+            type="time"
+            value={nfoDay.closeHour != null && nfoDay.closeMinute != null ? mskTimeToInput(nfoDay.closeHour, nfoDay.closeMinute) : ''}
+            onChange={(e) => {
+              if (!e.target.value) {
+                setNfoDay((c) => ({ ...c, closeHour: null, closeMinute: null }));
+                return;
+              }
+              const { hour, minute } = inputTimeToMskParts(e.target.value);
+              setNfoDay((c) => ({ ...c, closeHour: hour, closeMinute: minute }));
+            }}
+          />
+        </FormItem>
         <FormItem top="Баллы">
           <Input type="number" value={String(nfoDay.points)} onChange={(e) => setNfoDay((c) => ({ ...c, points: Number(e.target.value) }))} />
         </FormItem>
@@ -537,6 +694,8 @@ export function AdminSettingsTab() {
           onClick={() => void saveNfoDaySettings({
             publishHour: nfoDay.publishHour,
             publishMinute: nfoDay.publishMinute,
+            closeHour: nfoDay.closeHour,
+            closeMinute: nfoDay.closeMinute,
             points: nfoDay.points,
             panelTitle: nfoDay.panelTitle.trim(),
             panelSubtitle: nfoDay.panelSubtitle.trim(),
@@ -553,6 +712,8 @@ export function AdminSettingsTab() {
             setNfoDay({
               publishHour: saved.publishHour,
               publishMinute: saved.publishMinute,
+              closeHour: saved.closeHour ?? null,
+              closeMinute: saved.closeMinute ?? null,
               points: saved.points,
               panelTitle: saved.panelTitle ?? '',
               panelSubtitle: saved.panelSubtitle ?? '',
@@ -587,7 +748,7 @@ export function AdminSettingsTab() {
       <div className="nfo-sec-title" style={{ marginTop: 12 }}>Выгрузки CSV / Excel</div>
       <div className="nfo-admin-form-card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(['reflection', 'tasks', 'exchange', 'rating', 'checkins', 'nfo-day', 'points-history', 'activity'] as const).map((type) => (
+          {(['reflection', 'tasks', 'exchange', 'rating', 'checkins', 'nfo-day', 'feedback', 'points-history', 'activity'] as const).map((type) => (
             <div key={type} className="nfo-admin-export-row">
               <button
                 type="button"
@@ -621,6 +782,289 @@ export function AdminSettingsTab() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+export function AdminNetworkingLunchTab() {
+  const [config, setConfig] = useState<NetworkingLunchConfig | null>(null);
+  const [applications, setApplications] = useState<NetworkingLunchApplication[]>([]);
+  const [tables, setTables] = useState<NetworkingLunchTable[]>([]);
+  const [adminTasks, setAdminTasks] = useState<{ id: number; title: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const reload = async () => {
+    const [cfg, apps, assign, tasksRes] = await Promise.all([
+      fetchNetworkingLunchConfig(),
+      fetchNetworkingLunchApplications(),
+      fetchNetworkingLunchAssignments(),
+      fetchAdminTasks(),
+    ]);
+    setConfig(cfg.config);
+    setApplications(apps.applications);
+    setTables(assign.tables);
+    setAdminTasks(tasksRes.tasks.map((t) => ({ id: t.id, title: t.title })));
+  };
+
+  useEffect(() => {
+    reload()
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || !config) {
+    return <Div style={{ padding: 24, textAlign: 'center' }}>Загрузка...</Div>;
+  }
+
+  const saveConfig = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await saveNetworkingLunchConfig(config);
+      setConfig(res.config);
+      setMessage('Настройки сохранены');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка сохранения');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const runAction = async (key: string, fn: () => Promise<void>) => {
+    setActionLoading(key);
+    setMessage(null);
+    try {
+      await fn();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div className="nfo-admin-section">
+      <div className="nfo-sec-title">Настройки нетворкинг-обеда</div>
+      <div className="nfo-admin-form-card">
+        <FormItem top="Описание">
+          <Input
+            value={config.description}
+            onChange={(e) => setConfig({ ...config, description: e.target.value })}
+          />
+        </FormItem>
+        <FormItem top="Время публикации (МСК)">
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Input
+              type="number"
+              min={0}
+              max={23}
+              value={String(config.publishHour)}
+              onChange={(e) => setConfig({ ...config, publishHour: Number(e.target.value) })}
+            />
+            <Input
+              type="number"
+              min={0}
+              max={59}
+              value={String(config.publishMinute)}
+              onChange={(e) => setConfig({ ...config, publishMinute: Number(e.target.value) })}
+            />
+          </div>
+        </FormItem>
+        <FormItem top="Число столов">
+          <Input
+            type="number"
+            min={1}
+            value={String(config.tableCount)}
+            onChange={(e) => setConfig({ ...config, tableCount: Number(e.target.value) })}
+          />
+        </FormItem>
+        <FormItem top="Мест за столом">
+          <Input
+            type="number"
+            min={1}
+            value={String(config.seatsPerTable)}
+            onChange={(e) => setConfig({ ...config, seatsPerTable: Number(e.target.value) })}
+          />
+        </FormItem>
+        <FormItem top="Задание">
+          <NativeSelect
+            value={config.taskId != null ? String(config.taskId) : ''}
+            onChange={(e) =>
+              setConfig({
+                ...config,
+                taskId: e.target.value ? Number(e.target.value) : null,
+              })
+            }
+          >
+            <option value="">— не выбрано —</option>
+            {adminTasks.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title} (#{t.id})
+              </option>
+            ))}
+          </NativeSelect>
+        </FormItem>
+        {config.assignmentsSentAt && (
+          <div style={{ fontSize: 12, color: '#27ae60', marginBottom: 8 }}>
+            Распределение отправлено: {new Date(config.assignmentsSentAt).toLocaleString('ru-RU')}
+          </div>
+        )}
+        <button type="button" className="nfo-admin-btn-primary" disabled={saving} onClick={() => void saveConfig()}>
+          {saving ? 'Сохранение…' : 'Сохранить настройки'}
+        </button>
+        {message && <div style={{ marginTop: 8, fontSize: 12, color: '#27ae60' }}>{message}</div>}
+      </div>
+
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>
+        Заявки ({applications.length})
+      </div>
+      {applications.length === 0 && <div className="nfo-admin-empty">Пока нет заявок</div>}
+      {applications.slice(0, 100).map((a) => (
+        <AdminListCard
+          key={a.userId}
+          title={`${a.firstName} ${a.lastName ?? ''}`.trim()}
+          meta={`${a.track ?? '—'} · ${new Date(a.createdAt).toLocaleString('ru-RU')}`}
+        />
+      ))}
+
+      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Распределение по столам</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <button
+          type="button"
+          className="nfo-admin-btn-secondary"
+          disabled={actionLoading != null || !!config.assignmentsSentAt}
+          onClick={() =>
+            void runAction('randomize', async () => {
+              const res = await randomizeNetworkingLunch();
+              setTables(res.tables);
+              setMessage('Участники распределены случайно (закреплённые не тронуты)');
+            })
+          }
+        >
+          {actionLoading === 'randomize' ? '…' : 'Распределить случайно'}
+        </button>
+        <button
+          type="button"
+          className="nfo-admin-btn-primary"
+          disabled={actionLoading != null || !!config.assignmentsSentAt}
+          onClick={() =>
+            void runAction('publish', async () => {
+              if (!window.confirm('Отправить push всем участникам с номерами столов?')) return;
+              const res = await publishNetworkingLunch();
+              const cfg = await fetchNetworkingLunchConfig();
+              setConfig(cfg.config);
+              setMessage(`Push отправлен: ${res.sent} получателей`);
+            })
+          }
+        >
+          {actionLoading === 'publish' ? '…' : 'Отправить распределение участникам'}
+        </button>
+      </div>
+
+      {tables.length === 0 && <div className="nfo-admin-empty">Столы пусты — нажми «Распределить случайно»</div>}
+      {tables.map((table) => (
+        <div key={table.tableNumber} className="nfo-admin-form-card" style={{ marginBottom: 8 }}>
+          <div className="nfo-sec-title">Стол № {table.tableNumber}</div>
+          {table.seats.length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>Пусто</div>
+          )}
+          {table.seats.map((seat) => (
+            <AdminListCard
+              key={seat.userId}
+              title={`${seat.firstName} ${seat.lastName ?? ''}`.trim()}
+              meta={`${seat.track ?? '—'}${seat.isPinned ? ' · закреплён' : ''}`}
+              actions={
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <NativeSelect
+                    value={String(seat.tableNumber)}
+                    disabled={!!config.assignmentsSentAt}
+                    onChange={(e) => {
+                      const tableNumber = Number(e.target.value);
+                      void saveNetworkingLunchAssignments([
+                        { userId: seat.userId, tableNumber, isPinned: seat.isPinned },
+                      ])
+                        .then((res) => setTables(res.tables))
+                        .catch((err) => alert(err instanceof Error ? err.message : 'Ошибка'));
+                    }}
+                  >
+                    {[...Array(config.tableCount)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        Стол {i + 1}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Checkbox
+                      checked={seat.isPinned}
+                      disabled={!!config.assignmentsSentAt}
+                      onChange={(e) => {
+                        void saveNetworkingLunchAssignments([
+                          { userId: seat.userId, tableNumber: seat.tableNumber, isPinned: e.target.checked },
+                        ])
+                          .then((res) => setTables(res.tables))
+                          .catch((err) => alert(err instanceof Error ? err.message : 'Ошибка'));
+                      }}
+                    />
+                    Закрепить
+                  </label>
+                  {!config.assignmentsSentAt && (
+                    <button
+                      type="button"
+                      className="nfo-admin-btn-outline"
+                      onClick={() => {
+                        void removeNetworkingLunchAssignment(seat.userId)
+                          .then((res) => setTables(res.tables))
+                          .catch((err) => alert(err instanceof Error ? err.message : 'Ошибка'));
+                      }}
+                    >
+                      Убрать
+                    </button>
+                  )}
+                </div>
+              }
+            />
+          ))}
+        </div>
+      ))}
+
+      {applications.length > 0 && (
+        <>
+          <div className="nfo-sec-title" style={{ marginTop: 12 }}>Добавить из заявок</div>
+          {applications
+            .filter((a) => !tables.some((t) => t.seats.some((s) => s.userId === a.userId)))
+            .slice(0, 20)
+            .map((a) => (
+              <AdminListCard
+                key={`add-${a.userId}`}
+                title={`${a.firstName} ${a.lastName ?? ''}`.trim()}
+                meta={a.track ?? '—'}
+                actions={
+                  <NativeSelect
+                    defaultValue=""
+                    disabled={!!config.assignmentsSentAt}
+                    onChange={(e) => {
+                      const tableNumber = Number(e.target.value);
+                      if (!tableNumber) return;
+                      void saveNetworkingLunchAssignments([{ userId: a.userId, tableNumber }])
+                        .then((res) => setTables(res.tables))
+                        .catch((err) => alert(err instanceof Error ? err.message : 'Ошибка'));
+                    }}
+                  >
+                    <option value="">На стол…</option>
+                    {[...Array(config.tableCount)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        Стол {i + 1}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                }
+              />
+            ))}
+        </>
+      )}
     </div>
   );
 }

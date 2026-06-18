@@ -66,6 +66,9 @@ const checks = {
   tasks_photo_mode: await colExists('tasks', 'photo_mode'),
   nfo_day_reflections_answers: await colExists('nfo_day_reflections', 'answers'),
   program_insights: await tableExists('program_insights'),
+  media_files: await tableExists('media_files'),
+  networking_lunch_applications: await tableExists('networking_lunch_applications'),
+  networking_lunch_assignments: await tableExists('networking_lunch_assignments'),
 };
 
 console.log('Current state:');
@@ -187,6 +190,50 @@ if (!checks.program_insights) {
   created_at timestamp NOT NULL DEFAULT now()
 )`);
 }
+if (!checks.media_files) {
+  statements.push(`CREATE TABLE IF NOT EXISTS media_files (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  mime_type text NOT NULL,
+  data bytea NOT NULL,
+  size_bytes integer NOT NULL,
+  source text,
+  created_at timestamptz NOT NULL DEFAULT now()
+)`);
+  statements.push(
+    'ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS image_media_id uuid REFERENCES media_files(id) ON DELETE SET NULL',
+  );
+  statements.push('ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS link_hash text');
+}
+
+if (!checks.networking_lunch_applications) {
+  statements.push(`CREATE TABLE IF NOT EXISTS networking_lunch_applications (
+  id serial PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'applied',
+  created_at timestamp NOT NULL DEFAULT now()
+)`);
+  statements.push(
+    'CREATE UNIQUE INDEX IF NOT EXISTS networking_lunch_applications_user_unique ON networking_lunch_applications (user_id)',
+  );
+}
+
+if (!checks.networking_lunch_assignments) {
+  statements.push(`CREATE TABLE IF NOT EXISTS networking_lunch_assignments (
+  id serial PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  table_number integer NOT NULL,
+  is_pinned boolean NOT NULL DEFAULT false,
+  session_key text NOT NULL DEFAULT 'default',
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+)`);
+  statements.push(
+    'CREATE UNIQUE INDEX IF NOT EXISTS networking_lunch_assignments_user_session ON networking_lunch_assignments (user_id, session_key)',
+  );
+  statements.push(
+    'CREATE INDEX IF NOT EXISTS idx_networking_lunch_assignments_session_table ON networking_lunch_assignments (session_key, table_number)',
+  );
+}
 
 if (statements.length === 0) {
   console.log('\nAll migrations already applied. Nothing to do.');
@@ -197,6 +244,27 @@ if (statements.length === 0) {
     console.log('OK:', sql.split('\n')[0]);
   }
   console.log('\nDone.');
+}
+
+// Normalize legacy localhost photo URLs in task submissions
+const photoFix = await client.query(`
+  UPDATE task_submissions
+  SET photos = (
+    SELECT array_agg(
+      CASE
+        WHEN elem ~ '^https?://[^/]+/api/media/' THEN regexp_replace(elem, '^https?://[^/]+', '')
+        ELSE elem
+      END
+    )
+    FROM unnest(photos) AS elem
+  )
+  WHERE photos IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM unnest(photos) AS p WHERE p ~ '^https?://[^/]+/api/media/'
+    )
+`);
+if ((photoFix.rowCount ?? 0) > 0) {
+  console.log(`Normalized localhost photo URLs in ${photoFix.rowCount} task submission(s).`);
 }
 
 await client.end();

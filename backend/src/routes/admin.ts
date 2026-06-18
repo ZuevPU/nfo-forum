@@ -15,6 +15,7 @@ import {
   listEvents,
   listPendingExchangeQuestions,
   listPendingSubmissions,
+  listAllTaskSubmissions,
   listTaskSubmissions,
   listReflectionQuestions,
   listTasks,
@@ -47,6 +48,16 @@ import {
   listActivityLogs,
 } from '../services/admin.service.js';
 import {
+  getNetworkingLunchConfig,
+  setNetworkingLunchConfig,
+  listNetworkingLunchApplications,
+  listNetworkingLunchAssignments,
+  randomizeNetworkingLunchAssignments,
+  saveNetworkingLunchAssignments,
+  removeNetworkingLunchAssignment,
+  publishNetworkingLunchAssignments,
+} from '../services/networkingLunch.service.js';
+import {
   getReflectionLevelSettings,
   setReflectionLevelSettings,
 } from '../services/reflectionLevelSettings.service.js';
@@ -61,6 +72,7 @@ import {
   generateReflectionCSV,
   generateTasksCSV,
   generateActivityCSV,
+  generateFeedbackCSV,
   generateExportXlsx,
   listFeedbackMessages,
   listUsers,
@@ -115,6 +127,20 @@ adminRouter.get('/tasks', async (_req, res) => {
 adminRouter.post('/tasks', async (req, res) => {
   const task = await createTask(req.body);
   res.status(201).json({ task });
+});
+
+adminRouter.get('/tasks/submissions', async (req, res) => {
+  const status = req.query.status as 'pending' | 'approved' | 'rejected' | undefined;
+  const taskIdRaw = req.query.taskId;
+  const taskId = taskIdRaw != null && taskIdRaw !== '' ? Number(taskIdRaw) : undefined;
+  const limitRaw = req.query.limit;
+  const limit = limitRaw != null && limitRaw !== '' ? Number(limitRaw) : undefined;
+  if (taskId != null && Number.isNaN(taskId)) {
+    res.status(400).json({ error: 'Invalid taskId' });
+    return;
+  }
+  const submissions = await listAllTaskSubmissions({ status, taskId, limit });
+  res.json({ submissions });
 });
 
 adminRouter.get('/tasks/:id/submissions', async (req, res) => {
@@ -479,12 +505,72 @@ adminRouter.get('/export/nfo-day', async (_req, res) => {
   sendCsv(res, 'nfo-day.csv', await generateNfoDayCSV());
 });
 
+adminRouter.get('/export/feedback', async (_req, res) => {
+  sendCsv(res, 'feedback.csv', await generateFeedbackCSV());
+});
+
 adminRouter.get('/export/points-history', async (_req, res) => {
   sendCsv(res, 'points-history.csv', await generatePointsHistoryCSV());
 });
 
 adminRouter.get('/export/activity', async (_req, res) => {
   sendCsv(res, 'activity.csv', await generateActivityCSV());
+});
+
+adminRouter.get('/networking-lunch/config', async (_req, res) => {
+  const config = await getNetworkingLunchConfig();
+  res.json({ config });
+});
+
+adminRouter.put('/networking-lunch/config', async (req, res) => {
+  const config = await setNetworkingLunchConfig(req.body ?? {});
+  res.json({ config });
+});
+
+adminRouter.get('/networking-lunch/applications', async (_req, res) => {
+  const data = await listNetworkingLunchApplications();
+  res.json(data);
+});
+
+adminRouter.get('/networking-lunch/assignments', async (_req, res) => {
+  const tables = await listNetworkingLunchAssignments();
+  res.json({ tables });
+});
+
+adminRouter.post('/networking-lunch/randomize', async (_req, res) => {
+  const tables = await randomizeNetworkingLunchAssignments();
+  res.json({ tables });
+});
+
+adminRouter.put('/networking-lunch/assignments', async (req, res) => {
+  const assignments = (req.body?.assignments ?? []) as {
+    userId: number;
+    tableNumber: number;
+    isPinned?: boolean;
+  }[];
+  const tables = await saveNetworkingLunchAssignments(assignments);
+  res.json({ tables });
+});
+
+adminRouter.delete('/networking-lunch/assignments/:userId', async (req, res) => {
+  const userId = Number(req.params.userId);
+  if (Number.isNaN(userId)) {
+    res.status(400).json({ error: 'Invalid userId' });
+    return;
+  }
+  await removeNetworkingLunchAssignment(userId);
+  const tables = await listNetworkingLunchAssignments();
+  res.json({ tables });
+});
+
+adminRouter.post('/networking-lunch/publish', async (_req, res) => {
+  try {
+    const result = await publishNetworkingLunchAssignments();
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Publish failed';
+    res.status(400).json({ error: message });
+  }
 });
 
 adminRouter.get('/export/:type/xlsx', async (req, res) => {
