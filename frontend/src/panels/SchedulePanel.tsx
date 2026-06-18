@@ -114,6 +114,11 @@ export function SchedulePanel() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div className="nfo-ev-title" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>{ev.title}</div>
+                    {ev.description?.trim() && (
+                      <div className="nfo-event-description" style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                        {ev.description}
+                      </div>
+                    )}
                     {ev.place && <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{ev.place}</div>}
                     <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                       {isNow && <span className="nfo-tag nfo-tag--now">СЕЙЧАС</span>}

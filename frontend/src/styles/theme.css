@@ -593,6 +593,11 @@ body {
   color: var(--nfo-green);
 }
 
+.nfo-event-description {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Exchange header & cards */
 .nfo-ex-hdr {
   background: linear-gradient(135deg, var(--nfo-primary) 0%, #6b5ecf 100%);

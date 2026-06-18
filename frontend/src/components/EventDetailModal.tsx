@@ -19,19 +19,20 @@ export function EventDetailModal({ event, onClose }: Props) {
           {event.title}
         </ModalPageHeader>
         <Div style={{ padding: '12px 16px' }}>
-          <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: 12 }}>
+          {hasDescription && (
+            <div className="nfo-event-description" style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 12 }}>
+              {event.description}
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: hasDescription ? 0 : 12 }}>
             {formatEventTimeMoscow(event.startTime)}
             {' – '}
             {formatEventTimeMoscow(event.endTime)}
             {event.place ? ` · ${event.place}` : ''}
             {event.track ? ` · ${event.track}` : ' · Общее'}
           </div>
-          {hasDescription ? (
-            <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-              {event.description}
-            </div>
-          ) : (
-            <div style={{ fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>
+          {!hasDescription && (
+            <div style={{ fontSize: 13, color: 'var(--vkui--color_text_secondary)', marginTop: 12 }}>
               Описание скоро появится
             </div>
           )}
