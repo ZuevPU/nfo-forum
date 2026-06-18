@@ -11,3 +11,5 @@ export const GUIDE_STEPS = [
   'Нажми «Начать», когда VK предложит получать сообщения',
   'Или нажми кнопку «Включить сообщения» ниже — VK покажет окно «Разрешить»',
 ] as const;
+
+export const GUIDE_START_STEP_IMAGE = '/assets/уведомления.png';

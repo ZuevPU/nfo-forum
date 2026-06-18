@@ -6,6 +6,7 @@ import { GradientHeader } from '../components/GradientHeader';
 import {
   COMMUNITY_NAME,
   COMMUNITY_URL,
+  GUIDE_START_STEP_IMAGE,
   GUIDE_STEPS,
   GUIDE_WHY,
 } from '../constants/communityMessages';
@@ -64,9 +65,22 @@ export function CommunityMessagesGuidePanel() {
             Как включить
           </div>
           <ol style={{ margin: '0 0 16px', paddingLeft: 20, fontSize: 14, lineHeight: 1.5 }}>
-            {GUIDE_STEPS.map((step) => (
+            {GUIDE_STEPS.map((step, index) => (
               <li key={step} style={{ marginBottom: 8 }}>
                 {step}
+                {index === 2 && (
+                  <img
+                    src={GUIDE_START_STEP_IMAGE}
+                    alt={`Как нажать «Начать» в сообществе «${COMMUNITY_NAME}»`}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      height: 'auto',
+                      marginTop: 12,
+                      borderRadius: 8,
+                    }}
+                  />
+                )}
               </li>
             ))}
           </ol>

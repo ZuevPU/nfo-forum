@@ -53,45 +53,8 @@ export function AdminAnalyticsDashboard() {
     setLoading(true);
     setError(null);
     fetchAnalyticsDashboard()
-      .then((result) => {
-        setData(result);
-        // #region agent log
-        fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
-          body: JSON.stringify({
-            sessionId: '9d5534',
-            location: 'AdminAnalyticsDashboard.tsx:load',
-            message: 'dashboard loaded',
-            data: {
-              registered: result.overview.registered,
-              energySlots: result.energy.overallBySlot.length,
-              taskCount: result.tasks.completion.length,
-              rankingParticipants: result.ranking.participants.length,
-            },
-            hypothesisId: 'A',
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-      })
-      .catch((e: Error) => {
-        setError(e.message);
-        // #region agent log
-        fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
-          body: JSON.stringify({
-            sessionId: '9d5534',
-            location: 'AdminAnalyticsDashboard.tsx:load',
-            message: 'dashboard load failed',
-            data: { error: e.message },
-            hypothesisId: 'A',
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-      })
+      .then((result) => setData(result))
+      .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -102,39 +65,7 @@ export function AdminAnalyticsDashboard() {
   const handleExport = () => {
     setExporting(true);
     downloadAnalyticsReport()
-      .then(() => {
-        // #region agent log
-        fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
-          body: JSON.stringify({
-            sessionId: '9d5534',
-            location: 'AdminAnalyticsDashboard.tsx:export',
-            message: 'export download ok',
-            data: {},
-            hypothesisId: 'E',
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-      })
-      .catch((e: Error) => {
-        setError(e.message);
-        // #region agent log
-        fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
-          body: JSON.stringify({
-            sessionId: '9d5534',
-            location: 'AdminAnalyticsDashboard.tsx:export',
-            message: 'export download failed',
-            data: { error: e.message },
-            hypothesisId: 'E',
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-      })
+      .catch((e: Error) => setError(e.message))
       .finally(() => setExporting(false));
   };
 

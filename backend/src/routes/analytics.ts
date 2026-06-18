@@ -12,19 +12,11 @@ import {
   fetchTaskMetrics,
   getReportFilename,
 } from '../services/analytics/index.js';
-import { debugLog } from '../utils/debugLog.js';
-
 export const analyticsRouter = Router();
 
 analyticsRouter.get('/overview', async (_req, res) => {
-  try {
-    const overview = await fetchAnalyticsOverview();
-    debugLog('analytics.ts:overview', 'overview ok', { registered: overview.registered }, 'A');
-    res.json({ overview });
-  } catch (e) {
-    debugLog('analytics.ts:overview', 'overview failed', { error: String(e) }, 'A');
-    throw e;
-  }
+  const overview = await fetchAnalyticsOverview();
+  res.json({ overview });
 });
 
 analyticsRouter.get('/activity', async (_req, res) => {
@@ -68,28 +60,15 @@ analyticsRouter.get('/reflection-depth', async (_req, res) => {
 });
 
 analyticsRouter.get('/export/xlsx', async (_req, res) => {
-  try {
-    const workbook = await buildReportWorkbook();
-    const filename = getReportFilename();
-    const sheetNames = workbook.worksheets.map((w) => w.name);
+  const workbook = await buildReportWorkbook();
+  const filename = getReportFilename();
 
-    debugLog('analytics.ts:export', 'workbook built', {
-      sheetCount: sheetNames.length,
-      sheetNames,
-      expectedSheets: 13,
-    }, 'B');
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
 
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-
-    await workbook.xlsx.write(res);
-    res.end();
-    debugLog('analytics.ts:export', 'workbook streamed', { filename }, 'B');
-  } catch (e) {
-    debugLog('analytics.ts:export', 'export failed', { error: String(e) }, 'B');
-    throw e;
-  }
+  await workbook.xlsx.write(res);
+  res.end();
 });

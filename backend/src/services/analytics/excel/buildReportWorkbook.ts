@@ -4,7 +4,6 @@ import { DIAGNOSTICS_DATA } from '../../../data/samodiagnostika.js';
 import { moscowDateString } from '../../../utils/moscowTime.js';
 import { getAnalyticsBundle } from '../index.js';
 import { SKILL_COLUMNS } from '../rawData.loader.js';
-import { debugLog } from '../../../utils/debugLog.js';
 import {
   formatDelta,
   formatNullableNumber,
@@ -354,15 +353,6 @@ export async function buildReportWorkbook(): Promise<ExcelJS.Workbook> {
   buildFactorsByTrackSheet(wb, bundle);
   buildTaskTimingSheet(wb, bundle);
   buildReflectionDepthSheet(wb, bundle);
-
-  const byTrackSlotWithData = bundle.energy.byTrackSlot.filter((e) => e.avgEnergy != null).length;
-  debugLog('buildReportWorkbook.ts:end', 'energy dynamics audit', {
-    byTrackSlotCount: bundle.energy.byTrackSlot.length,
-    byTrackSlotWithData,
-    trackRankingCount: bundle.ranking.tracks.length,
-    activitySlotRows: bundle.activity.slotActivity.length,
-    activityValueKeys: Object.keys(bundle.activity.slotActivity[0]?.values ?? {}).length,
-  }, 'C');
 
   void moscowDateString;
   return wb;
