@@ -14,7 +14,7 @@ uploadsRouter.post('/image', async (req: AuthenticatedRequest, res) => {
   }
   try {
     const result = await saveFromDataUrl(image, 'upload');
-    res.json({ url: result.url, mediaId: result.id });
+    res.json({ url: result.url, mediaId: result.id, path: result.path });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Upload failed';
     res.status(400).json({ error: message });
@@ -29,7 +29,7 @@ uploadsRouter.post('/from-url', async (req: AuthenticatedRequest, res) => {
   }
   try {
     const result = await saveFromUrl(url.trim());
-    res.json({ url: result.url, mediaId: result.id });
+    res.json({ url: result.url, mediaId: result.id, path: result.path });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Upload failed';
     res.status(400).json({ error: message });

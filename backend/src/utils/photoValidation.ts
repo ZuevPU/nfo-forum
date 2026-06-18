@@ -23,6 +23,8 @@ export function validatePhotos(photos?: string[]) {
       if (!/^data:image\/(jpeg|jpg|png);/i.test(photo)) {
         throw new Error('Only jpg and png images are allowed');
       }
+    } else if (/^\/api\/media\/[0-9a-f-]{36}$/i.test(photo)) {
+      // stored media reference
     } else if (!isValidHttpsPhotoUrl(photo)) {
       throw new Error('Invalid photo URL');
     }

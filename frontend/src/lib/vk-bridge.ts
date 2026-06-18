@@ -353,7 +353,11 @@ export async function uploadFiles(count = 1): Promise<string[]> {
   }
 }
 
-export type PickedImage = { url: string; mediaId?: string };
+export type PickedImage = { url: string; mediaId?: string; path?: string };
+
+function photoRefFromUpload(result: { url: string; mediaId?: string; path?: string }): PickedImage {
+  return { url: result.url, mediaId: result.mediaId, path: result.path ?? result.url };
+}
 
 export async function pickImage(): Promise<PickedImage | null> {
   if (!isDevMode()) {
@@ -361,7 +365,7 @@ export async function pickImage(): Promise<PickedImage | null> {
     if (urls[0]) {
       try {
         const { uploadImageFromUrl } = await import('../api/uploads');
-        return await uploadImageFromUrl(urls[0]);
+        return photoRefFromUpload(await uploadImageFromUrl(urls[0]));
       } catch (error) {
         console.warn('[pickImage] VK URL ingest failed', error);
         return { url: urls[0] };
@@ -372,7 +376,7 @@ export async function pickImage(): Promise<PickedImage | null> {
   if (!dataUrl) return null;
   try {
     const { uploadImage } = await import('../api/uploads');
-    return await uploadImage(dataUrl);
+    return photoRefFromUpload(await uploadImage(dataUrl));
   } catch (error) {
     console.warn('[pickImage] server upload failed, using data URL fallback', error);
     return { url: dataUrl };

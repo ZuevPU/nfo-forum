@@ -171,7 +171,7 @@ export function TasksPanel() {
     try {
       const picked = await pickImage();
       if (picked) {
-        setPhotos((prev) => [...prev, picked.url].slice(0, 3));
+        setPhotos((prev) => [...prev, picked.path ?? picked.url].slice(0, 3));
       } else {
         setUploadError('Не удалось выбрать фото. Попробуй JPG или PNG до 10 МБ.');
       }

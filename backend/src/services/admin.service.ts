@@ -16,13 +16,32 @@ import {
   reflectionAnswers,
   userActivityLogs,
 } from '../db/schema.js';
-import { assignRandomRespondents } from './exchange.service.js';
+import { normalizePhotoUrls } from '../utils/mediaUrls.js';
+import { env } from '../config/env.js';
+import { appendFileSync } from 'node:fs';
+import { dirname, resolve as pathResolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { awardPoints } from './points.service.js';
 import { userAlreadyAwardedForTask } from './tasks.service.js';
 import { notifyUser, notifyUsersForTrack } from './push.service.js';
+import { assignRandomRespondents } from './exchange.service.js';
 import { entityLink } from '../utils/appLinks.js';
 import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
 import { DEFAULT_NFO_DAY_QUESTIONS } from '../constants/nfoFactors.js';
+
+// #region agent log
+const __agentLogPath = pathResolve(dirname(fileURLToPath(import.meta.url)), '../../../debug-9d5534.log');
+function agentLog(location: string, message: string, data: Record<string, unknown>, hypothesisId: string) {
+  try {
+    appendFileSync(
+      __agentLogPath,
+      `${JSON.stringify({ sessionId: '9d5534', location, message, data, hypothesisId, timestamp: Date.now(), runId: 'pre-fix' })}\n`,
+    );
+  } catch {
+    /* ignore */
+  }
+}
+// #endregion
 import { DEFAULT_INSIGHTS_SETTINGS, type InsightsSettings } from '../constants/insights.js';
 import type { PointsConfigValue } from '../constants/pointsSystem.js';
 import { DEFAULT_POINTS_CONFIG } from '../constants/pointsSystem.js';
@@ -296,7 +315,7 @@ export async function moderateExchangeQuestion(id: number, status: 'approved' | 
 }
 
 export async function listPendingSubmissions() {
-  return db
+  const rows = await db
     .select({
       id: taskSubmissions.id,
       taskId: taskSubmissions.taskId,
@@ -307,16 +326,40 @@ export async function listPendingSubmissions() {
       createdAt: taskSubmissions.createdAt,
       taskTitle: tasks.title,
       userName: users.firstName,
+      userLastName: users.lastName,
+      userTrack: users.track,
     })
     .from(taskSubmissions)
     .innerJoin(tasks, eq(taskSubmissions.taskId, tasks.id))
     .innerJoin(users, eq(taskSubmissions.userId, users.id))
     .where(eq(taskSubmissions.status, 'pending'))
     .orderBy(desc(taskSubmissions.createdAt));
+
+  const pendingSample = rows.find((r) => r.photos?.length);
+  if (pendingSample?.photos?.[0]) {
+    // #region agent log
+    agentLog(
+      'admin.service.ts:listPendingSubmissions',
+      'pending submission photo urls',
+      {
+        submissionId: pendingSample.id,
+        raw: pendingSample.photos[0],
+        normalized: normalizePhotoUrls(pendingSample.photos)?.[0],
+        apiPublicUrl: env.API_PUBLIC_URL,
+      },
+      'A',
+    );
+    // #endregion
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    photos: normalizePhotoUrls(row.photos),
+  }));
 }
 
 export async function listTaskSubmissions(taskId: number) {
-  return db
+  const rows = await db
     .select({
       id: taskSubmissions.id,
       taskId: taskSubmissions.taskId,
@@ -335,6 +378,29 @@ export async function listTaskSubmissions(taskId: number) {
     .innerJoin(users, eq(taskSubmissions.userId, users.id))
     .where(eq(taskSubmissions.taskId, taskId))
     .orderBy(desc(taskSubmissions.createdAt));
+
+  const taskSample = rows.find((r) => r.photos?.length);
+  if (taskSample?.photos?.[0]) {
+    // #region agent log
+    agentLog(
+      'admin.service.ts:listTaskSubmissions',
+      'task submission photo urls',
+      {
+        taskId,
+        submissionId: taskSample.id,
+        raw: taskSample.photos[0],
+        normalized: normalizePhotoUrls(taskSample.photos)?.[0],
+        apiPublicUrl: env.API_PUBLIC_URL,
+      },
+      'B',
+    );
+    // #endregion
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    photos: normalizePhotoUrls(row.photos),
+  }));
 }
 
 export async function moderateSubmission(

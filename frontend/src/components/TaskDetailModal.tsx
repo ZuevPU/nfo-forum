@@ -7,6 +7,7 @@ import {
   Spinner,
 } from '@vkontakte/vkui';
 import type { TaskItem } from '../api/tasks';
+import { resolvePhotoUrl } from '../lib/mediaUrls';
 
 function contactsRequired(task: TaskItem) {
   return task.contactsRequired ?? task.networkingContacts ?? 1;
@@ -140,8 +141,13 @@ function TaskDetailContent({
                 <Button size="m" mode="secondary" loading={uploading} disabled={photos.length >= 3} onClick={() => onUploadPhoto()}>
                   📷 Добавить фото ({photos.length}/3)
                 </Button>
-                {photos.map((url, i) => (
-                  <img key={`${i}-${url.slice(0, 32)}`} src={url} alt={`Фото ${i + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover' }} />
+                {photos.map((stored, i) => (
+                  <img
+                    key={`${i}-${stored.slice(0, 32)}`}
+                    src={resolvePhotoUrl(stored)}
+                    alt={`Фото ${i + 1}`}
+                    style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover' }}
+                  />
                 ))}
               </div>
               {uploadError && (

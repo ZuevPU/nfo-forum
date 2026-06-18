@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatExchangeAuthorName, formatExchangeAuthorTrack } from '../api/exchange';
 import { datetimeLocalMskToIso, isoToDatetimeLocalMsk } from '../lib/datetimeMsk';
+import { resolvePhotoUrl } from '../lib/mediaUrls';
 import { AdminListCard } from '../components/AdminListCard';
 import { AdminTabNav } from '../components/AdminTabNav';
 import { DatetimeLocalMskInput } from '../components/DatetimeLocalMskInput';
@@ -284,6 +285,50 @@ export function AdminPanel() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    const sample = submissions.find((s) => s.photos?.length);
+    if (!sample?.photos?.[0]) return;
+    const raw = sample.photos[0];
+    const resolved = resolvePhotoUrl(raw);
+    // #region agent log
+    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
+      body: JSON.stringify({
+        sessionId: '9d5534',
+        location: 'AdminPanel.tsx:submissions',
+        message: 'moderation photo display urls',
+        data: { submissionId: sample.id, apiFromServer: raw, resolved, viteApiUrl: import.meta.env.VITE_API_URL },
+        hypothesisId: 'C',
+        runId: 'pre-fix',
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [submissions]);
+
+  useEffect(() => {
+    const sample = taskAnswers.find((s) => s.photos?.length);
+    if (!sample?.photos?.[0]) return;
+    const raw = sample.photos[0];
+    const resolved = resolvePhotoUrl(raw);
+    // #region agent log
+    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
+      body: JSON.stringify({
+        sessionId: '9d5534',
+        location: 'AdminPanel.tsx:taskAnswers',
+        message: 'task answers photo display urls',
+        data: { submissionId: sample.id, apiFromServer: raw, resolved, viteApiUrl: import.meta.env.VITE_API_URL },
+        hypothesisId: 'C',
+        runId: 'pre-fix',
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [taskAnswers]);
+
   const tabBadges = useMemo(
     () => ({
       exchange: questions.length,
@@ -475,11 +520,35 @@ export function AdminPanel() {
                     )}
                     {s.photos && s.photos.length > 0 && (
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                        {s.photos.map((url, i) => (
-                          <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                            <img src={url} alt={`Фото ${i + 1}`} style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }} />
-                          </a>
-                        ))}
+                        {s.photos.map((stored, i) => {
+                          const url = resolvePhotoUrl(stored);
+                          return (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" title="Открыть фото">
+                              <img
+                                src={url}
+                                alt={`Фото ${i + 1}`}
+                                style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }}
+                                onError={() => {
+                                  // #region agent log
+                                  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
+                                    body: JSON.stringify({
+                                      sessionId: '9d5534',
+                                      location: 'AdminPanel.tsx:taskAnswersImg',
+                                      message: 'image load failed',
+                                      data: { stored, resolved: url },
+                                      hypothesisId: 'E',
+                                      runId: 'pre-fix',
+                                      timestamp: Date.now(),
+                                    }),
+                                  }).catch(() => {});
+                                  // #endregion
+                                }}
+                              />
+                            </a>
+                          );
+                        })}
                       </div>
                     )}
                     {s.adminComment && (
@@ -758,11 +827,55 @@ export function AdminPanel() {
             <div className="nfo-admin-empty">Нет ответов на проверке</div>
           ) : (
             submissions.map((s) => (
-              <AdminListCard key={s.id} title={s.taskTitle ?? `Задание #${s.taskId}`} meta={s.userName ?? 'Участник'}>
-                <div style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.4 }}>{s.answerText}</div>
-                {s.photos?.map((url, i) => (
-                  <img key={i} src={url} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8 }} />
-                ))}
+              <AdminListCard
+                key={s.id}
+                title={s.taskTitle ?? `Задание #${s.taskId}`}
+                meta={[
+                  `${s.userName ?? 'Участник'}${s.userLastName ? ` ${s.userLastName}` : ''}`.trim(),
+                  s.userTrack ?? '—',
+                  s.createdAt ? new Date(s.createdAt).toLocaleString('ru-RU') : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              >
+                {s.answerText ? (
+                  <div style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{s.answerText}</div>
+                ) : (
+                  <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>Текст не указан</div>
+                )}
+                {s.photos && s.photos.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                    {s.photos.map((stored, i) => {
+                      const url = resolvePhotoUrl(stored);
+                      return (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" title="Открыть фото">
+                          <img
+                            src={url}
+                            alt={`Фото ${i + 1}`}
+                            style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }}
+                            onError={() => {
+                              // #region agent log
+                              fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9d5534' },
+                                body: JSON.stringify({
+                                  sessionId: '9d5534',
+                                  location: 'AdminPanel.tsx:moderationImg',
+                                  message: 'image load failed',
+                                  data: { stored, resolved: url },
+                                  hypothesisId: 'E',
+                                  runId: 'pre-fix',
+                                  timestamp: Date.now(),
+                                }),
+                              }).catch(() => {});
+                              // #endregion
+                            }}
+                          />
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
                 <FormItem top="Комментарий при отклонении">
                   <Input
                     value={submissionComments[s.id] ?? ''}

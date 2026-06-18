@@ -478,9 +478,12 @@ export interface PendingSubmission {
   taskId: number;
   taskTitle?: string;
   userName?: string;
+  userLastName?: string | null;
+  userTrack?: string | null;
   answerText: string | null;
   photos?: string[] | null;
   status: string;
+  createdAt?: string;
 }
 
 export interface TaskSubmissionRow {

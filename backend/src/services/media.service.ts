@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { mediaFiles } from '../db/schema.js';
-import { env } from '../config/env.js';
+import { mediaStoragePath, resolveMediaUrl } from '../utils/mediaUrls.js';
 import { parseDataUrlImage } from './upload.service.js';
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -12,11 +12,6 @@ const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/jpg']);
 
 function normalizeMime(mime: string): string {
   return mime.toLowerCase() === 'image/jpg' ? 'image/jpeg' : mime.toLowerCase();
-}
-
-export function resolveMediaUrl(id: string): string {
-  const base = env.API_PUBLIC_URL.replace(/\/$/, '');
-  return `${base}/api/media/${id}`;
 }
 
 export async function getMedia(id: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
@@ -33,7 +28,11 @@ export async function getMedia(id: string): Promise<{ buffer: Buffer; mimeType: 
   return { buffer: row.data, mimeType: row.mimeType };
 }
 
-async function insertMedia(buffer: Buffer, mimeType: string, source: string): Promise<{ id: string; url: string }> {
+async function insertMedia(
+  buffer: Buffer,
+  mimeType: string,
+  source: string,
+): Promise<{ id: string; url: string; path: string }> {
   const id = randomUUID();
   await db.insert(mediaFiles).values({
     id,
@@ -42,16 +41,19 @@ async function insertMedia(buffer: Buffer, mimeType: string, source: string): Pr
     sizeBytes: buffer.length,
     source,
   });
-  return { id, url: resolveMediaUrl(id) };
+  return { id, url: resolveMediaUrl(id), path: mediaStoragePath(id) };
 }
 
-export async function saveFromDataUrl(dataUrl: string, source = 'upload'): Promise<{ id: string; url: string }> {
+export async function saveFromDataUrl(
+  dataUrl: string,
+  source = 'upload',
+): Promise<{ id: string; url: string; path: string }> {
   const { buffer, ext } = parseDataUrlImage(dataUrl);
   const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
   return insertMedia(buffer, mimeType, source);
 }
 
-export async function saveFromUrl(url: string): Promise<{ id: string; url: string }> {
+export async function saveFromUrl(url: string): Promise<{ id: string; url: string; path: string }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
