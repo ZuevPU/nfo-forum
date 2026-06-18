@@ -56,6 +56,7 @@ import {
   saveNetworkingLunchAssignments,
   removeNetworkingLunchAssignment,
   publishNetworkingLunchAssignments,
+  sendNetworkingLunchInvitation,
 } from '../services/networkingLunch.service.js';
 import {
   getReflectionLevelSettings,
@@ -569,6 +570,16 @@ adminRouter.post('/networking-lunch/publish', async (_req, res) => {
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Publish failed';
+    res.status(400).json({ error: message });
+  }
+});
+
+adminRouter.post('/networking-lunch/send-invitation', async (_req, res) => {
+  try {
+    const result = await sendNetworkingLunchInvitation();
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Send invitation failed';
     res.status(400).json({ error: message });
   }
 });

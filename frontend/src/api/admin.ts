@@ -537,13 +537,16 @@ export interface ReflectionQuestion {
 }
 
 export interface NetworkingLunchConfig {
-  description: string;
+  taskTitle: string;
+  taskDescription: string;
+  invitationText: string;
   publishHour: number;
   publishMinute: number;
   tableCount: number;
   seatsPerTable: number;
   taskId: number | null;
   publishedAt: string | null;
+  invitationSentAt: string | null;
   assignmentsSentAt: string | null;
   sessionKey: string;
 }
@@ -617,6 +620,13 @@ export function removeNetworkingLunchAssignment(userId: number) {
 
 export function publishNetworkingLunch() {
   return apiRequest<{ sent: number }>('/api/admin/networking-lunch/publish', {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export function sendNetworkingLunchInvitation() {
+  return apiRequest<{ sent: number }>('/api/admin/networking-lunch/send-invitation', {
     method: 'POST',
     body: {},
   });

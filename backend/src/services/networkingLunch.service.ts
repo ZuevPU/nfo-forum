@@ -11,20 +11,28 @@ import { sendPush } from './push.service.js';
 import { entityLink } from '../utils/appLinks.js';
 import { isInSlotWindow } from '../utils/slotMatching.js';
 import { moscowDateString } from '../utils/moscowTime.js';
+import { getPushMascotMediaId } from './admin.service.js';
 
 const CONFIG_KEY = 'networking_lunch_config';
 const DEFAULT_SESSION_KEY = 'default';
 
 export type NetworkingLunchConfig = {
-  description: string;
+  taskTitle: string;
+  taskDescription: string;
+  invitationText: string;
   publishHour: number;
   publishMinute: number;
   tableCount: number;
   seatsPerTable: number;
   taskId: number | null;
   publishedAt: string | null;
+  invitationSentAt: string | null;
   assignmentsSentAt: string | null;
   sessionKey: string;
+  /** @deprecated legacy fields */
+  taskTemplateId?: string;
+  invitationTemplateId?: string;
+  description?: string;
 };
 
 export type LunchApplicationRow = {
@@ -51,14 +59,18 @@ export type LunchTablePreview = {
 };
 
 function normalizeConfig(raw: Partial<NetworkingLunchConfig>): NetworkingLunchConfig {
+  const legacyDescription = raw.description?.trim();
   return {
-    description: raw.description?.trim() || 'Нетворкинг-обед',
+    taskTitle: raw.taskTitle?.trim() || 'Нетворкинг-обед',
+    taskDescription: raw.taskDescription?.trim() || legacyDescription || '',
+    invitationText: raw.invitationText?.trim() || '',
     publishHour: typeof raw.publishHour === 'number' ? raw.publishHour : 12,
     publishMinute: typeof raw.publishMinute === 'number' ? raw.publishMinute : 0,
     tableCount: typeof raw.tableCount === 'number' && raw.tableCount > 0 ? raw.tableCount : 10,
     seatsPerTable: typeof raw.seatsPerTable === 'number' && raw.seatsPerTable > 0 ? raw.seatsPerTable : 6,
     taskId: typeof raw.taskId === 'number' ? raw.taskId : null,
     publishedAt: raw.publishedAt ?? null,
+    invitationSentAt: raw.invitationSentAt ?? null,
     assignmentsSentAt: raw.assignmentsSentAt ?? null,
     sessionKey: raw.sessionKey?.trim() || DEFAULT_SESSION_KEY,
   };
@@ -108,6 +120,48 @@ function publishTimeFromConfig(config: NetworkingLunchConfig): Date {
   return new Date(`${date}T${hh}:${mm}:00+03:00`);
 }
 
+async function syncLinkedTask(config: NetworkingLunchConfig): Promise<number> {
+  const title = config.taskTitle.trim();
+  const description = config.taskDescription.trim();
+  if (!title) throw new Error('Укажите заголовок задания');
+  if (!description) throw new Error('Укажите описание задания');
+
+  const publishTime = publishTimeFromConfig(config);
+  const now = new Date();
+  const status = publishTime > now ? 'scheduled' : 'published';
+
+  if (config.taskId) {
+    await db
+      .update(tasks)
+      .set({
+        title,
+        description,
+        publishTime,
+        status,
+        sendNotification: false,
+      })
+      .where(eq(tasks.id, config.taskId));
+    return config.taskId;
+  }
+
+  const [row] = await db
+    .insert(tasks)
+    .values({
+      title,
+      description,
+      points: 5,
+      publishTime,
+      status,
+      sendNotification: false,
+      requiresPhoto: false,
+      photoMode: 'none',
+      autoApprove: true,
+    })
+    .returning({ id: tasks.id });
+
+  return row.id;
+}
+
 export async function getNetworkingLunchConfig(): Promise<NetworkingLunchConfig> {
   return readConfig();
 }
@@ -117,17 +171,13 @@ export async function setNetworkingLunchConfig(
 ): Promise<NetworkingLunchConfig> {
   const current = await readConfig();
   const merged = normalizeConfig({ ...current, ...data });
-
-  if (merged.taskId) {
-    const publishTime = publishTimeFromConfig(merged);
-    await db
-      .update(tasks)
-      .set({ publishTime, status: 'published' })
-      .where(eq(tasks.id, merged.taskId));
-  }
-
-  await writeConfig(merged);
-  return merged;
+  if (!merged.taskTitle.trim()) throw new Error('Укажите заголовок задания');
+  if (!merged.taskDescription.trim()) throw new Error('Укажите описание задания');
+  if (!merged.invitationText.trim()) throw new Error('Укажите текст приглашения');
+  const taskId = await syncLinkedTask(merged);
+  const saved = normalizeConfig({ ...merged, taskId });
+  await writeConfig(saved);
+  return saved;
 }
 
 export async function listNetworkingLunchApplications(): Promise<{
@@ -202,7 +252,7 @@ export async function listNetworkingLunchAssignments(): Promise<LunchTablePrevie
 
 export async function applyNetworkingLunch(userId: number): Promise<{ applied: boolean }> {
   const config = await readConfig();
-  if (!config.taskId) throw new Error('Networking lunch is not configured');
+  if (!config.taskId) throw new Error('Networking lunch is not configured — save settings in admin first');
 
   const [existing] = await db
     .select()
@@ -240,7 +290,7 @@ export async function getUserLunchStatus(userId: number): Promise<{
 
   return {
     applied: !!application,
-    tableNumber: assignment?.tableNumber ?? null,
+    tableNumber: config.assignmentsSentAt ? (assignment?.tableNumber ?? null) : null,
     assignmentsSent: !!config.assignmentsSentAt,
   };
 }
@@ -398,12 +448,47 @@ export async function publishNetworkingLunchAssignments(): Promise<{ sent: numbe
   return { sent };
 }
 
+export async function sendNetworkingLunchInvitation(): Promise<{ sent: number }> {
+  const config = await readConfig();
+  const invitationText = config.invitationText.trim();
+  if (!invitationText) throw new Error('Укажите текст приглашения и сохраните настройки');
+
+  const taskId = config.taskId ?? (await syncLinkedTask(config));
+  const now = new Date();
+  const mascotMediaId = await getPushMascotMediaId();
+
+  await db
+    .update(tasks)
+    .set({ publishTime: now, status: 'published' })
+    .where(eq(tasks.id, taskId));
+
+  const hash = entityLink('tasks', taskId);
+  const result = await sendPush({
+    text: invitationText,
+    hash,
+    linkHash: hash,
+    imageMediaId: mascotMediaId,
+    targetType: 'all',
+    category: 'tasks',
+  });
+
+  const updated = normalizeConfig({
+    ...config,
+    taskId,
+    publishedAt: config.publishedAt ?? now.toISOString(),
+    invitationSentAt: now.toISOString(),
+  });
+  await writeConfig(updated);
+
+  return { sent: result.sent };
+}
+
 export async function runNetworkingLunchPublishPush(
   now: Date,
   imageMediaId?: string,
 ): Promise<number> {
   const config = await readConfig();
-  if (!config.taskId) return 0;
+  if (!config.taskId || !config.invitationText.trim()) return 0;
 
   const slot = `${String(config.publishHour).padStart(2, '0')}:${String(config.publishMinute).padStart(2, '0')}`;
   if (!isInSlotWindow(slot, now)) return 0;
@@ -419,7 +504,7 @@ export async function runNetworkingLunchPublishPush(
 
   const hash = entityLink('tasks', config.taskId);
   const result = await sendPush({
-    text: 'Открыта регистрация на нетворкинг-обед! Нажми «Принять участие» в задании.',
+    text: config.invitationText.trim(),
     hash,
     linkHash: hash,
     imageMediaId,
@@ -439,7 +524,15 @@ export async function runNetworkingLunchPublishPush(
   }
 
   if (!config.publishedAt) {
-    await writeConfig({ ...config, publishedAt: now.toISOString() });
+    await db
+      .update(tasks)
+      .set({ publishTime: now, status: 'published' })
+      .where(eq(tasks.id, config.taskId));
+    await writeConfig({
+      ...config,
+      publishedAt: now.toISOString(),
+      invitationSentAt: now.toISOString(),
+    });
   }
 
   return result.sent;

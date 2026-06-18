@@ -29,7 +29,6 @@ import {
   type NfoDayStats,
   type ActivityLogRow,
   type TaskSubmissionRow,
-  fetchAdminTasks,
   fetchNetworkingLunchConfig,
   saveNetworkingLunchConfig,
   fetchNetworkingLunchApplications,
@@ -38,6 +37,7 @@ import {
   saveNetworkingLunchAssignments,
   removeNetworkingLunchAssignment,
   publishNetworkingLunch,
+  sendNetworkingLunchInvitation,
   type NetworkingLunchConfig,
   type NetworkingLunchApplication,
   type NetworkingLunchTable,
@@ -790,40 +790,128 @@ export function AdminNetworkingLunchTab() {
   const [config, setConfig] = useState<NetworkingLunchConfig | null>(null);
   const [applications, setApplications] = useState<NetworkingLunchApplication[]>([]);
   const [tables, setTables] = useState<NetworkingLunchTable[]>([]);
-  const [adminTasks, setAdminTasks] = useState<{ id: number; title: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [partialError, setPartialError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [publishTimeText, setPublishTimeText] = useState('12:00');
 
   const reload = async () => {
-    const [cfg, apps, assign, tasksRes] = await Promise.all([
-      fetchNetworkingLunchConfig(),
+    setLoadError(null);
+    setPartialError(null);
+
+    try {
+      const cfg = await fetchNetworkingLunchConfig();
+      setConfig(cfg.config);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Не удалось загрузить настройки';
+      setLoadError(msg);
+    }
+
+    const [appsResult, assignResult] = await Promise.allSettled([
       fetchNetworkingLunchApplications(),
       fetchNetworkingLunchAssignments(),
-      fetchAdminTasks(),
     ]);
-    setConfig(cfg.config);
-    setApplications(apps.applications);
-    setTables(assign.tables);
-    setAdminTasks(tasksRes.tasks.map((t) => ({ id: t.id, title: t.title })));
+
+    const partialErrors: string[] = [];
+    if (appsResult.status === 'fulfilled') {
+      setApplications(appsResult.value.applications);
+    } else {
+      partialErrors.push(`заявки: ${appsResult.reason instanceof Error ? appsResult.reason.message : 'ошибка'}`);
+    }
+    if (assignResult.status === 'fulfilled') {
+      setTables(assignResult.value.tables);
+    } else {
+      partialErrors.push(`столы: ${assignResult.reason instanceof Error ? assignResult.reason.message : 'ошибка'}`);
+    }
+
+    if (partialErrors.length > 0) {
+      const hint = partialErrors.some((e) => /failed|500|internal/i.test(e))
+        ? ' Возможно, не применены миграции БД (apply-pending-migrations.mjs).'
+        : '';
+      setPartialError(`${partialErrors.join('; ')}.${hint}`);
+    }
   };
 
   useEffect(() => {
     reload()
-      .catch(console.error)
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : 'Ошибка загрузки';
+        setLoadError(msg);
+        console.error(e);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading || !config) {
+  useEffect(() => {
+    if (!config) return;
+    setPublishTimeText(mskTimeToInput(config.publishHour, config.publishMinute));
+  }, [config?.publishHour, config?.publishMinute, config]);
+
+  const commitPublishTime = () => {
+    if (!config) return;
+    const v = publishTimeText.trim();
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(v)) {
+      setPublishTimeText(mskTimeToInput(config.publishHour, config.publishMinute));
+      return;
+    }
+    const { hour, minute } = inputTimeToMskParts(v);
+    setPublishTimeText(mskTimeToInput(hour, minute));
+    setConfig({ ...config, publishHour: hour, publishMinute: minute });
+  };
+
+  if (loading) {
     return <Div style={{ padding: 24, textAlign: 'center' }}>Загрузка...</Div>;
   }
 
+  if (loadError && !config) {
+    return (
+      <Div style={{ padding: 24, textAlign: 'center', color: '#e74c3c', lineHeight: 1.5 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>Не удалось открыть «Нетворкинг-обед»</div>
+        <div style={{ fontSize: 13 }}>{loadError}</div>
+        <button type="button" className="nfo-admin-btn-secondary" style={{ marginTop: 12 }} onClick={() => { setLoading(true); void reload().finally(() => setLoading(false)); }}>
+          Повторить
+        </button>
+      </Div>
+    );
+  }
+
+  if (!config) {
+    return <Div style={{ padding: 24, textAlign: 'center', color: '#e74c3c' }}>Настройки не загружены</Div>;
+  }
+
   const saveConfig = async () => {
+    if (!config) return;
+    if (!config.taskTitle.trim()) {
+      alert('Укажите заголовок задания');
+      return;
+    }
+    if (!config.taskDescription.trim()) {
+      alert('Укажите описание задания');
+      return;
+    }
+    if (!config.invitationText.trim()) {
+      alert('Укажите текст приглашения (push)');
+      return;
+    }
     setSaving(true);
     setMessage(null);
+
+    let payload = config;
+    const v = publishTimeText.trim();
+    if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(v)) {
+      const { hour, minute } = inputTimeToMskParts(v);
+      payload = { ...config, publishHour: hour, publishMinute: minute };
+      setConfig(payload);
+      setPublishTimeText(mskTimeToInput(hour, minute));
+    } else {
+      setPublishTimeText(mskTimeToInput(config.publishHour, config.publishMinute));
+    }
+
     try {
-      const res = await saveNetworkingLunchConfig(config);
+      const res = await saveNetworkingLunchConfig(payload);
       setConfig(res.config);
       setMessage('Настройки сохранены');
     } catch (e) {
@@ -847,32 +935,50 @@ export function AdminNetworkingLunchTab() {
 
   return (
     <div className="nfo-admin-section">
+      {partialError && (
+        <div className="nfo-admin-form-card" style={{ marginBottom: 12, fontSize: 13, color: '#e74c3c', lineHeight: 1.45 }}>
+          Часть данных не загрузилась: {partialError}
+        </div>
+      )}
       <div className="nfo-sec-title">Настройки нетворкинг-обеда</div>
       <div className="nfo-admin-form-card">
-        <FormItem top="Описание">
+        <FormItem top="Заголовок задания">
           <Input
-            value={config.description}
-            onChange={(e) => setConfig({ ...config, description: e.target.value })}
+            value={config.taskTitle}
+            onChange={(e) => setConfig({ ...config, taskTitle: e.target.value })}
+            placeholder="Нетворкинг-обед"
           />
         </FormItem>
-        <FormItem top="Время публикации (МСК)">
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Input
-              type="number"
-              min={0}
-              max={23}
-              value={String(config.publishHour)}
-              onChange={(e) => setConfig({ ...config, publishHour: Number(e.target.value) })}
-            />
-            <Input
-              type="number"
-              min={0}
-              max={59}
-              value={String(config.publishMinute)}
-              onChange={(e) => setConfig({ ...config, publishMinute: Number(e.target.value) })}
-            />
-          </div>
+        <FormItem top="Описание задания для участников">
+          <Textarea
+            rows={4}
+            value={config.taskDescription}
+            onChange={(e) => setConfig({ ...config, taskDescription: e.target.value })}
+            placeholder="Сегодня на обеде можно поучаствовать в нетворкинг-обеде…"
+          />
         </FormItem>
+
+        <FormItem top="Время публикации (МСК, 24 ч)">
+          <Input
+            type="text"
+            inputMode="decimal"
+            placeholder="19:30"
+            maxLength={5}
+            value={publishTimeText}
+            onChange={(e) => setPublishTimeText(e.target.value.replace(/[^\d:]/g, '').slice(0, 5))}
+            onBlur={() => commitPublishTime()}
+          />
+        </FormItem>
+
+        <FormItem top="Текст приглашения (push)">
+          <Textarea
+            rows={3}
+            value={config.invitationText}
+            onChange={(e) => setConfig({ ...config, invitationText: e.target.value })}
+            placeholder="Открыта регистрация на нетворкинг-обед! Нажми «Принять участие» в задании."
+          />
+        </FormItem>
+
         <FormItem top="Число столов">
           <Input
             type="number"
@@ -889,32 +995,39 @@ export function AdminNetworkingLunchTab() {
             onChange={(e) => setConfig({ ...config, seatsPerTable: Number(e.target.value) })}
           />
         </FormItem>
-        <FormItem top="Задание">
-          <NativeSelect
-            value={config.taskId != null ? String(config.taskId) : ''}
-            onChange={(e) =>
-              setConfig({
-                ...config,
-                taskId: e.target.value ? Number(e.target.value) : null,
-              })
-            }
-          >
-            <option value="">— не выбрано —</option>
-            {adminTasks.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title} (#{t.id})
-              </option>
-            ))}
-          </NativeSelect>
-        </FormItem>
+
+        {config.invitationSentAt && (
+          <div style={{ fontSize: 12, color: '#27ae60', marginBottom: 8 }}>
+            Приглашение отправлено: {new Date(config.invitationSentAt).toLocaleString('ru-RU')}
+          </div>
+        )}
         {config.assignmentsSentAt && (
           <div style={{ fontSize: 12, color: '#27ae60', marginBottom: 8 }}>
             Распределение отправлено: {new Date(config.assignmentsSentAt).toLocaleString('ru-RU')}
           </div>
         )}
-        <button type="button" className="nfo-admin-btn-primary" disabled={saving} onClick={() => void saveConfig()}>
-          {saving ? 'Сохранение…' : 'Сохранить настройки'}
-        </button>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+          <button type="button" className="nfo-admin-btn-primary" disabled={saving} onClick={() => void saveConfig()}>
+            {saving ? 'Сохранение…' : 'Сохранить настройки'}
+          </button>
+          <button
+            type="button"
+            className="nfo-admin-btn-secondary"
+            disabled={actionLoading != null}
+            onClick={() =>
+              void runAction('invite', async () => {
+                if (!window.confirm('Отправить push-приглашение на нетворкинг-обед всем участникам?')) return;
+                const res = await sendNetworkingLunchInvitation();
+                const cfg = await fetchNetworkingLunchConfig();
+                setConfig(cfg.config);
+                setMessage(`Приглашение отправлено: ${res.sent} получателей`);
+              })
+            }
+          >
+            {actionLoading === 'invite' ? '…' : 'Отправить приглашение на нетворкинг-обед'}
+          </button>
+        </div>
         {message && <div style={{ marginTop: 8, fontSize: 12, color: '#27ae60' }}>{message}</div>}
       </div>
 
