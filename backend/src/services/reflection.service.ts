@@ -6,7 +6,6 @@ import type { UserDto } from '../types/api.js';
 import { moscowDateString } from '../utils/moscowTime.js';
 import { isNfoDayTimeOpen } from '../utils/slotMatching.js';
 import { awardAction } from './pointsConfig.service.js';
-import { INSIGHTS_QUESTION_GROUP_ID } from '../constants/insights.js';
 import { resolveReflectionActionId } from '../constants/pointsSystem.js';
 
 export async function getQuestions(user: UserDto) {
@@ -28,7 +27,6 @@ export async function getQuestions(user: UserDto) {
     .filter((q) => q.publishTime != null && q.publishTime <= now)
     .filter((q) => !q.track || q.track === user.track)
     .filter((q) => !q.endTime || q.endTime > now)
-    .filter((q) => q.groupId !== INSIGHTS_QUESTION_GROUP_ID && q.type !== 'insight')
     .filter((q) => q.type !== 'evening')
     .map((q) => ({
       id: q.id,
@@ -54,9 +52,6 @@ export async function submitAnswer(user: UserDto, questionId: number, answerText
 
   if (!question) throw new Error('Question not found');
   if (question.status === 'draft') throw new Error('Question is locked');
-  if (question.groupId === INSIGHTS_QUESTION_GROUP_ID || question.type === 'insight') {
-    throw new Error('Use the insights section on the questions page');
-  }
   if (!question.publishTime || question.publishTime > new Date()) throw new Error('Question is locked');
 
   const [existingAnswer] = await db

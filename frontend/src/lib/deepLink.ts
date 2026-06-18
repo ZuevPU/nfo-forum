@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'nfo_pending_deeplink';
 
 const ALLOWED_ROUTE =
-  /^\/(home|schedule|questions|exchange|tasks|rating|checkin|diagnostics|nfo-day|settings|admin|reflection-level|notifications)(\/\d+)?(\/incoming\/\d+)?$/;
+  /^\/(home(?:\/feedback)?|schedule|questions|exchange|tasks|rating|checkin|diagnostics|nfo-day|settings|admin|reflection-level|notifications)(\/\d+)?(\/incoming\/\d+)?$/;
 
 export function parseDeepLinkFragment(raw: string): string | null {
   const cleaned = raw.replace(/^#\/?/, '').trim();
@@ -9,7 +9,9 @@ export function parseDeepLinkFragment(raw: string): string | null {
 }
 
 export function routeFromFragment(fragment: string): string | null {
-  const path = fragment.startsWith('/') ? fragment : `/${fragment}`;
+  const cleaned = fragment.replace(/^#\/?/, '').trim();
+  if (cleaned === 'home/feedback') return '/home?feedback=1';
+  const path = cleaned.startsWith('/') ? cleaned : `/${cleaned}`;
   if (!ALLOWED_ROUTE.test(path)) return null;
   return path;
 }

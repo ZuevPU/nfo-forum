@@ -6,6 +6,7 @@ import type { EnergyMetrics } from './analytics.types.js';
 export function getEnergyMetrics(ctx: AnalyticsContext): EnergyMetrics {
   const byDaySlotMap = new Map<string, number[]>();
   const byTrackSlotMap = new Map<string, number[]>();
+  const byTrackDaySlotMap = new Map<string, number[]>();
   const overallSlotMap = new Map<string, number[]>();
 
   for (const c of ctx.checkins) {
@@ -20,6 +21,10 @@ export function getEnergyMetrics(ctx: AnalyticsContext): EnergyMetrics {
     const trackSlotKey = `${track}:${slotLabel}`;
     if (!byTrackSlotMap.has(trackSlotKey)) byTrackSlotMap.set(trackSlotKey, []);
     byTrackSlotMap.get(trackSlotKey)!.push(c.energyLevel);
+
+    const trackDaySlotKey = `${track}:${dayKey}:${slotLabel}`;
+    if (!byTrackDaySlotMap.has(trackDaySlotKey)) byTrackDaySlotMap.set(trackDaySlotKey, []);
+    byTrackDaySlotMap.get(trackDaySlotKey)!.push(c.energyLevel);
 
     if (!overallSlotMap.has(slotLabel)) overallSlotMap.set(slotLabel, []);
     overallSlotMap.get(slotLabel)!.push(c.energyLevel);
@@ -50,6 +55,18 @@ export function getEnergyMetrics(ctx: AnalyticsContext): EnergyMetrics {
     }),
   );
 
+  const byTrackDaySlot = tracks.flatMap((track) =>
+    byDaySlot.map((slot) => {
+      const values = byTrackDaySlotMap.get(`${track}:${slot.dayKey}:${slot.slotLabel}`) ?? [];
+      return {
+        track,
+        dayKey: slot.dayKey,
+        slotLabel: slot.slotLabel,
+        avgEnergy: safeAvg(values),
+      };
+    }),
+  );
+
   const allValues = ctx.checkins.map((c) => c.energyLevel);
   byTrackSlot.push({
     track: 'ВСЕ УЧАСТНИКИ',
@@ -62,7 +79,7 @@ export function getEnergyMetrics(ctx: AnalyticsContext): EnergyMetrics {
     avgEnergy: safeAvg(values),
   }));
 
-  return { byDaySlot, byTrackSlot, overallBySlot };
+  return { byDaySlot, byTrackSlot, byTrackDaySlot, overallBySlot };
 }
 
 export async function fetchEnergyMetrics(): Promise<EnergyMetrics> {

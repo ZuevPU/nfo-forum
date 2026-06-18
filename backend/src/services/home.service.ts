@@ -7,7 +7,6 @@ import {
   exchangeQuestions,
   reflectionQuestions,
   reflectionAnswers,
-  feedbackMessages,
   systemSettings,
   taskSubmissions,
   tasks,
@@ -21,13 +20,10 @@ import { PARTICIPANT_ROLE } from '../constants/roles.js';
 import { getCheckinStatus } from './state.service.js';
 import { getTasks } from './tasks.service.js';
 import { getNfoDayConfig, getNfoDayReflectionToday } from './reflection.service.js';
-import { INSIGHTS_QUESTION_GROUP_ID } from '../constants/insights.js';
+import { submitFeedback as createFeedbackMessage } from './feedback.service.js';
 
 export async function submitFeedback(userId: number, text: string) {
-  await db.insert(feedbackMessages).values({
-    userId,
-    text,
-  });
+  return createFeedbackMessage(userId, text);
 }
 
 export interface HomeData {
@@ -116,11 +112,6 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
 
   const [taskStats] = await db
     .select({
-      tasksAvailable: sql<number>`(
-        SELECT COUNT(*)::int FROM ${tasks}
-        WHERE (${tasks.track} IS NULL OR ${tasks.track} = ${user.track ?? ''})
-        AND ${tasks.isFocusOfDay} = false
-      )`,
       tasksCompleted: sql<number>`(
         SELECT COUNT(*)::int FROM ${taskSubmissions}
         WHERE ${taskSubmissions.userId} = ${user.id} AND ${taskSubmissions.status} = 'approved'
@@ -167,8 +158,6 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
         lte(reflectionQuestions.publishTime, now),
         or(isNull(reflectionQuestions.endTime), gt(reflectionQuestions.endTime, now)),
         or(isNull(reflectionQuestions.track), eq(reflectionQuestions.track, user.track ?? '')),
-        or(isNull(reflectionQuestions.groupId), ne(reflectionQuestions.groupId, INSIGHTS_QUESTION_GROUP_ID)),
-        ne(reflectionQuestions.type, 'insight'),
         ne(reflectionQuestions.type, 'evening'),
       ),
     );
@@ -240,13 +229,14 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
   }
 
   const userTasks = await getTasks(user);
-  const firstAvailableTask = userTasks.find((t) => {
+  const availableTasks = userTasks.filter((t) => {
     if (t.isFocusOfDay || t.isPastDeadline) return false;
     const networkingOk =
       !t.isRandomDistribution ||
       ('networkingStatus' in t && t.networkingStatus === 'paired');
     return t.status !== 'approved' && networkingOk;
   });
+  const firstAvailableTask = availableTasks[0] ?? null;
 
   return {
     user,
@@ -254,7 +244,7 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     upcomingBlock: upcomingBlock ? toEventDto(upcomingBlock) : null,
     trackRank,
     stats: {
-      tasksAvailable: taskStats?.tasksAvailable ?? 0,
+      tasksAvailable: availableTasks.length,
       tasksCompleted: taskStats?.tasksCompleted ?? 0,
       firstAvailableTaskId: firstAvailableTask?.id ?? null,
       newExchangeAnswers: newAnswers,

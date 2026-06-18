@@ -1,10 +1,12 @@
 import { Div, FormItem, Input, NativeSelect, Checkbox, Textarea } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
+import { downloadAnalyticsReport } from '../api/analytics';
 import {
   adjustUserPoints,
   fetchAdminUsers,
   fetchAllTaskSubmissions,
   fetchFeedbackMessages,
+  replyToFeedbackMessage,
   moderateSubmission,
   fetchReflectionLevelSettings,
   fetchReflectionAnswers,
@@ -13,15 +15,12 @@ import {
   saveCheckinSettings,
   fetchExchangeSlots,
   saveExchangeSlots,
-  fetchInsightsSettings,
-  saveInsightsSettings,
   fetchNfoDaySettings,
   saveNfoDaySettings,
   fetchDailyFocusSettings,
   saveDailyFocusSettings,
   fetchActivityLogs,
   downloadAdminExport,
-  type AdminExportType,
   saveReflectionLevelSettings,
   type AdminUser,
   type FeedbackMessage,
@@ -42,6 +41,7 @@ import {
   type NetworkingLunchApplication,
   type NetworkingLunchTable,
 } from '../api/admin';
+import { ADMIN_EXPORT_LABELS, ADMIN_EXPORT_TYPES } from '../constants/exportMeta';
 import { AdminListCard } from '../components/AdminListCard';
 import { resolvePhotoUrl } from '../lib/mediaUrls';
 import { PointsSystemSettings } from '../components/PointsSystemSettings';
@@ -121,9 +121,31 @@ export function AdminUsersTab() {
 
 export function AdminFeedbackTab() {
   const [messages, setMessages] = useState<FeedbackMessage[]>([]);
-  useEffect(() => {
+  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+  const [replyLoading, setReplyLoading] = useState<number | null>(null);
+
+  const load = () => {
     fetchFeedbackMessages().then((r) => setMessages(r.messages)).catch(console.error);
+  };
+
+  useEffect(() => {
+    load();
   }, []);
+
+  const handleReply = async (messageId: number) => {
+    const text = replyDrafts[messageId]?.trim();
+    if (!text) return;
+    setReplyLoading(messageId);
+    try {
+      await replyToFeedbackMessage(messageId, text);
+      setReplyDrafts((prev) => ({ ...prev, [messageId]: '' }));
+      load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Не удалось отправить ответ');
+    } finally {
+      setReplyLoading(null);
+    }
+  };
 
   return (
     <div className="nfo-admin-section">
@@ -131,7 +153,7 @@ export function AdminFeedbackTab() {
       <div
         style={{ marginBottom: 12, fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45 }}
       >
-        Участники пишут через Главную → «Связь с организаторами» или Настройки → «Написать организатору».
+        Участники пишут через «Связь с организаторами». Ответ уходит в ленту участника и push-уведомлением от сообщества.
       </div>
       <div className="nfo-admin-export-row" style={{ marginBottom: 12 }}>
         <button type="button" className="nfo-admin-btn-secondary" onClick={() => void downloadAdminExport('feedback', 'csv').catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'))}>
@@ -149,6 +171,40 @@ export function AdminFeedbackTab() {
           meta={`${m.track ?? '—'} · ${new Date(m.createdAt).toLocaleString('ru-RU')}`}
         >
           <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{m.text}</div>
+          {m.replies.map((r) => (
+            <div
+              key={r.id}
+              style={{
+                marginTop: 10,
+                padding: '8px 10px',
+                borderRadius: 8,
+                background: '#eefbf3',
+                borderLeft: '3px solid #27ae60',
+              }}
+            >
+              <div style={{ fontSize: 11, color: '#27ae60', marginBottom: 4 }}>
+                {`${r.adminFirstName} ${r.adminLastName ?? ''}`.trim()} · {new Date(r.createdAt).toLocaleString('ru-RU')}
+              </div>
+              <div style={{ fontSize: 13, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{r.text}</div>
+            </div>
+          ))}
+          <FormItem top="Ответ участнику" style={{ marginTop: 10, marginBottom: 0 }}>
+            <Textarea
+              rows={3}
+              value={replyDrafts[m.id] ?? ''}
+              onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [m.id]: e.target.value }))}
+              placeholder="Текст ответа от организаторов…"
+            />
+          </FormItem>
+          <button
+            type="button"
+            className="nfo-admin-btn-primary"
+            style={{ marginTop: 8 }}
+            disabled={replyLoading === m.id || !(replyDrafts[m.id] ?? '').trim()}
+            onClick={() => void handleReply(m.id)}
+          >
+            {replyLoading === m.id ? 'Отправка…' : 'Отправить ответ'}
+          </button>
         </AdminListCard>
       ))}
     </div>
@@ -400,9 +456,8 @@ export function AdminSettingsTab() {
     commentPlaceholder: 'Моё состояние вызвано тем, что...',
   });
   const [exportLoading, setExportLoading] = useState<string | null>(null);
+  const [mainExportLoading, setMainExportLoading] = useState(false);
   const [exchangeSlots, setExchangeSlots] = useState<string[]>([]);
-  const [insightsSettings, setInsightsSettings] = useState({ prompt: '', placeholder: '' });
-  const [insightsSaveMessage, setInsightsSaveMessage] = useState<string | null>(null);
   const [nfoDay, setNfoDay] = useState({
     publishHour: 19,
     publishMinute: 30,
@@ -448,7 +503,6 @@ export function AdminSettingsTab() {
     });
     }).catch(console.error);
     fetchExchangeSlots().then((r) => setExchangeSlots(r.slots)).catch(console.error);
-    fetchInsightsSettings().then((r) => setInsightsSettings({ prompt: r.prompt, placeholder: r.placeholder })).catch(console.error);
     fetchNfoDaySettings().then((r) => setNfoDay({
       publishHour: r.publishHour,
       publishMinute: r.publishMinute,
@@ -607,37 +661,6 @@ export function AdminSettingsTab() {
         </button>
       </div>
 
-      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Озарения и важные мысли</div>
-      <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: 8, lineHeight: 1.45 }}>
-        Постоянный блок на экране «Вопросы». Вопросы с groupId <code>program-insights</code> в «Вопросах программы» не показываются — используйте этот текст. Лимиты баллов — в «Система баллов» (строка «Озарение»).
-      </div>
-      <div className="nfo-admin-form-card">
-        <FormItem top="Текст-подсказка над полем">
-          <Textarea rows={2} value={insightsSettings.prompt} onChange={(e) => setInsightsSettings((s) => ({ ...s, prompt: e.target.value }))} />
-        </FormItem>
-        <FormItem top="Placeholder в поле ввода">
-          <Input value={insightsSettings.placeholder} onChange={(e) => setInsightsSettings((s) => ({ ...s, placeholder: e.target.value }))} />
-        </FormItem>
-        <button
-          type="button"
-          className="nfo-admin-btn-primary"
-          onClick={() => {
-            setInsightsSaveMessage(null);
-            void saveInsightsSettings(insightsSettings)
-              .then((r) => {
-                setInsightsSettings({ prompt: r.settings.prompt, placeholder: r.settings.placeholder });
-                setInsightsSaveMessage('Сохранено');
-              })
-              .catch((e) => setInsightsSaveMessage(e instanceof Error ? e.message : 'Ошибка'));
-          }}
-        >
-          Сохранить озарения
-        </button>
-        {insightsSaveMessage && (
-          <div style={{ marginTop: 8, fontSize: 13, color: 'var(--nfo-green)' }}>{insightsSaveMessage}</div>
-        )}
-      </div>
-
       <div className="nfo-sec-title" style={{ marginTop: 12 }}>Вечерняя рефлексия НФО</div>
       <div className="nfo-admin-form-card">
         <FormItem top="Заголовок экрана">
@@ -747,36 +770,51 @@ export function AdminSettingsTab() {
 
       <div className="nfo-sec-title" style={{ marginTop: 12 }}>Выгрузки CSV / Excel</div>
       <div className="nfo-admin-form-card">
+        <button
+          type="button"
+          className="nfo-admin-btn-primary"
+          disabled={mainExportLoading || exportLoading != null}
+          style={{ marginBottom: 12, width: '100%' }}
+          onClick={() => {
+            setMainExportLoading(true);
+            void downloadAnalyticsReport()
+              .catch((e) => alert(e instanceof Error ? e.message : 'Ошибка выгрузки'))
+              .finally(() => setMainExportLoading(false));
+          }}
+        >
+          {mainExportLoading ? 'Формирование…' : 'Скачать главную выгрузку (Excel)'}
+        </button>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(['reflection', 'tasks', 'exchange', 'rating', 'checkins', 'nfo-day', 'feedback', 'points-history', 'activity'] as const).map((type) => (
+          {ADMIN_EXPORT_TYPES.map((type) => (
             <div key={type} className="nfo-admin-export-row">
+              <span style={{ minWidth: 180, fontSize: 13, fontWeight: 600 }}>{ADMIN_EXPORT_LABELS[type]}</span>
               <button
                 type="button"
                 className="nfo-admin-btn-secondary"
-                disabled={exportLoading != null}
+                disabled={exportLoading != null || mainExportLoading}
                 onClick={() => {
                   const key = `${type}-csv`;
                   setExportLoading(key);
-                  void downloadAdminExport(type as AdminExportType, 'csv')
+                  void downloadAdminExport(type, 'csv')
                     .catch((e) => alert(e instanceof Error ? e.message : 'Ошибка выгрузки'))
                     .finally(() => setExportLoading(null));
                 }}
               >
-                {exportLoading === `${type}-csv` ? '…' : `${type} CSV`}
+                {exportLoading === `${type}-csv` ? '…' : 'CSV'}
               </button>
               <button
                 type="button"
                 className="nfo-admin-btn-outline"
-                disabled={exportLoading != null}
+                disabled={exportLoading != null || mainExportLoading}
                 onClick={() => {
                   const key = `${type}-xlsx`;
                   setExportLoading(key);
-                  void downloadAdminExport(type as AdminExportType, 'xlsx')
+                  void downloadAdminExport(type, 'xlsx')
                     .catch((e) => alert(e instanceof Error ? e.message : 'Ошибка выгрузки'))
                     .finally(() => setExportLoading(null));
                 }}
               >
-                {exportLoading === `${type}-xlsx` ? '…' : `${type} XLSX`}
+                {exportLoading === `${type}-xlsx` ? '…' : 'Excel'}
               </button>
             </div>
           ))}

@@ -152,31 +152,7 @@ try {
     console.log('insights_settings already exists, skipped');
   }
 
-  // Unpublish duplicate program-insights reflection questions (participants use ProgramInsightsSection)
-  const draftInsights = await client.query(
-    `UPDATE reflection_questions SET status = 'draft'
-     WHERE group_id = 'program-insights' OR type = 'insight'
-     RETURNING id`,
-  );
-  if (draftInsights.rowCount > 0) {
-    console.log(`Set ${draftInsights.rowCount} program-insights question(s) to draft`);
-  }
-
-  const draftInsightLike = await client.query(
-    `UPDATE reflection_questions SET status = 'draft'
-     WHERE status != 'draft'
-       AND group_id IS DISTINCT FROM 'program-main-thought'
-       AND (
-         type = 'insight'
-         OR group_id = 'program-insights'
-         OR text ILIKE '%озарен%'
-         OR text ILIKE '%важн% мысл%'
-       )
-     RETURNING id`,
-  );
-  if (draftInsightLike.rowCount > 0) {
-    console.log(`Set ${draftInsightLike.rowCount} insight-like question(s) to draft`);
-  }
+  // Insights are regular reflection questions; skip auto-drafting insight-like duplicates.
 
   const draftEveningDupes = await client.query(
     `UPDATE reflection_questions SET status = 'draft', send_notification = false

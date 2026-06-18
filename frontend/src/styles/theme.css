@@ -596,17 +596,12 @@ body {
   margin-bottom: 0;
 }
 
-/* Home footer buttons — stack on narrow screens */
+/* Home footer buttons — stacked for readable labels on mobile */
 .nfo-home-footer-btns {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 0 16px 16px;
-}
-
-@media (max-width: 360px) {
-  .nfo-home-footer-btns {
-    flex-direction: column;
-  }
 }
 
 /* Schedule current event (ref: .ev.now) */
@@ -879,9 +874,6 @@ body {
 }
 
 .nfo-admin-nav-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   background: var(--nfo-bg);
   border-bottom: 1px solid #e8eaf2;
   padding-bottom: 8px;

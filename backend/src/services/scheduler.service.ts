@@ -1,4 +1,5 @@
 import { runCronJob } from './cron.service.js';
+import { promoteScheduledTasks } from './taskPublish.service.js';
 
 const POLL_INTERVAL_MS = 60_000;
 const STARTUP_DELAY_MS = 15_000;
@@ -11,6 +12,7 @@ async function runScheduledBroadcastsTick(): Promise<void> {
   if (running) return;
   running = true;
   try {
+    await promoteScheduledTasks();
     const result = await runCronJob('scheduled-broadcasts');
     if ((result.sent ?? 0) > 0) {
       console.info(`[scheduler] Delivered ${result.sent} scheduled broadcast(s)`);

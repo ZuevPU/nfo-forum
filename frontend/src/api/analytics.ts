@@ -240,7 +240,8 @@ export async function fetchAnalyticsDashboard(): Promise<AnalyticsDashboardData>
   };
 }
 
+import { getMainReportFilename } from '../constants/exportMeta';
+
 export function downloadAnalyticsReport() {
-  const date = new Date().toISOString().slice(0, 10);
-  return downloadApiFile('/api/admin/analytics/export/xlsx', `Выгрузка_Форум_НФО_${date}.xlsx`);
+  return downloadApiFile('/api/admin/analytics/export/xlsx', getMainReportFilename());
 }

@@ -9,16 +9,15 @@ import {
   ModalRoot,
   ModalPage,
   ModalPageHeader,
-  FormItem,
-  Textarea,
   Button,
   Spacing,
   SimpleCell,
   PullToRefresh,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { fetchHome, submitFeedback, type HomeData } from '../api/home';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { fetchHome, type HomeData } from '../api/home';
+import { FeedbackOrganizersContent } from '../components/FeedbackOrganizersContent';
 import { fetchReflectionLevel } from '../api/rating';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
 import { EmptyState } from '../components/EmptyState';
@@ -50,12 +49,11 @@ function getProgramDayInfo() {
 
 export function HomePanel() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, deleteUserAccount, refreshUser } = useAuthContext();
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [feedbackText, setFeedbackText] = useState('');
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [reflectionThresholds, setReflectionThresholds] = useState<number[]>(DEFAULT_REFLECTION_THRESHOLDS);
 
   const load = () => {
@@ -84,6 +82,14 @@ export function HomePanel() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (searchParams.get('feedback') === '1') {
+      setActiveModal('feedback');
+      searchParams.delete('feedback');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   if (loading || !user) {
     return (
       <Panel id="home">
@@ -103,20 +109,6 @@ export function HomePanel() {
     user.reflectionPoints,
     reflectionThresholds,
   );
-
-  const handleFeedbackSubmit = async () => {
-    if (!feedbackText.trim()) return;
-    setFeedbackSubmitting(true);
-    try {
-      await submitFeedback(feedbackText.trim());
-      setFeedbackText('');
-      setActiveModal(null);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFeedbackSubmitting(false);
-    }
-  };
 
   const handleDeleteAccount = async () => {
     if (window.confirm('Вы уверены, что хотите удалить свой аккаунт и все данные? Это действие необратимо.')) {
@@ -143,18 +135,7 @@ export function HomePanel() {
           </ModalPageHeader>
         }
       >
-        <FormItem top="Твое сообщение">
-          <Textarea 
-            value={feedbackText} 
-            onChange={(e) => setFeedbackText(e.target.value)} 
-            placeholder="Напиши вопрос или предложение..."
-          />
-        </FormItem>
-        <Div>
-          <Button size="l" mode="primary" stretched loading={feedbackSubmitting} onClick={() => void handleFeedbackSubmit()}>
-            Отправить
-          </Button>
-        </Div>
+        <FeedbackOrganizersContent />
       </ModalPage>
       <ModalPage
         id="info"

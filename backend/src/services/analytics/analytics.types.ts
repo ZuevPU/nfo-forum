@@ -60,9 +60,17 @@ export interface EnergyTrackSlot {
   avgEnergy: number | null;
 }
 
+export interface EnergyTrackDaySlot {
+  track: string;
+  dayKey: string;
+  slotLabel: string;
+  avgEnergy: number | null;
+}
+
 export interface EnergyMetrics {
   byDaySlot: EnergyDaySlot[];
   byTrackSlot: EnergyTrackSlot[];
+  byTrackDaySlot: EnergyTrackDaySlot[];
   overallBySlot: { slotLabel: string; avgEnergy: number | null }[];
 }
 

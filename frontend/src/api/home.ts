@@ -56,3 +56,27 @@ export function submitFeedback(text: string) {
     body: { text },
   });
 }
+
+export interface FeedbackReplyItem {
+  id: number;
+  text: string;
+  createdAt: string;
+  adminUserId: number;
+  adminFirstName: string;
+  adminLastName: string | null;
+}
+
+export interface FeedbackThreadItem {
+  id: number;
+  text: string;
+  createdAt: string;
+  userId: number;
+  firstName: string;
+  lastName: string | null;
+  track: string | null;
+  replies: FeedbackReplyItem[];
+}
+
+export function fetchFeedbackThread() {
+  return apiRequest<{ messages: FeedbackThreadItem[] }>('/api/home/feedback');
+}

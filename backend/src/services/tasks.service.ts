@@ -6,16 +6,14 @@ import { awardPoints } from './points.service.js';
 import { getNetworkingState, joinNetworkingQueue } from './taskNetworking.service.js';
 import { getNetworkingLunchTaskId, getUserLunchStatus } from './networkingLunch.service.js';
 import { validatePhotos } from '../utils/photoValidation.js';
+import { isTaskVisibleToParticipant, resolveTaskContentStatus } from '../utils/taskContentStatus.js';
+import { promoteScheduledTasks } from './taskPublish.service.js';
 
 export async function getTasks(user: UserDto) {
   const now = new Date();
+  await promoteScheduledTasks(now);
   const allTasks = await db.select().from(tasks);
-  const userTasks = allTasks.filter(
-    (t) =>
-      (!t.track || t.track === user.track) &&
-      t.status !== 'draft' &&
-      (!t.publishTime || t.publishTime <= now),
-  );
+  const userTasks = allTasks.filter((t) => isTaskVisibleToParticipant(t, user.track, now));
 
   const submissions = await db
     .select()
@@ -126,10 +124,7 @@ export async function submitTask(
     throw new Error('Deadline passed');
   }
 
-  if (task.status === 'draft') {
-    throw new Error('Task is not available');
-  }
-  if (task.publishTime && new Date() < task.publishTime) {
+  if (resolveTaskContentStatus(task) !== 'published') {
     throw new Error('Task is not available');
   }
 

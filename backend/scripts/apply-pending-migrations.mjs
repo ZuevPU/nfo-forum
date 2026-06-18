@@ -69,6 +69,7 @@ const checks = {
   media_files: await tableExists('media_files'),
   networking_lunch_applications: await tableExists('networking_lunch_applications'),
   networking_lunch_assignments: await tableExists('networking_lunch_assignments'),
+  feedback_replies: await tableExists('feedback_replies'),
 };
 
 console.log('Current state:');
@@ -235,6 +236,19 @@ if (!checks.networking_lunch_assignments) {
   );
 }
 
+if (!checks.feedback_replies) {
+  statements.push(`CREATE TABLE IF NOT EXISTS feedback_replies (
+  id serial PRIMARY KEY,
+  message_id integer NOT NULL REFERENCES feedback_messages(id) ON DELETE CASCADE,
+  admin_user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text text NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now()
+)`);
+  statements.push(
+    'CREATE INDEX IF NOT EXISTS idx_feedback_replies_message_id ON feedback_replies (message_id)',
+  );
+}
+
 if (statements.length === 0) {
   console.log('\nAll migrations already applied. Nothing to do.');
 } else {
@@ -265,6 +279,14 @@ const photoFix = await client.query(`
 `);
 if ((photoFix.rowCount ?? 0) > 0) {
   console.log(`Normalized localhost photo URLs in ${photoFix.rowCount} task submission(s).`);
+}
+
+const taskStatusFix = await client.query(`
+  UPDATE tasks SET status = 'published'
+  WHERE status = 'scheduled' AND publish_time IS NOT NULL AND publish_time <= NOW()
+`);
+if ((taskStatusFix.rowCount ?? 0) > 0) {
+  console.log(`Promoted ${taskStatusFix.rowCount} scheduled task(s) to published.`);
 }
 
 await client.end();

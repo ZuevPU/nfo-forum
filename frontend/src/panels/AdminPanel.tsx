@@ -605,7 +605,7 @@ export function AdminPanel() {
               load();
             })}
           >
-            Добавить задание
+            {newTaskPublishTime ? 'Добавить задание' : 'Сохранить черновик'}
           </button>
           </div>
 

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { contentDispositionAttachment, getMainReportFilename } from '../constants/exportMeta.js';
 import {
   buildReportWorkbook,
   fetchActivityMetrics,
@@ -10,7 +11,6 @@ import {
   fetchRankingMetrics,
   fetchReflectionDepthMetrics,
   fetchTaskMetrics,
-  getReportFilename,
 } from '../services/analytics/index.js';
 export const analyticsRouter = Router();
 
@@ -61,13 +61,13 @@ analyticsRouter.get('/reflection-depth', async (_req, res) => {
 
 analyticsRouter.get('/export/xlsx', async (_req, res) => {
   const workbook = await buildReportWorkbook();
-  const filename = getReportFilename();
+  const filename = getMainReportFilename();
 
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   );
-  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+  res.setHeader('Content-Disposition', contentDispositionAttachment(filename));
 
   await workbook.xlsx.write(res);
   res.end();

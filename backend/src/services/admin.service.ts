@@ -27,6 +27,8 @@ import { DEFAULT_NFO_DAY_QUESTIONS } from '../constants/nfoFactors.js';
 import { DEFAULT_INSIGHTS_SETTINGS, type InsightsSettings } from '../constants/insights.js';
 import type { PointsConfigValue } from '../constants/pointsSystem.js';
 import { DEFAULT_POINTS_CONFIG } from '../constants/pointsSystem.js';
+import { resolveTaskContentStatus } from '../utils/taskContentStatus.js';
+import { promoteScheduledTasks } from './taskPublish.service.js';
 
 export async function listBroadcasts() {
   return db.select().from(broadcasts).orderBy(desc(broadcasts.createdAt));
@@ -93,7 +95,13 @@ export async function deleteEvent(id: number) {
 }
 
 export async function listTasks() {
-  return db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  const now = new Date();
+  await promoteScheduledTasks(now);
+  const rows = await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  return rows.map((row) => ({
+    ...row,
+    status: resolveTaskContentStatus(row, now),
+  }));
 }
 
 export async function createTask(data: {

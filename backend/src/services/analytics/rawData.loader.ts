@@ -92,6 +92,7 @@ export async function loadAnalyticsRawData(): Promise<AnalyticsRawData> {
           createdAt: nfoDayReflections.createdAt,
           answerText: nfoDayReflections.answerText,
           factors: nfoDayReflections.factors,
+          answers: nfoDayReflections.answers,
         })
         .from(nfoDayReflections)
         .innerJoin(users, eq(nfoDayReflections.userId, users.id))
@@ -211,6 +212,19 @@ export async function loadAnalyticsRawData(): Promise<AnalyticsRawData> {
   }
 
   for (const r of nfoRows) {
+    const payload = (r.answers ?? {}) as {
+      thesis?: string;
+      understanding?: string;
+      factors?: string[];
+      extra?: string | null;
+    };
+    const thesis = payload.thesis ?? r.answerText ?? '';
+    const understanding = payload.understanding ?? '';
+    const factors = (payload.factors ?? r.factors ?? []).join('; ');
+    const extra = payload.extra ?? '';
+    const answerParts = [thesis, understanding, extra].filter(Boolean);
+    const answer = answerParts.length > 0 ? answerParts.join(' | ') : r.answerText;
+
     questionCheckinRows.push({
       firstName: r.firstName,
       lastName: r.lastName,
@@ -218,8 +232,8 @@ export async function loadAnalyticsRawData(): Promise<AnalyticsRawData> {
       date: formatForumDayLabel(String(r.date)),
       time: formatMoscowTime(r.createdAt),
       question: 'Вопрос дня (НФО)',
-      answer: r.answerText,
-      factors: (r.factors ?? []).join('; '),
+      answer,
+      factors,
       questionType: `Рефлексия ${formatForumDayLabel(String(r.date))}`,
     });
   }

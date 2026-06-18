@@ -85,25 +85,14 @@ test('nfo-day-config', async () => {
   return `publish ${c.publishHour}:${String(c.publishMinute ?? 0).padStart(2, '0')}, close ${close}, open=${c.isOpen}`;
 });
 
-// Phase 3 — no insight/evening duplicates in questions API
-test('no-insight-evening-duplicates', async () => {
+// Phase 3 — no evening duplicates in questions API (insights are normal program questions)
+test('no-evening-duplicates', async () => {
   const r = await req('/api/reflection/questions');
   if (!r.ok) throw new Error(r.status);
   const qs = r.data?.questions ?? [];
-  const bad = qs.filter(
-    (q) =>
-      q.groupId === 'program-insights' ||
-      q.type === 'insight' ||
-      q.type === 'evening',
-  );
+  const bad = qs.filter((q) => q.type === 'evening');
   if (bad.length > 0) throw new Error(`visible: ${bad.map((q) => q.id).join(', ')}`);
-  return `${qs.length} questions, 0 duplicates`;
-});
-
-test('insights-section-works', async () => {
-  const r = await req('/api/reflection/insights/config');
-  if (!r.ok || !r.data?.prompt) throw new Error('insights config missing');
-  return 'config ok';
+  return `${qs.length} questions, 0 evening duplicates`;
 });
 
 // Phase 4 — media URL normalization (admin needs auth; check public health only)

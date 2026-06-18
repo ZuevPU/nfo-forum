@@ -208,6 +208,15 @@ export interface AdminUser {
   createdAt: string;
 }
 
+export interface FeedbackReplyItem {
+  id: number;
+  text: string;
+  createdAt: string;
+  adminUserId: number;
+  adminFirstName: string;
+  adminLastName: string | null;
+}
+
 export interface FeedbackMessage {
   id: number;
   text: string;
@@ -216,6 +225,7 @@ export interface FeedbackMessage {
   firstName: string;
   lastName: string | null;
   track: string | null;
+  replies: FeedbackReplyItem[];
 }
 
 export function fetchAdminUsers(track?: string) {
@@ -232,6 +242,13 @@ export function adjustUserPoints(userId: number, points: number, comment: string
 
 export function fetchFeedbackMessages() {
   return apiRequest<{ messages: FeedbackMessage[] }>('/api/admin/feedback');
+}
+
+export function replyToFeedbackMessage(messageId: number, text: string) {
+  return apiRequest<{ reply: FeedbackReplyItem }>(`/api/admin/feedback/${messageId}/reply`, {
+    method: 'POST',
+    body: { text },
+  });
 }
 
 export function fetchPointsSettings() {
@@ -263,20 +280,14 @@ export function saveReflectionLevelSettings(thresholds: number[]) {
   return apiRequest('/api/admin/settings/reflection-levels', { method: 'POST', body: { thresholds } });
 }
 
-export type AdminExportType =
-  | 'reflection'
-  | 'tasks'
-  | 'exchange'
-  | 'rating'
-  | 'checkins'
-  | 'nfo-day'
-  | 'feedback'
-  | 'points-history'
-  | 'activity';
+import { ADMIN_EXPORT_FILENAMES, type AdminExportType } from '../constants/exportMeta';
+
+export type { AdminExportType };
 
 export function downloadAdminExport(type: AdminExportType, format: 'csv' | 'xlsx') {
   const path = format === 'xlsx' ? `/api/admin/export/${type}/xlsx` : `/api/admin/export/${type}`;
-  return downloadApiFile(path, `${type}.${format === 'xlsx' ? 'xlsx' : 'csv'}`);
+  const filename = format === 'xlsx' ? ADMIN_EXPORT_FILENAMES[type].xlsx : ADMIN_EXPORT_FILENAMES[type].csv;
+  return downloadApiFile(path, filename);
 }
 
 export interface NfoDaySettings {

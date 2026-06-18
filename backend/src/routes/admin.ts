@@ -63,21 +63,14 @@ import {
   setReflectionLevelSettings,
 } from '../services/reflectionLevelSettings.service.js';
 import { getExchangeActivity } from '../services/exchange.service.js';
+import { contentDispositionAttachment, getExportMeta } from '../constants/exportMeta.js';
 import {
   adjustUserPoints,
-  generateCheckinsCSV,
-  generateExchangeCSV,
-  generateNfoDayCSV,
-  generatePointsHistoryCSV,
-  generateRatingCSV,
-  generateReflectionCSV,
-  generateTasksCSV,
-  generateActivityCSV,
-  generateFeedbackCSV,
+  EXPORT_GENERATORS,
   generateExportXlsx,
-  listFeedbackMessages,
   listUsers,
 } from '../services/export.service.js';
+import { listAdminFeedbackMessages, replyToFeedback } from '../services/feedback.service.js';
 import { sendPush, getPushSubscriptionStats } from '../services/push.service.js';
 import { analyticsRouter } from './analytics.js';
 
@@ -423,8 +416,9 @@ adminRouter.get('/diagnostics/profile-feedback', async (_req, res) => {
 
 adminRouter.get('/diagnostics/export', async (_req, res) => {
   const csv = await generateDiagnosticsCSV();
+  const meta = getExportMeta('diagnostics')!;
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="diagnostics.csv"');
+  res.setHeader('Content-Disposition', contentDispositionAttachment(meta.csvFilename));
   res.send('\uFEFF' + csv);
 });
 
@@ -445,8 +439,29 @@ adminRouter.post('/users/:id/points', async (req, res) => {
 });
 
 adminRouter.get('/feedback', async (_req, res) => {
-  const messages = await listFeedbackMessages();
+  const messages = await listAdminFeedbackMessages();
   res.json({ messages });
+});
+
+adminRouter.post('/feedback/:id/reply', async (req: AuthenticatedRequest, res) => {
+  try {
+    const messageId = Number(req.params.id);
+    if (Number.isNaN(messageId)) {
+      res.status(400).json({ error: 'Invalid message id' });
+      return;
+    }
+    const { text } = req.body as { text?: string };
+    if (!text?.trim()) {
+      res.status(400).json({ error: 'text is required' });
+      return;
+    }
+    const result = await replyToFeedback(messageId, req.user!.id, text);
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Reply failed';
+    const status = message === 'Message not found' ? 404 : 400;
+    res.status(status).json({ error: message });
+  }
 });
 
 adminRouter.get('/settings/points', async (_req, res) => {
@@ -478,45 +493,17 @@ adminRouter.post('/settings/reflection-levels', async (req, res) => {
 
 function sendCsv(res: import('express').Response, filename: string, csv: string) {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Disposition', contentDispositionAttachment(filename));
   res.send('\uFEFF' + csv);
 }
 
-adminRouter.get('/export/reflection', async (_req, res) => {
-  sendCsv(res, 'reflection.csv', await generateReflectionCSV());
-});
-
-adminRouter.get('/export/tasks', async (_req, res) => {
-  sendCsv(res, 'tasks.csv', await generateTasksCSV());
-});
-
-adminRouter.get('/export/exchange', async (_req, res) => {
-  sendCsv(res, 'exchange.csv', await generateExchangeCSV());
-});
-
-adminRouter.get('/export/rating', async (_req, res) => {
-  sendCsv(res, 'rating.csv', await generateRatingCSV());
-});
-
-adminRouter.get('/export/checkins', async (_req, res) => {
-  sendCsv(res, 'checkins.csv', await generateCheckinsCSV());
-});
-
-adminRouter.get('/export/nfo-day', async (_req, res) => {
-  sendCsv(res, 'nfo-day.csv', await generateNfoDayCSV());
-});
-
-adminRouter.get('/export/feedback', async (_req, res) => {
-  sendCsv(res, 'feedback.csv', await generateFeedbackCSV());
-});
-
-adminRouter.get('/export/points-history', async (_req, res) => {
-  sendCsv(res, 'points-history.csv', await generatePointsHistoryCSV());
-});
-
-adminRouter.get('/export/activity', async (_req, res) => {
-  sendCsv(res, 'activity.csv', await generateActivityCSV());
-});
+for (const [type, generator] of Object.entries(EXPORT_GENERATORS)) {
+  if (type === 'diagnostics') continue;
+  adminRouter.get(`/export/${type}`, async (_req, res) => {
+    const meta = getExportMeta(type);
+    sendCsv(res, meta?.csvFilename ?? `${type}.csv`, await generator());
+  });
+}
 
 adminRouter.get('/networking-lunch/config', async (_req, res) => {
   const config = await getNetworkingLunchConfig();
@@ -590,10 +577,14 @@ adminRouter.get('/export/:type/xlsx', async (req, res) => {
     res.status(404).json({ error: 'Unknown export type' });
     return;
   }
+  const meta = getExportMeta(req.params.type);
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   );
-  res.setHeader('Content-Disposition', `attachment; filename="${req.params.type}.xlsx"`);
+  res.setHeader(
+    'Content-Disposition',
+    contentDispositionAttachment(meta?.xlsxFilename ?? `${req.params.type}.xlsx`),
+  );
   res.send(buf);
 });

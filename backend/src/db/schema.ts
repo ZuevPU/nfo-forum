@@ -352,6 +352,22 @@ export const feedbackMessages = pgTable('feedback_messages', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+export const feedbackReplies = pgTable(
+  'feedback_replies',
+  {
+    id: serial('id').primaryKey(),
+    messageId: integer('message_id')
+      .notNull()
+      .references(() => feedbackMessages.id, { onDelete: 'cascade' }),
+    adminUserId: integer('admin_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('idx_feedback_replies_message_id').on(table.messageId)],
+);
+
 export const userNotifications = pgTable(
   'user_notifications',
   {

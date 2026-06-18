@@ -79,6 +79,7 @@ export function mergePointRule(actionId: string, overrides?: PointRuleOverride):
 export function resolveReflectionActionId(type: string, groupId?: string | null): string {
   if (type === 'entry') return 'entry_question';
   if (type === 'final') return 'exit_question';
+  if (type === 'insight' || groupId === 'program-insights') return 'insight';
   if (groupId === 'program-summary') return 'program_summary';
   if (groupId === 'program-main-thought') return 'program_main_thought';
   return 'reflection_answer';

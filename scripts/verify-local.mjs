@@ -63,11 +63,9 @@ test('insight-submit', async () => {
   });
   return `points=${r.pointsAwarded}`;
 });
-test('program-insights-hidden', async () => {
+test('insight-questions-allowed', async () => {
   const qs = (await req('/api/reflection/questions')).questions ?? [];
-  const bad = qs.filter((q) => q.groupId === 'program-insights' || q.type === 'insight');
-  if (bad.length > 0) throw new Error(`visible duplicates: ${bad.length}`);
-  return 'ok';
+  return `questions=${qs.length}`;
 });
 
 let failed = 0;

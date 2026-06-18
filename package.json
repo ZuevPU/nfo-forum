@@ -31,6 +31,7 @@
     "deploy:backend": "powershell -File deploy/deploy-backend-timeweb.ps1",
     "verify:prod": "powershell -File deploy/verify-production.ps1",
     "verify:plan": "node scripts/plan-smoke.mjs",
-    "db:seed-mascot": "node backend/scripts/seed-push-mascot.mjs"
+    "db:seed-mascot": "node backend/scripts/seed-push-mascot.mjs",
+    "test:exports": "npm run build -w backend && node backend/scripts/verify-exports.mjs"
   }
 }

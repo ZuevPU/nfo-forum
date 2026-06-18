@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { TRACKS } from '../../../constants/tracks.js';
 import { DIAGNOSTICS_DATA } from '../../../data/samodiagnostika.js';
-import { moscowDateString } from '../../../utils/moscowTime.js';
+import { getMainReportFilename } from '../../../constants/exportMeta.js';
 import { getAnalyticsBundle } from '../index.js';
 import { SKILL_COLUMNS } from '../rawData.loader.js';
 import {
@@ -228,21 +228,42 @@ function buildAnalyticsSummarySheet(wb: ExcelJS.Workbook, bundle: AnalyticsBundl
   setColumnWidths(ws, [28, 14, 14, 14, 14]);
 }
 
+function energyColumnHeader(dayLabel: string, slotLabel: string): string {
+  const dayShort = dayLabel.replace(' июня', ' июн').replace(' июля', ' июл');
+  const slotShort = slotLabel.replace(' чек-in', '').split(' ')[0]?.toLowerCase() ?? slotLabel;
+  return `${dayShort}\n${slotShort}`;
+}
+
 function buildEnergyDynamicsSheet(wb: ExcelJS.Workbook, bundle: AnalyticsBundle): void {
   const ws = wb.addWorksheet('📈 Динамика состояния');
-  const slotCols = [...new Set(bundle.energy.byDaySlot.map((e) => `${e.dayLabel} ${e.slotLabel.split(' ')[0]?.toLowerCase() ?? e.slotLabel}`))];
-  applyHeaderStyle(ws.addRow(['Трек', ...slotCols]));
-  addInfoRows(ws, ['Средняя энергия по трекам в каждом временном слоте. Считается автоматически из чекинов.'], slotCols.length + 1);
+  const columns = bundle.energy.byDaySlot.map((slot) => ({
+    dayKey: slot.dayKey,
+    slotLabel: slot.slotLabel,
+    header: energyColumnHeader(slot.dayLabel, slot.slotLabel),
+    overallAvg: slot.avgEnergy,
+  }));
+
+  applyHeaderStyle(ws.addRow(['Трек', ...columns.map((c) => c.header)]));
+  addInfoRows(ws, ['Средняя энергия по трекам в каждом временном слоте. Считается автоматически из чекинов.'], columns.length + 1);
   freezeHeader(ws, 1);
 
   const tracks = [...new Set(bundle.ranking.tracks.map((t) => t.track))];
   for (const track of tracks) {
     applyDataBorders(ws.addRow([
       track,
-      ...slotCols.map(() => '—'),
+      ...columns.map((col) => {
+        const match = bundle.energy.byTrackDaySlot.find(
+          (ts) => ts.track === track && ts.dayKey === col.dayKey && ts.slotLabel === col.slotLabel,
+        );
+        return formatNullableNumber(match?.avgEnergy ?? null);
+      }),
     ]));
   }
-  applyDataBorders(ws.addRow(['ВСЕ УЧАСТНИКИ (среднее)', ...slotCols.map(() => formatNullableNumber(bundle.overview.avgEnergy))]));
+
+  applyDataBorders(ws.addRow([
+    'ВСЕ УЧАСТНИКИ (среднее)',
+    ...columns.map((col) => formatNullableNumber(col.overallAvg)),
+  ]));
 }
 
 function buildEmotionsBySlotSheet(wb: ExcelJS.Workbook, bundle: AnalyticsBundle): void {
@@ -354,10 +375,9 @@ export async function buildReportWorkbook(): Promise<ExcelJS.Workbook> {
   buildTaskTimingSheet(wb, bundle);
   buildReflectionDepthSheet(wb, bundle);
 
-  void moscowDateString;
   return wb;
 }
 
 export function getReportFilename(): string {
-  return `Выгрузка_Форум_НФО_${moscowDateString()}.xlsx`;
+  return getMainReportFilename();
 }

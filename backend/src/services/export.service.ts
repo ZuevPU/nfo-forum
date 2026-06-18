@@ -1,5 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
+import { getExportMeta } from '../constants/exportMeta.js';
 import { db } from '../db/index.js';
 import {
   exchangeAnswers,
@@ -15,6 +16,8 @@ import {
   userActivityLogs,
   users,
 } from '../db/schema.js';
+import { formatMoscowDateTime } from './analytics/analyticsTime.js';
+import { generateDiagnosticsCSV } from './admin.service.js';
 
 function csvEscape(value: unknown): string {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
@@ -22,6 +25,12 @@ function csvEscape(value: unknown): string {
 
 function toCsv(headers: string[], rows: (string | number)[][]): string {
   return [headers.join(','), ...rows.map((r) => r.map((v) => csvEscape(v)).join(','))].join('\n');
+}
+
+function formatExportDate(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return formatMoscowDateTime(date);
 }
 
 export async function generateReflectionCSV(): Promise<string> {
@@ -47,7 +56,7 @@ export async function generateReflectionCSV(): Promise<string> {
       r.track ?? '',
       r.question,
       r.answer,
-      new Date(r.createdAt).toISOString(),
+      formatExportDate(r.createdAt),
     ]),
   );
 }
@@ -79,7 +88,7 @@ export async function generateTasksCSV(): Promise<string> {
       r.answer ?? '',
       (r.photos ?? []).join('; '),
       r.status,
-      new Date(r.createdAt).toISOString(),
+      formatExportDate(r.createdAt),
     ]),
   );
 }
@@ -101,18 +110,29 @@ export async function generateExchangeCSV(): Promise<string> {
   const qMap = new Map(questions.map((q) => [q.id, q]));
 
   return toCsv(
-    ['Вопрос', 'Автор вопроса', 'Трек автора', 'Ответ', 'Автор ответа', 'Дата'],
+    [
+      'Вопрос',
+      'Имя автора вопроса',
+      'Фамилия автора вопроса',
+      'Трек автора',
+      'Ответ',
+      'Имя автора ответа',
+      'Фамилия автора ответа',
+      'Дата',
+    ],
     answers.map((a) => {
       const q = qMap.get(a.questionId);
       const author = q ? userMap.get(q.userId) : null;
       const answerAuthor = userMap.get(a.answerAuthorId);
       return [
         q?.text ?? '',
-        author ? `${author.firstName} ${author.lastName ?? ''}`.trim() : '',
+        author?.firstName ?? '',
+        author?.lastName ?? '',
         author?.track ?? '',
         a.answer,
-        answerAuthor ? `${answerAuthor.firstName} ${answerAuthor.lastName ?? ''}`.trim() : '',
-        new Date(a.createdAt).toISOString(),
+        answerAuthor?.firstName ?? '',
+        answerAuthor?.lastName ?? '',
+        formatExportDate(a.createdAt),
       ];
     }),
   );
@@ -130,7 +150,7 @@ export async function generateRatingCSV(): Promise<string> {
       r.points,
       r.reflectionLevel,
       r.reflectionPoints,
-      new Date(r.createdAt).toISOString(),
+      formatExportDate(r.createdAt),
     ]),
   );
 }
@@ -159,7 +179,7 @@ export async function generateCheckinsCSV(): Promise<string> {
       r.emotion,
       r.energyLevel,
       r.comment ?? '',
-      new Date(r.createdAt).toISOString(),
+      formatExportDate(r.createdAt),
     ]),
   );
 }
@@ -194,7 +214,7 @@ export async function generateNfoDayCSV(): Promise<string> {
         r.userLastName ?? '',
         r.track ?? '',
         r.date,
-        new Date(r.createdAt).toISOString(),
+        formatExportDate(r.createdAt),
         payload.thesis ?? r.answer ?? '',
         payload.understanding ?? '',
         (payload.factors ?? r.factors ?? []).join('; '),
@@ -213,7 +233,7 @@ export async function generateFeedbackCSV(): Promise<string> {
       r.lastName ?? '',
       r.track ?? '',
       r.text,
-      r.createdAt,
+      formatExportDate(r.createdAt),
     ]),
   );
 }
@@ -227,20 +247,20 @@ export async function generatePointsHistoryCSV(userId?: number): Promise<string>
         .orderBy(desc(pointsHistory.createdAt))
     : await db.select().from(pointsHistory).orderBy(desc(pointsHistory.createdAt));
 
-  const userMap = new Map(
-    (await db.select().from(users)).map((u) => [u.id, u]),
-  );
+  const userMap = new Map((await db.select().from(users)).map((u) => [u.id, u]));
 
   return toCsv(
-    ['Пользователь', 'Баллы', 'Источник', 'Комментарий', 'Дата'],
+    ['Имя', 'Фамилия', 'Трек', 'Баллы', 'Источник', 'Комментарий', 'Дата'],
     rows.map((r) => {
       const u = userMap.get(r.userId);
       return [
-        u ? `${u.firstName} ${u.lastName ?? ''}`.trim() : r.userId,
+        u?.firstName ?? '',
+        u?.lastName ?? '',
+        u?.track ?? '',
         r.points,
         r.source,
         r.comment ?? '',
-        new Date(r.createdAt).toISOString(),
+        formatExportDate(r.createdAt),
       ];
     }),
   );
@@ -250,6 +270,7 @@ export async function generateActivityCSV(): Promise<string> {
   const rows = await db
     .select({
       userName: users.firstName,
+      userLastName: users.lastName,
       track: users.track,
       action: userActivityLogs.action,
       createdAt: userActivityLogs.createdAt,
@@ -260,12 +281,13 @@ export async function generateActivityCSV(): Promise<string> {
     .limit(5000);
 
   return toCsv(
-    ['Участник', 'Трек', 'Действие', 'Время'],
+    ['Имя', 'Фамилия', 'Трек', 'Действие', 'Время'],
     rows.map((r) => [
       r.userName,
+      r.userLastName ?? '',
       r.track ?? '',
       r.action,
-      new Date(r.createdAt).toISOString(),
+      formatExportDate(r.createdAt),
     ]),
   );
 }
@@ -343,9 +365,10 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-export async function csvStringToXlsxBuffer(csv: string): Promise<Buffer> {
+export async function csvStringToXlsxBuffer(csv: string, sheetName = 'Export'): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('Export');
+  const safeName = sheetName.slice(0, 31);
+  const sheet = workbook.addWorksheet(safeName);
   const lines = csv.replace(/^\uFEFF/, '').split('\n').filter((l) => l.trim());
   for (const line of lines) {
     sheet.addRow(parseCsvLine(line));
@@ -353,9 +376,7 @@ export async function csvStringToXlsxBuffer(csv: string): Promise<Buffer> {
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
-import { generateDiagnosticsCSV } from './admin.service.js';
-
-const EXPORT_GENERATORS: Record<string, () => Promise<string>> = {
+export const EXPORT_GENERATORS: Record<string, () => Promise<string>> = {
   reflection: generateReflectionCSV,
   tasks: generateTasksCSV,
   exchange: generateExchangeCSV,
@@ -371,6 +392,7 @@ const EXPORT_GENERATORS: Record<string, () => Promise<string>> = {
 export async function generateExportXlsx(type: string): Promise<Buffer | null> {
   const gen = EXPORT_GENERATORS[type];
   if (!gen) return null;
+  const meta = getExportMeta(type);
   const csv = await gen();
-  return csvStringToXlsxBuffer(csv);
+  return csvStringToXlsxBuffer(csv, meta?.sheetName ?? 'Export');
 }

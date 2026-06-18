@@ -1,4 +1,4 @@
-/** groupId reflection_questions, скрывается из «Вопросов программы» — блок «Озарения» отдельно */
+/** groupId for insight reflection questions (shown in «Вопросы программы»). */
 export const INSIGHTS_QUESTION_GROUP_ID = 'program-insights';
 
 export type InsightsSettings = {

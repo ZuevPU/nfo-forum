@@ -9,12 +9,11 @@ import {
   ModalRoot,
   SimpleCell,
   Switch,
-  Textarea,
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updateNotificationPrefs, updateProfile } from '../api/auth';
-import { submitFeedback } from '../api/home';
+import { FeedbackOrganizersContent } from '../components/FeedbackOrganizersContent';
 import { PanelLayout } from '../components/PanelLayout';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
 import { useCommunityMessagesOptIn } from '../hooks/useCommunityMessagesOptIn';
@@ -37,8 +36,6 @@ export function SettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [feedbackText, setFeedbackText] = useState('');
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   const {
     allowed: messagesAllowed,
@@ -80,20 +77,6 @@ export function SettingsPanel() {
 
   const handleToggleCommunityMessages = (enabled: boolean) => {
     void toggleCommunityMessages(enabled);
-  };
-
-  const handleFeedbackSubmit = async () => {
-    if (!feedbackText.trim()) return;
-    setFeedbackSubmitting(true);
-    try {
-      await submitFeedback(feedbackText.trim());
-      setFeedbackText('');
-      setActiveModal(null);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFeedbackSubmitting(false);
-    }
   };
 
   if (!user) return null;
@@ -165,7 +148,7 @@ export function SettingsPanel() {
         <Group header="Связь">
           <Div>
             <Button size="l" mode="primary" stretched onClick={() => setActiveModal('feedback')}>
-              Написать организатору
+              Связь с организаторами
             </Button>
           </Div>
         </Group>
@@ -200,18 +183,7 @@ export function SettingsPanel() {
             </ModalPageHeader>
           }
         >
-          <FormItem top="Твоё сообщение">
-            <Textarea
-              value={feedbackText}
-              onChange={(e) => setFeedbackText(e.target.value)}
-              placeholder="Напиши вопрос или предложение..."
-            />
-          </FormItem>
-          <Div>
-            <Button size="l" mode="primary" stretched loading={feedbackSubmitting} onClick={() => void handleFeedbackSubmit()}>
-              Отправить
-            </Button>
-          </Div>
+          <FeedbackOrganizersContent />
         </ModalPage>
       </ModalRoot>
     </>
