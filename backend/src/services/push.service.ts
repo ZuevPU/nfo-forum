@@ -41,6 +41,18 @@ export type VkApiError = { error_code?: number; error_msg?: string };
 
 const PEER_IDS_BATCH_SIZE = 100;
 
+function formatVkSendResponse(
+  response?: number | Array<{ message_id?: number }>,
+): string {
+  if (response == null) return 'n/a';
+  if (typeof response === 'number') return String(response);
+  if (!Array.isArray(response) || response.length === 0) return 'n/a';
+  const ids = response.map((r) => r.message_id).filter((id): id is number => id != null);
+  if (ids.length === 0) return `batch=${response.length}`;
+  if (ids.length === 1) return String(ids[0]);
+  return `${ids.length} ids, first=${ids[0]}`;
+}
+
 async function sendVkMessageBatch(
   vkUserIds: number[],
   message: string,
@@ -70,7 +82,10 @@ async function sendVkMessageBatch(
     method: 'POST',
   });
 
-  const data = (await response.json()) as { error?: VkApiError; response?: number };
+  const data = (await response.json()) as {
+    error?: VkApiError;
+    response?: number | Array<{ peer_id?: number; message_id?: number; conversation_message_id?: number }>;
+  };
   if (data.error) {
     console.error(
       `[push] VK API error for ${vkUserIds.length} user(s):`,
@@ -80,7 +95,9 @@ async function sendVkMessageBatch(
     return data.error;
   }
 
-  console.info(`[push] messages.send ok for ${vkUserIds.length} user(s), message_id=${data.response ?? 'n/a'}`);
+  console.info(
+    `[push] messages.send ok for ${vkUserIds.length} user(s), message_id=${formatVkSendResponse(data.response)}`,
+  );
   return null;
 }
 
@@ -213,9 +230,10 @@ export async function deliverPush(
 
   const targetUsers = filterByCategory(candidates, payload.category);
   const vkIds = targetUsers.map((u) => Number(u.vkId)).filter((id) => !isNaN(id));
+  const invalidVkIdCount = targetUsers.length - vkIds.length;
 
   console.info(
-    `[push] target=${payload.targetType} category=${payload.category ?? 'none'} candidates=${candidates.length} eligible=${targetUsers.length}`,
+    `[push] target=${payload.targetType} category=${payload.category ?? 'none'} candidates=${candidates.length} eligible=${targetUsers.length}${invalidVkIdCount > 0 ? ` invalidVkId=${invalidVkIdCount}` : ''}`,
   );
 
   if (vkIds.length === 0) {

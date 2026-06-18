@@ -1,5 +1,6 @@
 /**
- * Sync points_config overrides and reflection level thresholds to new defaults.
+ * Sync points_config overrides, reflection thresholds, insights defaults,
+ * program-main-thought question, and unpublish program-insights duplicates.
  * Recalculates users.reflection_level from reflection_points.
  *
  * Usage: node backend/scripts/sync-points-config-defaults.mjs
@@ -28,10 +29,24 @@ const client = new pg.Client({
 const NEW_THRESHOLDS = [0, 62, 124, 186, 248];
 
 const RULE_PATCHES = {
-  exchange_question: { pointsPerAction: 3, maxTotal: 30, maxCount: 10 },
-  exchange_answer: { pointsPerAction: 3, maxTotal: 45, maxCount: 15 },
+  exchange_question: { pointsPerAction: 3, maxTotal: 30, maxCount: null },
+  exchange_answer: { pointsPerAction: 3, maxTotal: 45, maxCount: null },
   program_main_thought: { pointsPerAction: 7, maxTotal: 7, maxCount: 1 },
   insight: { maxCount: null },
+};
+
+const DEFAULT_INSIGHTS_SETTINGS = {
+  prompt: 'Зафиксируй озарение или важную мысль по ходу программы.',
+  placeholder: 'Что важного понял(а) или заметил(а)...',
+};
+
+const PROGRAM_MAIN_THOUGHT = {
+  groupId: 'program-main-thought',
+  text: 'Какая главная мысль или вывод у тебя по итогам всей программы?',
+  type: 'reflection',
+  points: 7,
+  /** 20 июня 2026, 10:00 МСK ≈ 07:00 UTC */
+  publishTime: '2026-06-20T07:00:00.000Z',
 };
 
 function calcReflectionLevel(points, thresholds) {
@@ -108,6 +123,67 @@ try {
     }
   }
   console.log(`Recalculated reflection_level for ${updated} user(s)`);
+
+  // exchange_slots (only if missing)
+  const exchangeRes = await client.query(
+    `SELECT id FROM system_settings WHERE key = 'exchange_slots' LIMIT 1`,
+  );
+  if (!exchangeRes.rows[0]) {
+    await client.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('exchange_slots', $1, NOW())`,
+      [['08:15', '13:15']],
+    );
+    console.log('Inserted default exchange_slots: 08:15, 13:15');
+  } else {
+    console.log('exchange_slots already exists, skipped');
+  }
+
+  // insights_settings (only if missing)
+  const insightsRes = await client.query(
+    `SELECT id FROM system_settings WHERE key = 'insights_settings' LIMIT 1`,
+  );
+  if (!insightsRes.rows[0]) {
+    await client.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('insights_settings', $1, NOW())`,
+      [DEFAULT_INSIGHTS_SETTINGS],
+    );
+    console.log('Inserted default insights_settings');
+  } else {
+    console.log('insights_settings already exists, skipped');
+  }
+
+  // Unpublish duplicate program-insights reflection questions (participants use ProgramInsightsSection)
+  const draftInsights = await client.query(
+    `UPDATE reflection_questions SET status = 'draft'
+     WHERE group_id = 'program-insights' OR type = 'insight'
+     RETURNING id`,
+  );
+  if (draftInsights.rowCount > 0) {
+    console.log(`Set ${draftInsights.rowCount} program-insights question(s) to draft`);
+  }
+
+  // program-main-thought question (create if missing)
+  const mainThoughtRes = await client.query(
+    `SELECT id FROM reflection_questions WHERE group_id = $1 LIMIT 1`,
+    [PROGRAM_MAIN_THOUGHT.groupId],
+  );
+  if (!mainThoughtRes.rows[0]) {
+    await client.query(
+      `INSERT INTO reflection_questions
+        (text, type, group_id, points, publish_time, status, send_notification, allow_multiple)
+       VALUES ($1, $2, $3, $4, $5, 'published', true, false)`,
+      [
+        PROGRAM_MAIN_THOUGHT.text,
+        PROGRAM_MAIN_THOUGHT.type,
+        PROGRAM_MAIN_THOUGHT.groupId,
+        PROGRAM_MAIN_THOUGHT.points,
+        PROGRAM_MAIN_THOUGHT.publishTime,
+      ],
+    );
+    console.log('Created reflection question program-main-thought');
+  } else {
+    console.log('program-main-thought question already exists, skipped');
+  }
 } finally {
   await client.end();
 }

@@ -18,6 +18,7 @@ import {
 } from '../db/schema.js';
 import { assignRandomRespondents } from './exchange.service.js';
 import { awardPoints } from './points.service.js';
+import { userAlreadyAwardedForTask } from './tasks.service.js';
 import { notifyUser, notifyUsersForTrack } from './push.service.js';
 import { entityLink } from '../utils/appLinks.js';
 import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
@@ -374,7 +375,10 @@ export async function moderateSubmission(
     .limit(1);
 
   if (!existingPoints) {
-    await awardPoints(row.userId, task.points, 'task_submission', row.id, undefined, 0, task.points);
+    const alreadyAwarded = await userAlreadyAwardedForTask(row.userId, row.taskId);
+    if (task.allowMultiple || !alreadyAwarded) {
+      await awardPoints(row.userId, task.points, 'task_submission', row.id, undefined, 0, task.points);
+    }
   }
 
   void notifyUser(

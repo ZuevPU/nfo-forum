@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { systemSettings, taskSubmissions, tasks } from '../db/schema.js';
+import { pointsHistory, systemSettings, taskSubmissions, tasks } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import { awardPoints } from './points.service.js';
 import { getNetworkingState, joinNetworkingQueue } from './taskNetworking.service.js';
@@ -84,6 +84,22 @@ export async function applyNetworking(user: UserDto, taskId: number) {
   return joinNetworkingQueue(taskId, user.id, contactsRequired);
 }
 
+export async function userAlreadyAwardedForTask(userId: number, taskId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: pointsHistory.id })
+    .from(pointsHistory)
+    .innerJoin(taskSubmissions, eq(pointsHistory.sourceId, taskSubmissions.id))
+    .where(
+      and(
+        eq(pointsHistory.source, 'task_submission'),
+        eq(pointsHistory.userId, userId),
+        eq(taskSubmissions.taskId, taskId),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 export async function submitTask(
   user: UserDto,
   taskId: number,
@@ -123,18 +139,6 @@ export async function submitTask(
     }
   }
 
-  if (!task.allowMultiple) {
-    const existing = await db
-      .select({ id: taskSubmissions.id })
-      .from(taskSubmissions)
-      .where(and(eq(taskSubmissions.taskId, taskId), eq(taskSubmissions.userId, user.id)))
-      .limit(1);
-
-    if (existing.length > 0) {
-      throw new Error('Already submitted');
-    }
-  }
-
   const status = task.autoApprove ? 'approved' : 'pending';
 
   const [created] = await db
@@ -149,7 +153,10 @@ export async function submitTask(
     .returning();
 
   if (task.autoApprove) {
-    await awardPoints(user.id, task.points, 'task_submission', created.id, undefined, 0, task.points);
+    const alreadyAwarded = await userAlreadyAwardedForTask(user.id, taskId);
+    if (task.allowMultiple || !alreadyAwarded) {
+      await awardPoints(user.id, task.points, 'task_submission', created.id, undefined, 0, task.points);
+    }
   }
 
   return created;
