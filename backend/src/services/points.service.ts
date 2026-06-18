@@ -1,5 +1,6 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, and } from 'drizzle-orm';
 import { calcReflectionLevel } from '../constants/reflectionLevels.js';
+import { PARTICIPANT_ROLE } from '../constants/roles.js';
 import { db } from '../db/index.js';
 import { pointsHistory, reflectionLevelHistory, users } from '../db/schema.js';
 import { getReflectionLevelSettings } from './reflectionLevelSettings.service.js';
@@ -66,7 +67,7 @@ export async function getTrackRank(userId: number, track: string | null): Promis
   const trackUsers = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.track, track))
+    .where(and(eq(users.track, track), eq(users.role, PARTICIPANT_ROLE)))
     .orderBy(desc(users.points));
   const idx = trackUsers.findIndex((u) => u.id === userId);
   return idx >= 0 ? idx + 1 : 0;

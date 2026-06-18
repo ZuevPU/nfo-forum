@@ -45,7 +45,9 @@ export function RatingPanel() {
             <div className="nfo-card nfo-rating-me" style={{ margin: 0 }}>
               <Title level="2" style={{ color: 'var(--nfo-primary)' }}>{me.points}</Title>
               <div className="nfo-rating-me-label">твои баллы</div>
-              <div className="nfo-rating-me-rank">{me.trackRank} место в треке</div>
+              {me.trackRank > 0 && (
+                <div className="nfo-rating-me-rank">{me.trackRank} место в треке</div>
+              )}
               <div style={{ marginTop: 12, width: '100%' }}>
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                   Ур. {me.reflectionLevel} — {REFLECTION_LEVEL_NAMES[me.reflectionLevel] ?? ''}

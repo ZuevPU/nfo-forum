@@ -335,7 +335,9 @@ export function HomePanel() {
         <div className="nfo-progress-grid">
           <div className="nfo-card nfo-progress-card">
             <div style={{ fontSize: 20 }}>🏆</div>
-            <Headline level="2" weight="2" style={{ marginTop: 4 }}>{data?.trackRank ?? '—'}</Headline>
+            <Headline level="2" weight="2" style={{ marginTop: 4 }}>
+              {data?.trackRank && data.trackRank > 0 ? data.trackRank : '—'}
+            </Headline>
             <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)' }}>место в треке</div>
             <div className="nfo-progress-card__spacer" />
             <div>

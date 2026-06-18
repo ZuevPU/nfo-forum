@@ -1,4 +1,5 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
+import { PARTICIPANT_ROLE } from '../constants/roles.js';
 import { DEFAULT_REFLECTION_THRESHOLDS } from '../constants/reflectionLevels.js';
 import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors.js';
 import { db } from '../db/index.js';
@@ -13,10 +14,14 @@ export async function getRating(scope: 'track' | 'all', user: UserDto) {
     rows = await db
       .select()
       .from(users)
-      .where(eq(users.track, user.track))
+      .where(and(eq(users.track, user.track), eq(users.role, PARTICIPANT_ROLE)))
       .orderBy(desc(users.points));
   } else {
-    rows = await db.select().from(users).orderBy(desc(users.points));
+    rows = await db
+      .select()
+      .from(users)
+      .where(eq(users.role, PARTICIPANT_ROLE))
+      .orderBy(desc(users.points));
   }
 
   const list = rows.map((u, i) => ({

@@ -17,6 +17,7 @@ import {
 import type { UserDto } from '../types/api.js';
 import type { EventDto } from './events.service.js';
 import { isTrainerTrack } from './diagnostics.service.js';
+import { PARTICIPANT_ROLE } from '../constants/roles.js';
 import { getCheckinStatus } from './state.service.js';
 import { getTasks } from './tasks.service.js';
 import { getNfoDayConfig, getNfoDayReflectionToday } from './reflection.service.js';
@@ -106,7 +107,7 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     const trackUsers = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.track, user.track))
+      .where(and(eq(users.track, user.track), eq(users.role, PARTICIPANT_ROLE)))
       .orderBy(desc(users.points));
     const idx = trackUsers.findIndex((u) => u.id === user.id);
     trackRank = idx >= 0 ? idx + 1 : 0;
