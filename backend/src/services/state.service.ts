@@ -12,6 +12,7 @@ import {
   getNextInterval,
   mapCheckinToIntervalIndex,
   mapCheckinToSlotIndex,
+  slotWindowEndTime,
   type CheckinInterval,
 } from '../utils/slotMatching.js';
 import { moscowDateString, programDayFromMsk } from '../utils/moscowTime.js';
@@ -42,6 +43,7 @@ function getTodayStartMsk(): Date {
 }
 
 function resolveCheckinTiming(settings: Awaited<ReturnType<typeof getCheckinSettings>>, now = new Date()) {
+  const windowMinutes = settings.windowMinutes ?? 120;
   const intervals = settings.intervals as CheckinInterval[] | undefined;
   if (intervals?.length) {
     const slotIndex = getCurrentIntervalIndex(intervals, now);
@@ -58,11 +60,12 @@ function resolveCheckinTiming(settings: Awaited<ReturnType<typeof getCheckinSett
       slotLabel,
       nextSlotAt: next?.start ?? null,
       nextSlotLabel: next?.label ?? null,
+      windowMinutes,
     };
   }
 
   const slots = settings.slots.length ? settings.slots : ['08:30', '13:15', '19:30'];
-  const slotIndex = getCurrentCheckinSlotIndex(slots, now);
+  const slotIndex = getCurrentCheckinSlotIndex(slots, now, windowMinutes);
   const activeSlot = slotIndex != null ? slots[slotIndex] : null;
   const slotLabel = slotIndex != null ? getCheckinSlotLabel(slotIndex) : null;
   const next = getNextCheckinSlot(slots, now);
@@ -74,6 +77,7 @@ function resolveCheckinTiming(settings: Awaited<ReturnType<typeof getCheckinSett
     slotLabel,
     nextSlotAt: next?.slot ?? null,
     nextSlotLabel: next?.label ?? null,
+    windowMinutes,
   };
 }
 
@@ -81,7 +85,7 @@ function mapCheckinTimeToSlotIndex(createdAt: Date, timing: ReturnType<typeof re
   if (timing.useIntervals) {
     return mapCheckinToIntervalIndex(createdAt, timing.intervals);
   }
-  return mapCheckinToSlotIndex(createdAt, timing.slots);
+  return mapCheckinToSlotIndex(createdAt, timing.slots, timing.windowMinutes ?? 120);
 }
 
 export async function getCheckinStatus(user: UserDto) {
@@ -100,6 +104,10 @@ export async function getCheckinStatus(user: UserDto) {
 
   const answeredInCurrentSlot = timing.slotIndex != null && answeredSlotIndices.has(timing.slotIndex);
   const canSubmit = available && timing.slotIndex != null && !answeredInCurrentSlot;
+  const windowEndsAt =
+    timing.activeSlot && !timing.useIntervals
+      ? slotWindowEndTime(timing.activeSlot, timing.windowMinutes ?? 120)
+      : null;
 
   return {
     available,
@@ -109,6 +117,7 @@ export async function getCheckinStatus(user: UserDto) {
     nextSlotAt: timing.nextSlotAt,
     nextSlotLabel: timing.nextSlotLabel,
     answeredInCurrentSlot,
+    windowEndsAt,
     title: settings.title,
     subtitle: settings.subtitle,
     emotions: settings.emotions,

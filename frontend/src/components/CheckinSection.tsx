@@ -128,6 +128,9 @@ export function CheckinSection({ showHistory = true, onSubmitted }: CheckinSecti
         ? `Чек-ин принят. Следующий — в ${status.nextSlotAt}${status.nextSlotLabel ? ` (${status.nextSlotLabel})` : ''}.`
         : 'Чек-ин на сегодня принят. До завтра!';
     }
+    if (status.canSubmit && status.windowEndsAt) {
+      return `Окно открыто до ${status.windowEndsAt} (МСК).`;
+    }
     if (status.nextSlotAt) {
       return `Чек-ин откроется в ${status.nextSlotAt}${status.nextSlotLabel ? ` (${status.nextSlotLabel})` : ''}.`;
     }
@@ -164,6 +167,7 @@ export function CheckinSection({ showHistory = true, onSubmitted }: CheckinSecti
           <div className="nfo-qcard">
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 6 }}>
               Чек-ин состояния · {status.slotLabel ?? 'сейчас'}
+              {status.windowEndsAt ? ` · до ${status.windowEndsAt}` : ''}
             </div>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, lineHeight: 1.4 }}>
               {status.title ?? 'Как ты сейчас?'}

@@ -104,21 +104,21 @@ export function NfoDaySection({ onSubmitted }: NfoDaySectionProps) {
     <Div style={{ padding: '8px 16px 12px' }}>
       <div className="nfo-qcard" style={{ opacity: isLocked ? 0.6 : 1 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-primary)', textTransform: 'uppercase', marginBottom: 6 }}>
-          {existing ? '✅ Отвечено' : isLocked ? `🔒 Откроется в ${String(config?.publishHour ?? 19).padStart(2, '0')}:${String(config?.publishMinute ?? 0).padStart(2, '0')}` : `${config?.points ?? 10} баллов`}
+          {existing ? '✅ Отвечено' : isLocked ? `🔒 ${config?.closeHour != null ? 'Рефлексия закрыта' : `Откроется в ${String(config?.publishHour ?? 19).padStart(2, '0')}:${String(config?.publishMinute ?? 0).padStart(2, '0')}`}` : `${config?.points ?? 10} баллов`}
         </div>
 
         <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>
-          {thesisQ.label}
+          {thesisQ.label} (обязательно)
         </div>
         <textarea className="nfo-input" rows={3} value={thesis} readOnly={!!existing || !!isLocked} onChange={(e) => setThesis(e.target.value)} />
 
         <div style={{ fontSize: 12, fontWeight: 600, margin: '16px 0 8px', color: 'var(--vkui--color_text_secondary)' }}>
-          {understandingQ.label}
+          {understandingQ.label} (обязательно)
         </div>
         <textarea className="nfo-input" rows={3} value={understanding} readOnly={!!existing || !!isLocked} onChange={(e) => setUnderstanding(e.target.value)} />
 
         <div style={{ fontSize: 12, fontWeight: 600, margin: '16px 0 8px', color: 'var(--vkui--color_text_secondary)' }}>
-          {factorsQ.label} (до 3) · выбрано {selectedFactors.length}/3
+          {factorsQ.label} (обязательно, до 3) · выбрано {selectedFactors.length}/3
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {factors.map((factor) => {
@@ -148,7 +148,7 @@ export function NfoDaySection({ onSubmitted }: NfoDaySectionProps) {
         {extraQ ? (
           <>
             <div style={{ fontSize: 12, fontWeight: 600, margin: '16px 0 8px', color: 'var(--vkui--color_text_secondary)' }}>
-              {extraQ.label}
+              {extraQ.label} (необязательно)
             </div>
             <textarea className="nfo-input" rows={2} value={extra} readOnly={!!existing || !!isLocked} onChange={(e) => setExtra(e.target.value)} />
           </>

@@ -15,6 +15,7 @@ import {
   listEvents,
   listPendingExchangeQuestions,
   listPendingSubmissions,
+  listAllTaskSubmissions,
   listTaskSubmissions,
   listReflectionQuestions,
   listTasks,
@@ -61,6 +62,7 @@ import {
   generateReflectionCSV,
   generateTasksCSV,
   generateActivityCSV,
+  generateFeedbackCSV,
   generateExportXlsx,
   listFeedbackMessages,
   listUsers,
@@ -115,6 +117,20 @@ adminRouter.get('/tasks', async (_req, res) => {
 adminRouter.post('/tasks', async (req, res) => {
   const task = await createTask(req.body);
   res.status(201).json({ task });
+});
+
+adminRouter.get('/tasks/submissions', async (req, res) => {
+  const status = req.query.status as 'pending' | 'approved' | 'rejected' | undefined;
+  const taskIdRaw = req.query.taskId;
+  const taskId = taskIdRaw != null && taskIdRaw !== '' ? Number(taskIdRaw) : undefined;
+  const limitRaw = req.query.limit;
+  const limit = limitRaw != null && limitRaw !== '' ? Number(limitRaw) : undefined;
+  if (taskId != null && Number.isNaN(taskId)) {
+    res.status(400).json({ error: 'Invalid taskId' });
+    return;
+  }
+  const submissions = await listAllTaskSubmissions({ status, taskId, limit });
+  res.json({ submissions });
 });
 
 adminRouter.get('/tasks/:id/submissions', async (req, res) => {
@@ -477,6 +493,10 @@ adminRouter.get('/export/checkins', async (_req, res) => {
 
 adminRouter.get('/export/nfo-day', async (_req, res) => {
   sendCsv(res, 'nfo-day.csv', await generateNfoDayCSV());
+});
+
+adminRouter.get('/export/feedback', async (_req, res) => {
+  sendCsv(res, 'feedback.csv', await generateFeedbackCSV());
 });
 
 adminRouter.get('/export/points-history', async (_req, res) => {

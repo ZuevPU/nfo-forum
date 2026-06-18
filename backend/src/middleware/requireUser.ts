@@ -1,8 +1,9 @@
 import type { NextFunction, Response } from 'express';
 import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db, getPoolStats } from '../db/index.js';
 import { users } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
+import { withDbRetry } from '../utils/dbRetry.js';
 import { getSignedVkUserId, type VkSignedRequest } from './vkLaunchParams.js';
 
 export interface AuthenticatedRequest extends VkSignedRequest {
@@ -68,7 +69,9 @@ export async function requireUser(req: AuthenticatedRequest, res: Response, next
   }
 
   try {
-    const [user] = await db.select().from(users).where(eq(users.vkId, vkId)).limit(1);
+    const [user] = await withDbRetry(() =>
+      db.select().from(users).where(eq(users.vkId, vkId)).limit(1),
+    );
     if (!user) {
       res.status(401).json({ error: 'User not found' });
       return;
@@ -78,7 +81,12 @@ export async function requireUser(req: AuthenticatedRequest, res: Response, next
     req.vkId = vkId;
     next();
   } catch (error) {
-    console.error('requireUser DB error:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    const stats = getPoolStats();
+    console.error('requireUser DB error:', message, stats);
+    // #region agent log
+    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'requireUser.ts:catch',message:'requireUser DB error',data:{error:message,pool:stats,path:req.path},timestamp:Date.now(),hypothesisId:'H1-pool-exhaustion'})}).catch(()=>{});
+    // #endregion
     res.status(503).json({ error: 'Database temporarily unavailable' });
   }
 }

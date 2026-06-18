@@ -37,15 +37,13 @@ export const ADMIN_TAB_GROUPS: AdminTabGroup[] = [
     label: 'Модерация',
     tabs: [
       { id: 'exchange', label: 'Обмен' },
-      { id: 'submissions', label: 'Ответы' },
+      { id: 'submissions', label: 'Ответы на задания' },
+      { id: 'feedback', label: 'Обращения' },
     ],
   },
   {
     label: 'Коммуникации',
-    tabs: [
-      { id: 'push', label: 'Push' },
-      { id: 'feedback', label: 'Inbox' },
-    ],
+    tabs: [{ id: 'push', label: 'Push' }],
   },
   {
     label: 'Аналитика',

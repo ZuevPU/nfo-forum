@@ -12,6 +12,7 @@ Railway и VK Hosting в проекте **не используются** для
 |------------|----------|
 | `DATABASE_URL` | PostgreSQL (Timeweb DB) |
 | `API_PUBLIC_URL` | `https://zuevpu-nfo-forum-d400.twc1.net` |
+| `DB_POOL_MAX` | `10` (не больше 15 без проверки лимита БД) |
 | `SKIP_VK_SIGN` | `false` |
 | `FRONTEND_ORIGIN` | `https://vk.com` |
 | `CRON_SECRET` | случайная строка 32+ символов |

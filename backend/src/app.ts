@@ -2,7 +2,7 @@ import 'express-async-errors';
 import cors from 'cors';
 import express, { Request, Response, NextFunction } from 'express';
 import { env } from './config/env.js';
-import { pool } from './db/index.js';
+import { getPoolStats, pool } from './db/index.js';
 import { validateVkSign } from './middleware/validateVkSign.js';
 import { authRouter } from './routes/auth.js';
 import { cronRouter } from './routes/cron.js';
@@ -54,13 +54,14 @@ export function createApp() {
   app.use(validateVkSign);
 
   app.get('/api/health', async (_req, res) => {
+    const poolStats = getPoolStats();
     try {
       await pool.query('SELECT 1');
-      res.status(200).json({ status: 'ok', database: 'connected' });
+      res.status(200).json({ status: 'ok', database: 'connected', pool: poolStats });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('Health check failed:', message);
-      res.status(503).json({ status: 'error', database: 'disconnected' });
+      console.error('Health check failed:', message, poolStats);
+      res.status(503).json({ status: 'error', database: 'disconnected', pool: poolStats });
     }
   });
 

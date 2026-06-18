@@ -36,6 +36,21 @@ export function publishAdminTask(id: number) {
   return apiRequest(`/api/admin/tasks/${id}/publish`, { method: 'POST' });
 }
 
+export function fetchAllTaskSubmissions(params?: {
+  status?: 'pending' | 'approved' | 'rejected';
+  taskId?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.status) search.set('status', params.status);
+  if (params?.taskId != null) search.set('taskId', String(params.taskId));
+  if (params?.limit != null) search.set('limit', String(params.limit));
+  const qs = search.toString();
+  return apiRequest<{ submissions: TaskSubmissionRow[] }>(
+    `/api/admin/tasks/submissions${qs ? `?${qs}` : ''}`,
+  );
+}
+
 export function fetchTaskSubmissions(taskId: number) {
   return apiRequest<{ submissions: TaskSubmissionRow[] }>(`/api/admin/tasks/${taskId}/submissions`);
 }
@@ -255,6 +270,7 @@ export type AdminExportType =
   | 'rating'
   | 'checkins'
   | 'nfo-day'
+  | 'feedback'
   | 'points-history'
   | 'activity';
 
@@ -266,6 +282,8 @@ export function downloadAdminExport(type: AdminExportType, format: 'csv' | 'xlsx
 export interface NfoDaySettings {
   publishHour: number;
   publishMinute: number;
+  closeHour?: number | null;
+  closeMinute?: number | null;
   points: number;
   panelTitle?: string;
   panelSubtitle?: string;
@@ -286,6 +304,8 @@ export function fetchNfoDaySettings() {
 export function saveNfoDaySettings(data: {
   publishHour: number;
   publishMinute: number;
+  closeHour?: number | null;
+  closeMinute?: number | null;
   points: number;
   panelTitle?: string;
   panelSubtitle?: string;
@@ -489,6 +509,7 @@ export interface PendingSubmission {
 export interface TaskSubmissionRow {
   id: number;
   taskId: number;
+  taskTitle?: string;
   userId: number;
   userName: string;
   userLastName: string | null;

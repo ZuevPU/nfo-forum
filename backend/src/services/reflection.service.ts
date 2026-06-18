@@ -29,6 +29,7 @@ export async function getQuestions(user: UserDto) {
     .filter((q) => !q.track || q.track === user.track)
     .filter((q) => !q.endTime || q.endTime > now)
     .filter((q) => q.groupId !== INSIGHTS_QUESTION_GROUP_ID && q.type !== 'insight')
+    .filter((q) => q.type !== 'evening')
     .map((q) => ({
       id: q.id,
       text: q.text,
@@ -53,6 +54,9 @@ export async function submitAnswer(user: UserDto, questionId: number, answerText
 
   if (!question) throw new Error('Question not found');
   if (question.status === 'draft') throw new Error('Question is locked');
+  if (question.groupId === INSIGHTS_QUESTION_GROUP_ID || question.type === 'insight') {
+    throw new Error('Use the insights section on the questions page');
+  }
   if (!question.publishTime || question.publishTime > new Date()) throw new Error('Question is locked');
 
   const [existingAnswer] = await db
@@ -104,6 +108,8 @@ export async function getNfoDayConfig() {
   const value = (setting?.value ?? {}) as {
     publishHour?: number;
     publishMinute?: number;
+    closeHour?: number;
+    closeMinute?: number;
     points?: number;
     question?: string;
     panelTitle?: string;
@@ -113,6 +119,8 @@ export async function getNfoDayConfig() {
   };
   const publishHour = value.publishHour ?? 19;
   const publishMinute = value.publishMinute ?? 30;
+  const closeHour = value.closeHour ?? null;
+  const closeMinute = value.closeMinute ?? null;
   const customFactors = Array.isArray(value.factors)
     ? value.factors.filter((f) => typeof f === 'string' && f.trim())
     : [];
@@ -128,8 +136,10 @@ export async function getNfoDayConfig() {
     panelSubtitle: value.panelSubtitle?.trim() || NFO_DAY_PANEL_SUBTITLE,
     publishHour,
     publishMinute,
+    closeHour,
+    closeMinute,
     points: value.points ?? 10,
-    isOpen: isNfoDayTimeOpen(publishHour, publishMinute),
+    isOpen: isNfoDayTimeOpen(publishHour, publishMinute, new Date(), closeHour, closeMinute),
   };
 }
 
@@ -166,7 +176,7 @@ export async function submitNfoDayReflection(user: UserDto, responses: NfoDayRes
 
   if (existing) throw new Error('Already submitted today');
 
-  if (!isNfoDayTimeOpen(config.publishHour, config.publishMinute)) {
+  if (!isNfoDayTimeOpen(config.publishHour, config.publishMinute, new Date(), config.closeHour, config.closeMinute)) {
     throw new Error('NFO day reflection is not open yet');
   }
 

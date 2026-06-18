@@ -26,4 +26,6 @@ export const env = {
   CRON_SECRET: process.env.CRON_SECRET ?? '',
   SKIP_VK_SIGN: process.env.SKIP_VK_SIGN === 'true',
   NODE_ENV: process.env.NODE_ENV ?? 'development',
+  /** Postgres pool size. Default 10 in production; was 2 and caused queue timeouts under load. */
+  DB_POOL_MAX: Number(process.env.DB_POOL_MAX ?? (process.env.NODE_ENV === 'production' ? 10 : 5)),
 } as const;
