@@ -36,6 +36,14 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
 export function createApp() {
   const app = express();
 
+  // Liveness for Timeweb/App Platform — no DB, must return 2xx quickly
+  app.get('/', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'nfo-forum-api' });
+  });
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+  });
+
   app.use(
     cors({
       origin(origin, callback) {

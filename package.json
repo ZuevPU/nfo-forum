@@ -6,6 +6,8 @@
     "backend"
   ],
   "scripts": {
+    "start": "node backend/dist/index.js",
+    "build": "npm run build -w backend",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "tunnel:frontend": "npm run tunnel -w frontend",

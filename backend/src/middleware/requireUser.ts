@@ -84,9 +84,6 @@ export async function requireUser(req: AuthenticatedRequest, res: Response, next
     const message = error instanceof Error ? error.message : String(error);
     const stats = getPoolStats();
     console.error('requireUser DB error:', message, stats);
-    // #region agent log
-    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'requireUser.ts:catch',message:'requireUser DB error',data:{error:message,pool:stats,path:req.path},timestamp:Date.now(),hypothesisId:'H1-pool-exhaustion'})}).catch(()=>{});
-    // #endregion
     res.status(503).json({ error: 'Database temporarily unavailable' });
   }
 }
