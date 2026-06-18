@@ -14,6 +14,7 @@ import { PanelLayout } from '../components/PanelLayout';
 import { NotificationBell } from '../components/NotificationBell';
 import { CheckinSection } from '../components/CheckinSection';
 import { NfoDaySection } from '../components/NfoDaySection';
+import { ProgramInsightsSection } from '../components/ProgramInsightsSection';
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
   entry: 'Входной вопрос',
@@ -227,6 +228,10 @@ export function QuestionsPanel() {
           {questionGroups.map(renderQuestionGroup)}
         </Group>
       )}
+
+      <Group header={<div className="nfo-sec-title">Озарения и важные мысли</div>}>
+        <ProgramInsightsSection />
+      </Group>
 
       <Group header={<div className="nfo-sec-title">Каким было НФО сегодня?</div>}>
         <NfoDaySection onSubmitted={() => setRefreshKey((k) => k + 1)} />

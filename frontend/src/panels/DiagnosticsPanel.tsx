@@ -15,6 +15,8 @@ import {
   submitDiagnosticAnswer,
   completeDiagnosticAttempt,
   startNewDiagnosticAttempt,
+  submitDiagnosticProfileFeedback,
+  fetchDiagnosticProfileFeedback,
   type DiagnosticData,
   type DiagnosticAnswer,
 } from '../api/diagnostics';
@@ -37,6 +39,9 @@ export function DiagnosticsPanel() {
 
   const [expandedDetails, setExpandedDetails] = useState<number | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [profileFeedback, setProfileFeedback] = useState('');
+  const [profileFeedbackSaved, setProfileFeedbackSaved] = useState(false);
+  const [profileFeedbackSubmitting, setProfileFeedbackSubmitting] = useState(false);
   const nextFooterRef = useRef<HTMLDivElement>(null);
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,6 +93,14 @@ export function DiagnosticsPanel() {
   const handleStart = () => {
     if (isCompleted) {
       setShowProfile(true);
+      void fetchDiagnosticProfileFeedback()
+        .then((r) => {
+          if (r.feedback?.comment) {
+            setProfileFeedback(r.feedback.comment);
+            setProfileFeedbackSaved(true);
+          }
+        })
+        .catch(() => {});
     } else {
       const firstUnanswered = data?.skills.find(s => !currentAnswers.some(a => a.blockId === s.id));
       if (firstUnanswered) {
@@ -248,6 +261,40 @@ export function DiagnosticsPanel() {
                 <div style={{ fontSize: 13, marginTop: 4 }}>{info.meaning}</div>
               </div>
             ))}
+          </Div>
+        </Group>
+        <Group header="Ваш комментарий">
+          <Div style={{ padding: '0 16px 12px' }}>
+            <div style={{ fontSize: 13, color: 'var(--vkui--color_text_secondary)', marginBottom: 8, lineHeight: 1.45 }}>
+              Насколько профиль соответствует вашему представлению о себе? Что удивило? Какие мысли появились?
+            </div>
+            <Textarea
+              rows={4}
+              value={profileFeedback}
+              onChange={(e) => setProfileFeedback(e.target.value)}
+              placeholder="Поделитесь впечатлениями..."
+              disabled={profileFeedbackSaved}
+            />
+            {!profileFeedbackSaved ? (
+              <Button
+                size="l"
+                stretched
+                style={{ marginTop: 12 }}
+                loading={profileFeedbackSubmitting}
+                disabled={!profileFeedback.trim()}
+                onClick={() => {
+                  setProfileFeedbackSubmitting(true);
+                  void submitDiagnosticProfileFeedback(profileFeedback.trim())
+                    .then(() => setProfileFeedbackSaved(true))
+                    .catch(console.error)
+                    .finally(() => setProfileFeedbackSubmitting(false));
+                }}
+              >
+                Отправить комментарий
+              </Button>
+            ) : (
+              <div style={{ marginTop: 12, fontSize: 13, color: 'var(--nfo-green)' }}>Спасибо, комментарий сохранён</div>
+            )}
           </Div>
         </Group>
         <Div>

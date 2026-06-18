@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { DEFAULT_REFLECTION_THRESHOLDS } from '../constants/reflectionLevels.js';
+import { DEFAULT_REFLECTION_THRESHOLDS, REFLECTION_LEVEL_DESCRIPTIONS, REFLECTION_LEVEL_NAMES } from '../constants/reflectionLevels.js';
 import { db } from '../db/index.js';
 import { systemSettings } from '../db/schema.js';
 
@@ -16,7 +16,7 @@ export async function getReflectionLevelSettings() {
       ? raw.thresholds
       : [...DEFAULT_REFLECTION_THRESHOLDS];
 
-  return { thresholds };
+  return { thresholds, levelNames: REFLECTION_LEVEL_NAMES, levelDescriptions: REFLECTION_LEVEL_DESCRIPTIONS };
 }
 
 export async function setReflectionLevelSettings(thresholds: number[]) {

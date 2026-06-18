@@ -7,6 +7,7 @@ import {
   addReaction,
   createAnswer,
   createQuestion,
+  deferAssignment,
   getFeed,
   getIncoming,
   getQuestionWithAnswers,
@@ -101,6 +102,22 @@ exchangeRouter.post('/assignments/:id/skip', requireUser, async (req: Authentica
     res.json({ ok: true });
   } catch (error) {
     console.error('Skip assignment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+exchangeRouter.post('/assignments/:id/defer', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    await deferAssignment(req.user!, id);
+    res.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message === 'Assignment not found') {
+      res.status(404).json({ error: message });
+      return;
+    }
+    console.error('Defer assignment error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

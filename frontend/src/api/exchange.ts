@@ -1,5 +1,16 @@
 import { apiRequest } from './client';
 
+export function formatExchangeAuthorName(
+  firstName?: string | null,
+  lastName?: string | null,
+): string {
+  return [firstName, lastName].filter(Boolean).join(' ') || 'Участник';
+}
+
+export function formatExchangeAuthorTrack(track?: string | null): string | null {
+  return track ? `Трек «${track}»` : null;
+}
+
 export function fetchExchangeFeed(scope: 'all' | 'track' = 'all') {
   return apiRequest<{ feed: ExchangeFeedItem[] }>(`/api/exchange/feed?scope=${scope}`);
 }
@@ -22,8 +33,8 @@ export function fetchIncomingQuestions() {
   return apiRequest<{ incoming: IncomingQuestion[] }>('/api/exchange/incoming');
 }
 
-export function skipExchangeQuestion(assignmentId: number) {
-  return apiRequest(`/api/exchange/assignments/${assignmentId}/skip`, { method: 'POST' });
+export function deferExchangeQuestion(assignmentId: number) {
+  return apiRequest(`/api/exchange/assignments/${assignmentId}/defer`, { method: 'POST' });
 }
 
 export function fetchQuestionDetail(id: number) {
@@ -49,6 +60,9 @@ export interface ExchangeFeedItem {
   text: string;
   scope: string;
   scopeLabel: string;
+  authorFirstName?: string;
+  authorLastName?: string | null;
+  authorTrack?: string | null;
   answerCount: number;
   isMine: boolean;
   createdAt: string;
@@ -59,6 +73,9 @@ export interface IncomingQuestion {
   questionId: number;
   text: string;
   status: string;
+  authorFirstName?: string;
+  authorLastName?: string | null;
+  authorTrack?: string | null;
 }
 
 export interface QuestionDetail {
@@ -68,6 +85,9 @@ export interface QuestionDetail {
     isMine: boolean;
     scope?: string;
     scopeLabel?: string;
+    authorFirstName?: string;
+    authorLastName?: string | null;
+    authorTrack?: string | null;
     publishTime?: string;
   };
   answers: {
@@ -75,7 +95,12 @@ export interface QuestionDetail {
     answerText: string;
     isMine: boolean;
     createdAt: string;
-    reactionCount: number;
+    authorFirstName?: string;
+    authorLastName?: string | null;
+    authorTrack?: string | null;
+    likeCount: number;
+    discussCount: number;
     likedByMe: boolean;
+    discussedByMe: boolean;
   }[];
 }

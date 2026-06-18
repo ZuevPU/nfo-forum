@@ -40,11 +40,12 @@ ratingRouter.get('/history', requireUser, async (req: AuthenticatedRequest, res)
 ratingRouter.get('/reflection-level', requireUser, async (req: AuthenticatedRequest, res) => {
   try {
     const history = await getReflectionLevelHistory(req.user!.id);
-    const { thresholds } = await getReflectionLevelSettings();
+    const { thresholds, levelDescriptions } = await getReflectionLevelSettings();
     res.json({
       level: req.user!.reflectionLevel,
       reflectionPoints: req.user!.reflectionPoints,
       thresholds,
+      levelDescriptions,
       history: history.map((h) => ({
         id: h.id,
         oldLevel: h.oldLevel,

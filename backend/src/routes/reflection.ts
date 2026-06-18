@@ -9,6 +9,8 @@ import {
   getQuestions,
   submitAnswer,
   submitNfoDayReflection,
+  listProgramInsights,
+  createProgramInsight,
 } from '../services/reflection.service.js';
 
 export const reflectionRouter = Router();
@@ -64,15 +66,21 @@ reflectionRouter.get('/nfo-day/config', requireUser, async (_req, res) => {
 
 reflectionRouter.post('/nfo-day', requireUser, async (req: AuthenticatedRequest, res) => {
   try {
-    const { answer_text, factors } = req.body as {
+    const { responses, answer_text, factors } = req.body as {
+      responses?: Record<string, string | string[]>;
       answer_text?: string;
       factors?: string[];
     };
-    if (!answer_text || !factors?.length) {
-      res.status(400).json({ error: 'answer_text and factors are required' });
+    const payload =
+      responses ??
+      (answer_text && factors
+        ? { thesis: answer_text, understanding: answer_text, factors }
+        : null);
+    if (!payload) {
+      res.status(400).json({ error: 'responses are required' });
       return;
     }
-    const reflection = await submitNfoDayReflection(req.user!, answer_text, factors);
+    const reflection = await submitNfoDayReflection(req.user!, payload);
     await logActivity(req.user!.id, 'nfo_day_submit');
     res.status(201).json({ reflection });
   } catch (error) {
@@ -89,6 +97,7 @@ reflectionRouter.get('/nfo-day/today', requireUser, async (req: AuthenticatedReq
         ? {
             answerText: reflection.answerText,
             factors: reflection.factors,
+            responses: (reflection.answers as Record<string, unknown> | null) ?? null,
             createdAt: reflection.createdAt.toISOString(),
           }
         : null,
@@ -96,5 +105,36 @@ reflectionRouter.get('/nfo-day/today', requireUser, async (req: AuthenticatedReq
   } catch (error) {
     console.error('NFO day today error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+reflectionRouter.get('/insights', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const insights = await listProgramInsights(req.user!.id);
+    res.json({
+      insights: insights.map((i) => ({
+        id: i.id,
+        text: i.text,
+        createdAt: i.createdAt.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error('Insights list error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+reflectionRouter.post('/insights', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { text } = req.body as { text?: string };
+    if (!text?.trim()) {
+      res.status(400).json({ error: 'text is required' });
+      return;
+    }
+    const result = await createProgramInsight(req.user!, text);
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Insight create error:', error);
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Error' });
   }
 });

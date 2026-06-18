@@ -91,7 +91,8 @@ export const reflectionQuestions = pgTable(
     text: text('text').notNull(),
     type: text('type').notNull(),
     track: text('track'),
-    publishTime: timestamp('publish_time').notNull(),
+    status: text('status').notNull().default('published'),
+    publishTime: timestamp('publish_time'),
     endTime: timestamp('end_time'),
     points: integer('points').notNull().default(10),
     sendNotification: boolean('send_notification').notNull().default(true),
@@ -146,6 +147,9 @@ export const tasks = pgTable(
     networkingContacts: integer('networking_contacts').notNull().default(1),
     isFocusOfDay: boolean('is_focus_of_day').notNull().default(false),
     requiresPhoto: boolean('requires_photo').notNull().default(false),
+    photoMode: text('photo_mode').notNull().default('none'),
+    status: text('status').notNull().default('published'),
+    publishTime: timestamp('publish_time'),
     sendNotification: boolean('send_notification').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
@@ -233,6 +237,7 @@ export const exchangeAssignments = pgTable('exchange_assignments', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   status: text('status').notNull().default('pending'),
+  deferredAt: timestamp('deferred_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -282,6 +287,33 @@ export const nfoDayReflections = pgTable('nfo_day_reflections', {
   date: date('date').notNull(),
   answerText: text('answer_text').notNull(),
   factors: text('factors').array().notNull(),
+  answers: jsonb('answers'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const diagnosticProfileFeedback = pgTable(
+  'diagnostic_profile_feedback',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    attemptNumber: integer('attempt_number').notNull(),
+    comment: text('comment').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('diagnostic_profile_feedback_user_attempt').on(table.userId, table.attemptNumber),
+  ],
+);
+
+export const programInsights = pgTable('program_insights', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  text: text('text').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -388,6 +420,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   pointsHistory: many(pointsHistory),
   feedbackMessages: many(feedbackMessages),
   trainerSelfDiagnostics: many(trainerSelfDiagnostics),
+  programInsights: many(programInsights),
 }));
 
 export const eventsRelations = relations(events, () => ({}));

@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { createExchangeAnswer, skipExchangeQuestion, type IncomingQuestion } from '../api/exchange';
+import {
+  createExchangeAnswer,
+  deferExchangeQuestion,
+  formatExchangeAuthorName,
+  formatExchangeAuthorTrack,
+  type IncomingQuestion,
+} from '../api/exchange';
 
 interface Props {
   question: IncomingQuestion;
@@ -10,10 +16,10 @@ export function ExchangeIncomingCard({ question, onDone }: Props) {
   const [answer, setAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSkip = async () => {
+  const handleDefer = async () => {
     setSubmitting(true);
     try {
-      await skipExchangeQuestion(question.assignmentId);
+      await deferExchangeQuestion(question.assignmentId);
       onDone();
     } catch (e) {
       console.error(e);
@@ -38,7 +44,12 @@ export function ExchangeIncomingCard({ question, onDone }: Props) {
   return (
     <div className="nfo-ex-incoming-block">
       <div className="nfo-ex-notify">
-        <div className="nfo-ex-notify-lbl">Вопрос от участника</div>
+        <div className="nfo-ex-notify-lbl">{formatExchangeAuthorName(question.authorFirstName, question.authorLastName)}</div>
+        {question.authorTrack ? (
+          <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginBottom: 4 }}>
+            {formatExchangeAuthorTrack(question.authorTrack)}
+          </div>
+        ) : null}
         <div className="nfo-ex-notify-q">{question.text}</div>
       </div>
 
@@ -63,9 +74,9 @@ export function ExchangeIncomingCard({ question, onDone }: Props) {
           type="button"
           className="nfo-ex-skip"
           disabled={submitting}
-          onClick={() => void handleSkip()}
+          onClick={() => void handleDefer()}
         >
-          Пропустить вопрос
+          Ответить позже
         </button>
       </div>
     </div>

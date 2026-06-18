@@ -128,17 +128,28 @@ function TaskDetailContent({
           value={answer}
           onChange={(e) => onAnswerChange(e.target.value)}
         />
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-          <Button size="m" mode="secondary" loading={uploading} disabled={photos.length >= 3} onClick={() => onUploadPhoto()}>
-            📷 Добавить фото ({photos.length}/3)
-          </Button>
-          {photos.map((url, i) => (
-            <img key={`${i}-${url.slice(0, 32)}`} src={url} alt={`Фото ${i + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover' }} />
-          ))}
-        </div>
-        {uploadError && (
-          <div style={{ marginTop: 8, fontSize: 12, color: '#e74c3c' }}>{uploadError}</div>
-        )}
+        {(() => {
+          const photoMode = task.photoMode ?? (task.requiresPhoto ? 'required' : 'none');
+          if (photoMode === 'none') return null;
+          return (
+            <>
+              <div style={{ fontSize: 12, fontWeight: 600, margin: '16px 0 8px', color: 'var(--vkui--color_text_secondary)' }}>
+                {photoMode === 'required' ? 'Фото (обязательно)' : 'Фото (можно приложить, но не обязательно)'}
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Button size="m" mode="secondary" loading={uploading} disabled={photos.length >= 3} onClick={() => onUploadPhoto()}>
+                  📷 Добавить фото ({photos.length}/3)
+                </Button>
+                {photos.map((url, i) => (
+                  <img key={`${i}-${url.slice(0, 32)}`} src={url} alt={`Фото ${i + 1}`} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover' }} />
+                ))}
+              </div>
+              {uploadError && (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#e74c3c' }}>{uploadError}</div>
+              )}
+            </>
+          );
+        })()}
       </Div>
       <div className="nfo-task-modal__footer">
         <Button size="l" mode="primary" stretched loading={submitting} onClick={() => onSubmit()}>

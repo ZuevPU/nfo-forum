@@ -2,6 +2,7 @@ import { and, desc, eq, gte, isNull, lte, or } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   broadcasts,
+  diagnosticProfileFeedback,
   events,
   exchangeQuestions,
   pointsHistory,
@@ -11,17 +12,18 @@ import {
   tasks,
   trainerSelfDiagnostics,
   users,
+  nfoDayReflections,
+  reflectionAnswers,
+  userActivityLogs,
 } from '../db/schema.js';
 import { assignRandomRespondents } from './exchange.service.js';
 import { awardPoints } from './points.service.js';
 import { notifyUser, notifyUsersForTrack } from './push.service.js';
 import { entityLink } from '../utils/appLinks.js';
 import { DIAGNOSTICS_DATA } from '../data/samodiagnostika.js';
-import {
-  nfoDayReflections,
-  reflectionAnswers,
-  userActivityLogs,
-} from '../db/schema.js';
+import { DEFAULT_NFO_DAY_QUESTIONS } from '../constants/nfoFactors.js';
+import type { PointsConfigValue } from '../constants/pointsSystem.js';
+import { DEFAULT_POINTS_CONFIG } from '../constants/pointsSystem.js';
 
 export async function listBroadcasts() {
   return db.select().from(broadcasts).orderBy(desc(broadcasts.createdAt));
@@ -100,11 +102,27 @@ export async function createTask(data: {
   allowMultiple?: boolean;
   deadline?: string | null;
   requiresPhoto?: boolean;
+  photoMode?: 'none' | 'optional' | 'required';
   sendNotification?: boolean;
   isFocusOfDay?: boolean;
   isRandomDistribution?: boolean;
   networkingContacts?: number;
+  publishTime?: string | null;
+  asDraft?: boolean;
 }) {
+  const now = new Date();
+  const photoMode = data.photoMode ?? (data.requiresPhoto ? 'required' : 'none');
+  let status: 'draft' | 'scheduled' | 'published' = 'published';
+  let publishTime: Date | null = now;
+
+  if (data.asDraft || !data.publishTime) {
+    status = 'draft';
+    publishTime = null;
+  } else {
+    publishTime = new Date(data.publishTime);
+    status = publishTime > now ? 'scheduled' : 'published';
+  }
+
   const [row] = await db
     .insert(tasks)
     .values({
@@ -115,7 +133,10 @@ export async function createTask(data: {
       autoApprove: data.autoApprove ?? false,
       allowMultiple: data.allowMultiple ?? false,
       deadline: data.deadline ? new Date(data.deadline) : null,
-      requiresPhoto: data.requiresPhoto ?? false,
+      requiresPhoto: photoMode === 'required',
+      photoMode,
+      status,
+      publishTime,
       sendNotification: data.sendNotification ?? true,
       isFocusOfDay: data.isFocusOfDay ?? false,
       isRandomDistribution: data.isRandomDistribution ?? false,
@@ -125,18 +146,14 @@ export async function createTask(data: {
     })
     .returning();
 
-  if (row.sendNotification) {
-    const now = new Date();
-    const isImmediate = !row.deadline || row.deadline <= now;
-    if (isImmediate) {
-      void notifyUsersForTrack(
-        row.track,
-        `Новое задание: «${row.title}»`,
-        'tasks',
-        entityLink('tasks', row.id),
-        'Открыть задание',
-      ).catch(console.error);
-    }
+  if (row.sendNotification && row.status === 'published') {
+    void notifyUsersForTrack(
+      row.track,
+      `Новое задание: «${row.title}»`,
+      'tasks',
+      entityLink('tasks', row.id),
+      'Открыть задание',
+    ).catch(console.error);
   }
 
   return row;
@@ -152,18 +169,49 @@ export async function updateTask(
     allowMultiple: boolean;
     deadline: string | null;
     requiresPhoto: boolean;
+    photoMode: 'none' | 'optional' | 'required';
     sendNotification: boolean;
     isFocusOfDay: boolean;
     isRandomDistribution: boolean;
     autoApprove: boolean;
+    publishTime: string | null;
+    status: 'draft' | 'scheduled' | 'published';
   }>,
 ) {
   const patch: Record<string, unknown> = { ...data };
   if (data.deadline !== undefined) {
     patch.deadline = data.deadline ? new Date(data.deadline) : null;
   }
+  if (data.publishTime !== undefined) {
+    patch.publishTime = data.publishTime ? new Date(data.publishTime) : null;
+  }
+  if (data.photoMode) {
+    patch.photoMode = data.photoMode;
+    patch.requiresPhoto = data.photoMode === 'required';
+  }
   const [row] = await db.update(tasks).set(patch).where(eq(tasks.id, id)).returning();
   return row ?? null;
+}
+
+export async function publishTask(id: number) {
+  const now = new Date();
+  const [row] = await db
+    .update(tasks)
+    .set({ status: 'published', publishTime: now })
+    .where(eq(tasks.id, id))
+    .returning();
+  if (!row) return null;
+
+  if (row.sendNotification) {
+    void notifyUsersForTrack(
+      row.track,
+      `Новое задание: «${row.title}»`,
+      'tasks',
+      entityLink('tasks', row.id),
+      'Открыть задание',
+    ).catch(console.error);
+  }
+  return row;
 }
 
 export async function deleteTask(id: number) {
@@ -172,10 +220,27 @@ export async function deleteTask(id: number) {
 
 export async function listPendingExchangeQuestions() {
   return db
-    .select()
+    .select({
+      id: exchangeQuestions.id,
+      text: exchangeQuestions.text,
+      status: exchangeQuestions.status,
+      scope: exchangeQuestions.scope,
+      authorFirstName: users.firstName,
+      authorLastName: users.lastName,
+      authorTrack: users.track,
+    })
     .from(exchangeQuestions)
+    .innerJoin(users, eq(exchangeQuestions.userId, users.id))
     .where(eq(exchangeQuestions.status, 'pending'))
     .orderBy(desc(exchangeQuestions.createdAt));
+}
+
+export async function deleteExchangeQuestion(id: number) {
+  const deleted = await db
+    .delete(exchangeQuestions)
+    .where(eq(exchangeQuestions.id, id))
+    .returning({ id: exchangeQuestions.id });
+  return deleted.length > 0;
 }
 
 export async function hideExchangeQuestion(id: number) {
@@ -213,6 +278,9 @@ export async function moderateExchangeQuestion(id: number, status: 'approved' | 
       .from(users)
       .where(eq(users.id, existing.userId))
       .limit(1);
+
+    const { awardAction } = await import('./pointsEngine.service.js');
+    await awardAction(existing.userId, 'exchange_question', row.id, { skipIfSourceIdExists: true });
 
     await assignRandomRespondents(
       row.id,
@@ -305,7 +373,7 @@ export async function moderateSubmission(
     .limit(1);
 
   if (!existingPoints) {
-    await awardPoints(row.userId, task.points, 'task_submission', row.id);
+    await awardPoints(row.userId, task.points, 'task_submission', row.id, undefined, 0, task.points);
   }
 
   void notifyUser(
@@ -328,20 +396,34 @@ export async function listReflectionQuestions() {
 export async function createReflectionQuestion(data: {
   text: string;
   type: string;
-  publishTime: string;
+  publishTime?: string | null;
   endTime?: string | null;
   points?: number;
   sendNotification?: boolean;
   groupId?: string | null;
   track?: string | null;
   allowMultiple?: boolean;
+  asDraft?: boolean;
 }) {
+  const now = new Date();
+  let status: 'draft' | 'scheduled' | 'published' = 'published';
+  let publishTime: Date | null = now;
+
+  if (data.asDraft || !data.publishTime) {
+    status = 'draft';
+    publishTime = null;
+  } else {
+    publishTime = new Date(data.publishTime);
+    status = publishTime > now ? 'scheduled' : 'published';
+  }
+
   const [row] = await db
     .insert(reflectionQuestions)
     .values({
       text: data.text,
       type: data.type,
-      publishTime: new Date(data.publishTime),
+      status,
+      publishTime,
       endTime: data.endTime ? new Date(data.endTime) : null,
       points: data.points ?? 10,
       sendNotification: data.sendNotification ?? true,
@@ -351,8 +433,7 @@ export async function createReflectionQuestion(data: {
     })
     .returning();
 
-  const now = new Date();
-  if (row.sendNotification && row.publishTime <= now) {
+  if (row.sendNotification && row.status === 'published' && row.publishTime && row.publishTime <= now) {
     void notifyUsersForTrack(
       row.track,
       `Новый вопрос для рефлексии: ${row.text.slice(0, 80)}${row.text.length > 80 ? '…' : ''}`,
@@ -369,22 +450,57 @@ export async function createReflectionQuestion(data: {
   return row;
 }
 
+export async function publishReflectionQuestion(id: number) {
+  const now = new Date();
+  const [existing] = await db
+    .select()
+    .from(reflectionQuestions)
+    .where(eq(reflectionQuestions.id, id))
+    .limit(1);
+  if (!existing) return null;
+
+  const [row] = await db
+    .update(reflectionQuestions)
+    .set({ status: 'published', publishTime: now })
+    .where(eq(reflectionQuestions.id, id))
+    .returning();
+
+  if (row?.sendNotification && !row.notificationSentAt) {
+    void notifyUsersForTrack(
+      row.track,
+      `Новый вопрос для рефлексии: ${row.text.slice(0, 80)}${row.text.length > 80 ? '…' : ''}`,
+      'questions',
+      entityLink('questions', row.id),
+      'Открыть вопрос',
+    ).catch(console.error);
+    await db
+      .update(reflectionQuestions)
+      .set({ notificationSentAt: now })
+      .where(eq(reflectionQuestions.id, id));
+  }
+
+  return row ?? null;
+}
+
 export async function updateReflectionQuestion(
   id: number,
   data: Partial<{
     text: string;
     type: string;
-    publishTime: string;
+    publishTime: string | null;
     endTime: string | null;
     points: number;
     sendNotification: boolean;
     groupId: string | null;
     track: string | null;
     allowMultiple: boolean;
+    status: 'draft' | 'scheduled' | 'published';
   }>,
 ) {
   const patch: Record<string, unknown> = { ...data };
-  if (data.publishTime != null) patch.publishTime = new Date(data.publishTime);
+  if (data.publishTime !== undefined) {
+    patch.publishTime = data.publishTime ? new Date(data.publishTime) : null;
+  }
   if (data.endTime !== undefined) patch.endTime = data.endTime ? new Date(data.endTime) : null;
   const [row] = await db
     .update(reflectionQuestions)
@@ -392,6 +508,23 @@ export async function updateReflectionQuestion(
     .where(eq(reflectionQuestions.id, id))
     .returning();
   return row ?? null;
+}
+
+export async function listDiagnosticProfileFeedback() {
+  return db
+    .select({
+      id: diagnosticProfileFeedback.id,
+      userId: diagnosticProfileFeedback.userId,
+      userName: users.firstName,
+      userLastName: users.lastName,
+      track: users.track,
+      attemptNumber: diagnosticProfileFeedback.attemptNumber,
+      comment: diagnosticProfileFeedback.comment,
+      createdAt: diagnosticProfileFeedback.createdAt,
+    })
+    .from(diagnosticProfileFeedback)
+    .innerJoin(users, eq(diagnosticProfileFeedback.userId, users.id))
+    .orderBy(desc(diagnosticProfileFeedback.createdAt));
 }
 
 export async function listReflectionAnswers(track?: string, day?: string) {
@@ -457,10 +590,16 @@ const DEFAULT_CHECKIN_EMOTIONS = [
 
 export type CheckinIntervalSetting = { start: string; end: string; label?: string };
 
+export type CheckinDayConfig = {
+  slots: string[];
+  intervals?: CheckinIntervalSetting[];
+};
+
 export type CheckinSettingsValue = {
   enabledTracks: string[];
   slots: string[];
   intervals?: CheckinIntervalSetting[];
+  byDay?: Partial<Record<'1' | '2' | '3' | '4', CheckinDayConfig>>;
   title: string;
   subtitle: string;
   emotions: string[];
@@ -472,6 +611,8 @@ export type CheckinSettingsValue = {
   commentPlaceholder: string;
 };
 
+const DEFAULT_DAY_SLOTS = ['08:30', '13:15', '19:30'];
+
 function normalizeCheckinSettings(raw: Partial<CheckinSettingsValue>): CheckinSettingsValue {
   const emotions = Array.isArray(raw.emotions)
     ? raw.emotions.filter((e) => typeof e === 'string' && e.trim()).map((e) => e.trim())
@@ -479,11 +620,19 @@ function normalizeCheckinSettings(raw: Partial<CheckinSettingsValue>): CheckinSe
   const intervals = Array.isArray(raw.intervals)
     ? raw.intervals.filter((i) => i?.start && i?.end)
     : undefined;
+  const legacySlots = Array.isArray(raw.slots) && raw.slots.length ? raw.slots : DEFAULT_DAY_SLOTS;
+  const byDay = raw.byDay ?? {
+    '1': { slots: ['08:30', '19:30'] },
+    '2': { slots: legacySlots, intervals: intervals?.length ? intervals : undefined },
+    '3': { slots: legacySlots, intervals: intervals?.length ? intervals : undefined },
+    '4': { slots: legacySlots },
+  };
 
   return {
     enabledTracks: Array.isArray(raw.enabledTracks) ? raw.enabledTracks : [],
-    slots: Array.isArray(raw.slots) && raw.slots.length ? raw.slots : ['08:30', '13:15', '19:30'],
+    slots: legacySlots,
     intervals: intervals?.length ? intervals : undefined,
+    byDay,
     title: raw.title?.trim() || 'Как ты сейчас?',
     subtitle: raw.subtitle?.trim() || '30 секунд',
     emotions: emotions.length ? emotions : [...DEFAULT_CHECKIN_EMOTIONS],
@@ -493,6 +642,21 @@ function normalizeCheckinSettings(raw: Partial<CheckinSettingsValue>): CheckinSe
     energyHighLabel: raw.energyHighLabel?.trim() || 'заряжен',
     emotionLabel: raw.emotionLabel?.trim() || 'Настроение',
     commentPlaceholder: raw.commentPlaceholder?.trim() || 'Моё состояние вызвано тем, что...',
+  };
+}
+
+export function resolveCheckinSettingsForDay(
+  settings: CheckinSettingsValue,
+  programDay: number | null,
+): CheckinSettingsValue {
+  if (!programDay) return settings;
+  const dayKey = String(programDay) as '1' | '2' | '3' | '4';
+  const dayConfig = settings.byDay?.[dayKey];
+  if (!dayConfig) return settings;
+  return {
+    ...settings,
+    slots: dayConfig.slots.length ? dayConfig.slots : settings.slots,
+    intervals: dayConfig.intervals?.length ? dayConfig.intervals : settings.intervals,
   };
 }
 
@@ -567,7 +731,12 @@ export async function getNfoDaySettings() {
     panelTitle?: string;
     panelSubtitle?: string;
     factors?: string[];
+    questions?: typeof DEFAULT_NFO_DAY_QUESTIONS;
   };
+  const questions =
+    Array.isArray(value.questions) && value.questions.length > 0
+      ? value.questions
+      : DEFAULT_NFO_DAY_QUESTIONS;
   return {
     publishHour: value.publishHour ?? 19,
     publishMinute: value.publishMinute ?? 30,
@@ -576,6 +745,7 @@ export async function getNfoDaySettings() {
     panelTitle: value.panelTitle ?? '',
     panelSubtitle: value.panelSubtitle ?? '',
     factors: value.factors ?? [],
+    questions,
   };
 }
 
@@ -587,6 +757,7 @@ export async function setNfoDaySettings(value: {
   panelTitle?: string;
   panelSubtitle?: string;
   factors?: string[];
+  questions?: typeof DEFAULT_NFO_DAY_QUESTIONS;
 }) {
   const [existing] = await db
     .select()
@@ -646,7 +817,11 @@ export async function listActivityLogs(limit = 200) {
 }
 
 export async function deleteReflectionQuestion(id: number) {
-  await db.delete(reflectionQuestions).where(eq(reflectionQuestions.id, id));
+  const deleted = await db
+    .delete(reflectionQuestions)
+    .where(eq(reflectionQuestions.id, id))
+    .returning({ id: reflectionQuestions.id });
+  return deleted.length > 0;
 }
 
 // Diagnostics
@@ -741,42 +916,40 @@ export async function generateDiagnosticsCSV(): Promise<string> {
   return [headers.join(','), ...rows].join('\n');
 }
 
-export async function getPointsSettings() {
+export async function getPointsSettings(): Promise<PointsConfigValue> {
   const [setting] = await db
     .select()
     .from(systemSettings)
     .where(eq(systemSettings.key, 'points_config'))
     .limit(1);
 
-  const defaults = {
-    reflection_answer: 10,
-    task_submission: 20,
-    exchange_question: 5,
-    exchange_answer: 5,
-    nfo_day_reflection: 10,
-    checkin: 5,
-    diagnostics_complete: 100,
-  };
-
   if (setting?.value && typeof setting.value === 'object') {
-    return { ...defaults, ...(setting.value as Record<string, number>) };
+    const raw = setting.value as Record<string, unknown>;
+    if (raw.rules && typeof raw.rules === 'object') {
+      return { rules: raw.rules as PointsConfigValue['rules'] };
+    }
   }
-  return defaults;
+
+  return { ...DEFAULT_POINTS_CONFIG };
 }
 
-export async function setPointsSettings(config: Record<string, number>) {
+export async function setPointsSettings(config: PointsConfigValue) {
   const [existing] = await db
     .select()
     .from(systemSettings)
     .where(eq(systemSettings.key, 'points_config'))
     .limit(1);
 
+  const value: PointsConfigValue = {
+    rules: config.rules ?? {},
+  };
+
   if (existing) {
     await db
       .update(systemSettings)
-      .set({ value: config, updatedAt: new Date() })
+      .set({ value, updatedAt: new Date() })
       .where(eq(systemSettings.id, existing.id));
   } else {
-    await db.insert(systemSettings).values({ key: 'points_config', value: config });
+    await db.insert(systemSettings).values({ key: 'points_config', value });
   }
 }

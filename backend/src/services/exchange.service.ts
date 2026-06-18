@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, lte, ne, notInArray, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   exchangeAnswers,
@@ -9,9 +9,14 @@ import {
   users,
 } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
-import { awardPointsForSource } from './pointsConfig.service.js';
+import { awardAction } from './pointsConfig.service.js';
 import { notifyUser } from './push.service.js';
 import { entityLink } from '../utils/appLinks.js';
+
+function scopeLabel(scope: string, authorTrack: string | null): string {
+  if (scope === 'all') return 'Форум';
+  return authorTrack ? `Трек: ${authorTrack}` : 'Трек';
+}
 
 export async function createQuestion(
   user: UserDto,
@@ -29,7 +34,6 @@ export async function createQuestion(
     })
     .returning({ id: exchangeQuestions.id });
 
-  await awardPointsForSource(user.id, 'exchange_question', created.id);
   return created;
 }
 
@@ -41,6 +45,8 @@ export async function getFeed(user: UserDto, feedScope: 'all' | 'track' = 'all')
       text: exchangeQuestions.text,
       scope: exchangeQuestions.scope,
       userId: exchangeQuestions.userId,
+      authorFirstName: users.firstName,
+      authorLastName: users.lastName,
       authorTrack: users.track,
       createdAt: exchangeQuestions.createdAt,
       publishTime: exchangeQuestions.publishTime,
@@ -55,20 +61,28 @@ export async function getFeed(user: UserDto, feedScope: 'all' | 'track' = 'all')
         or(isNull(exchangeQuestions.publishTime), lte(exchangeQuestions.publishTime, now)),
       ),
     )
-    .groupBy(exchangeQuestions.id, users.track)
+    .groupBy(
+      exchangeQuestions.id,
+      users.firstName,
+      users.lastName,
+      users.track,
+    )
     .orderBy(desc(exchangeQuestions.publishTime));
 
   return rows
     .filter((q) => {
       if (feedScope === 'all') return q.scope === 'all';
-      if (!user.track) return q.scope === 'all';
-      return q.scope === 'all' || (q.scope === 'track' && q.authorTrack === user.track);
+      if (!user.track) return false;
+      return q.scope === 'track' && q.authorTrack === user.track;
     })
     .map((q) => ({
       id: q.id,
       text: q.text,
       scope: q.scope,
-      scopeLabel: q.scope === 'all' ? 'Все треки' : (q.authorTrack ?? 'Трек'),
+      scopeLabel: scopeLabel(q.scope, q.authorTrack),
+      authorFirstName: q.authorFirstName,
+      authorLastName: q.authorLastName,
+      authorTrack: q.authorTrack,
       answerCount: Number(q.answerCount),
       isMine: q.userId === user.id,
       createdAt: (q.publishTime ?? q.createdAt).toISOString(),
@@ -128,7 +142,7 @@ export async function createAnswer(user: UserDto, questionId: number, answerText
       ),
     );
 
-  await awardPointsForSource(user.id, 'exchange_answer', created.id);
+  await awardAction(user.id, 'exchange_answer', created.id, { skipIfSourceIdExists: true });
 
   if (question.userId !== user.id) {
     void notifyUser(
@@ -178,15 +192,24 @@ export async function getIncoming(user: UserDto) {
     .select({
       assignment: exchangeAssignments,
       question: exchangeQuestions,
+      authorFirstName: users.firstName,
+      authorLastName: users.lastName,
+      authorTrack: users.track,
     })
     .from(exchangeAssignments)
     .innerJoin(exchangeQuestions, eq(exchangeAssignments.questionId, exchangeQuestions.id))
+    .innerJoin(users, eq(exchangeQuestions.userId, users.id))
     .where(
       and(
         eq(exchangeAssignments.assignedUserId, user.id),
         eq(exchangeAssignments.status, 'pending'),
         eq(exchangeQuestions.status, 'published'),
       ),
+    )
+    .orderBy(
+      sql`CASE WHEN ${exchangeAssignments.deferredAt} IS NULL THEN 0 ELSE 1 END`,
+      asc(exchangeAssignments.deferredAt),
+      asc(exchangeAssignments.createdAt),
     );
 
   return rows.map((r) => ({
@@ -194,6 +217,9 @@ export async function getIncoming(user: UserDto) {
     questionId: r.question.id,
     text: r.question.text,
     status: r.assignment.status,
+    authorFirstName: r.authorFirstName,
+    authorLastName: r.authorLastName,
+    authorTrack: r.authorTrack,
   }));
 }
 
@@ -201,6 +227,8 @@ export async function getQuestionWithAnswers(questionId: number, user: UserDto) 
   const [questionRow] = await db
     .select({
       question: exchangeQuestions,
+      authorFirstName: users.firstName,
+      authorLastName: users.lastName,
       authorTrack: users.track,
     })
     .from(exchangeQuestions)
@@ -231,20 +259,33 @@ export async function getQuestionWithAnswers(questionId: number, user: UserDto) 
       answerText: exchangeAnswers.answerText,
       userId: exchangeAnswers.userId,
       createdAt: exchangeAnswers.createdAt,
-      reactionCount: sql<number>`count(${exchangeReactions.id})::int`,
+      authorFirstName: users.firstName,
+      authorLastName: users.lastName,
+      authorTrack: users.track,
+      likeCount: sql<number>`count(*) filter (where ${exchangeReactions.reactionType} = 'like')::int`,
+      discussCount: sql<number>`count(*) filter (where ${exchangeReactions.reactionType} = 'discuss')::int`,
     })
     .from(exchangeAnswers)
+    .leftJoin(users, eq(exchangeAnswers.userId, users.id))
     .leftJoin(exchangeReactions, eq(exchangeReactions.answerId, exchangeAnswers.id))
     .where(eq(exchangeAnswers.questionId, questionId))
-    .groupBy(exchangeAnswers.id)
+    .groupBy(exchangeAnswers.id, users.firstName, users.lastName, users.track)
     .orderBy(asc(exchangeAnswers.createdAt));
 
   const myReactions = await db
-    .select({ answerId: exchangeReactions.answerId })
+    .select({
+      answerId: exchangeReactions.answerId,
+      reactionType: exchangeReactions.reactionType,
+    })
     .from(exchangeReactions)
     .where(eq(exchangeReactions.userId, user.id));
 
-  const likedSet = new Set(myReactions.map((r) => r.answerId));
+  const likedSet = new Set(
+    myReactions.filter((r) => r.reactionType === 'like').map((r) => r.answerId),
+  );
+  const discussedSet = new Set(
+    myReactions.filter((r) => r.reactionType === 'discuss').map((r) => r.answerId),
+  );
   const publishTime = question.publishTime ?? question.createdAt;
 
   return {
@@ -253,7 +294,10 @@ export async function getQuestionWithAnswers(questionId: number, user: UserDto) 
       text: question.text,
       isMine: question.userId === user.id,
       scope: question.scope,
-      scopeLabel: question.scope === 'all' ? 'Все треки' : (questionRow.authorTrack ?? 'Трек'),
+      scopeLabel: scopeLabel(question.scope, questionRow.authorTrack),
+      authorFirstName: questionRow.authorFirstName,
+      authorLastName: questionRow.authorLastName,
+      authorTrack: questionRow.authorTrack,
       publishTime: publishTime.toISOString(),
     },
     answers: answers.map((a) => ({
@@ -261,8 +305,13 @@ export async function getQuestionWithAnswers(questionId: number, user: UserDto) 
       answerText: a.answerText,
       isMine: a.userId === user.id,
       createdAt: a.createdAt.toISOString(),
-      reactionCount: Number(a.reactionCount),
+      authorFirstName: a.authorFirstName,
+      authorLastName: a.authorLastName,
+      authorTrack: a.authorTrack,
+      likeCount: Number(a.likeCount),
+      discussCount: Number(a.discussCount),
       likedByMe: likedSet.has(a.id),
+      discussedByMe: discussedSet.has(a.id),
     })),
   };
 }
@@ -271,7 +320,13 @@ export async function addReaction(user: UserDto, answerId: number, reactionType 
   const [existing] = await db
     .select({ id: exchangeReactions.id })
     .from(exchangeReactions)
-    .where(and(eq(exchangeReactions.answerId, answerId), eq(exchangeReactions.userId, user.id)))
+    .where(
+      and(
+        eq(exchangeReactions.answerId, answerId),
+        eq(exchangeReactions.userId, user.id),
+        eq(exchangeReactions.reactionType, reactionType),
+      ),
+    )
     .limit(1);
 
   if (existing) return { ok: true, already: true };
@@ -315,6 +370,23 @@ export async function skipAssignment(user: UserDto, assignmentId: number) {
     .where(and(eq(exchangeAssignments.id, assignmentId), eq(exchangeAssignments.assignedUserId, user.id)));
 }
 
+export async function deferAssignment(user: UserDto, assignmentId: number) {
+  const [updated] = await db
+    .update(exchangeAssignments)
+    .set({ deferredAt: new Date() })
+    .where(
+      and(
+        eq(exchangeAssignments.id, assignmentId),
+        eq(exchangeAssignments.assignedUserId, user.id),
+        eq(exchangeAssignments.status, 'pending'),
+      ),
+    )
+    .returning({ id: exchangeAssignments.id });
+
+  if (!updated) throw new Error('Assignment not found');
+  return { ok: true };
+}
+
 export async function assignQuestion(questionId: number, assignedUserId: number) {
   const [existing] = await db
     .select({ id: exchangeAssignments.id })
@@ -342,6 +414,9 @@ export async function getExchangeActivity() {
       id: exchangeQuestions.id,
       text: exchangeQuestions.text,
       status: exchangeQuestions.status,
+      authorFirstName: users.firstName,
+      authorLastName: users.lastName,
+      authorTrack: users.track,
       answerCount: sql<number>`count(${exchangeAnswers.id})::int`,
       assignmentCount: sql<number>`(
         SELECT count(*)::int FROM exchange_assignments ea
@@ -349,14 +424,24 @@ export async function getExchangeActivity() {
       )`,
     })
     .from(exchangeQuestions)
+    .innerJoin(users, eq(exchangeQuestions.userId, users.id))
     .leftJoin(exchangeAnswers, eq(exchangeAnswers.questionId, exchangeQuestions.id))
-    .groupBy(exchangeQuestions.id)
+    .where(notInArray(exchangeQuestions.status, ['hidden', 'rejected']))
+    .groupBy(
+      exchangeQuestions.id,
+      users.firstName,
+      users.lastName,
+      users.track,
+    )
     .orderBy(desc(exchangeQuestions.createdAt));
 
   return rows.map((r) => ({
     id: r.id,
     text: r.text,
     status: r.status,
+    authorFirstName: r.authorFirstName,
+    authorLastName: r.authorLastName,
+    authorTrack: r.authorTrack,
     answerCount: Number(r.answerCount),
     assignmentCount: Number(r.assignmentCount),
   }));

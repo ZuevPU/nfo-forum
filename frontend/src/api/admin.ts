@@ -20,7 +20,7 @@ export function fetchAdminTasks() {
   return apiRequest<{ tasks: AdminTask[] }>('/api/admin/tasks');
 }
 
-export function createAdminTask(data: Partial<AdminTask> & { description: string }) {
+export function createAdminTask(data: Partial<AdminTask> & { description: string; asDraft?: boolean }) {
   return apiRequest('/api/admin/tasks', { method: 'POST', body: data });
 }
 
@@ -30,6 +30,10 @@ export function updateAdminTask(id: number, data: Partial<AdminTask>) {
 
 export function deleteAdminTask(id: number) {
   return apiRequest(`/api/admin/tasks/${id}`, { method: 'DELETE' });
+}
+
+export function publishAdminTask(id: number) {
+  return apiRequest(`/api/admin/tasks/${id}/publish`, { method: 'POST' });
 }
 
 export function fetchTaskSubmissions(taskId: number) {
@@ -46,6 +50,10 @@ export function moderateExchange(id: number, status: 'approved' | 'rejected', pu
 
 export function hideExchangeQuestion(id: number) {
   return apiRequest(`/api/admin/exchange/${id}/hide`, { method: 'POST' });
+}
+
+export function deleteExchangeQuestion(id: number) {
+  return apiRequest(`/api/admin/exchange/${id}`, { method: 'DELETE' });
 }
 
 export function fetchPendingSubmissions() {
@@ -66,15 +74,20 @@ export function fetchReflectionQuestions() {
 export function createReflectionQuestion(data: {
   text: string;
   type: string;
-  publishTime: string;
+  publishTime?: string | null;
   endTime?: string | null;
   points?: number;
   sendNotification?: boolean;
   groupId?: string | null;
   track?: string | null;
   allowMultiple?: boolean;
+  asDraft?: boolean;
 }) {
   return apiRequest('/api/admin/reflection-questions', { method: 'POST', body: data });
+}
+
+export function publishReflectionQuestion(id: number) {
+  return apiRequest(`/api/admin/reflection-questions/${id}/publish`, { method: 'POST' });
 }
 
 export function deleteReflectionQuestion(id: number) {
@@ -151,6 +164,21 @@ export function fetchDiagnosticsResults() {
   return apiRequest<{ results: DiagnosticResult[] }>('/api/admin/diagnostics/results');
 }
 
+export interface DiagnosticProfileFeedbackRow {
+  id: number;
+  userId: number;
+  userName: string;
+  userLastName: string | null;
+  track: string | null;
+  attemptNumber: number;
+  comment: string;
+  createdAt: string;
+}
+
+export function fetchDiagnosticProfileFeedback() {
+  return apiRequest<{ feedback: DiagnosticProfileFeedbackRow[] }>('/api/admin/diagnostics/profile-feedback');
+}
+
 export function getDiagnosticsExportUrl() {
   return '/api/admin/diagnostics/export';
 }
@@ -192,11 +220,24 @@ export function fetchFeedbackMessages() {
 }
 
 export function fetchPointsSettings() {
-  return apiRequest<{ config: Record<string, number> }>('/api/admin/settings/points');
+  return apiRequest<{
+    rules: Array<{
+      id: string;
+      label: string;
+      section: 'reflection' | 'exchange' | 'tasks';
+      pointsPerAction: number;
+      maxTotal: number;
+      maxCount?: number;
+      countsToReflection: boolean;
+      optional?: boolean;
+      note?: string;
+    }>;
+    overrides: Record<string, { pointsPerAction?: number; maxTotal?: number; maxCount?: number }>;
+  }>('/api/admin/settings/points');
 }
 
-export function savePointsSettings(config: Record<string, number>) {
-  return apiRequest('/api/admin/settings/points', { method: 'POST', body: config });
+export function savePointsSettings(rules: Record<string, { pointsPerAction?: number; maxTotal?: number; maxCount?: number }>) {
+  return apiRequest('/api/admin/settings/points', { method: 'POST', body: { rules } });
 }
 
 export function fetchReflectionLevelSettings() {
@@ -227,10 +268,16 @@ export function fetchNfoDaySettings() {
     publishHour: number;
     publishMinute: number;
     points: number;
-    question?: string;
     panelTitle?: string;
     panelSubtitle?: string;
     factors?: string[];
+    questions?: Array<{
+      id: string;
+      label: string;
+      type: 'text' | 'multiselect';
+      required?: boolean;
+      maxSelect?: number;
+    }>;
   }>('/api/admin/settings/nfo-day');
 }
 
@@ -238,10 +285,16 @@ export function saveNfoDaySettings(data: {
   publishHour: number;
   publishMinute: number;
   points: number;
-  question?: string;
   panelTitle?: string;
   panelSubtitle?: string;
   factors?: string[];
+  questions?: Array<{
+    id: string;
+    label: string;
+    type: 'text' | 'multiselect';
+    required?: boolean;
+    maxSelect?: number;
+  }>;
 }) {
   return apiRequest('/api/admin/settings/nfo-day', { method: 'POST', body: data });
 }
@@ -275,6 +328,7 @@ export function fetchCheckinSettings() {
     enabledTracks: string[];
     slots: string[];
     intervals?: { start: string; end: string; label?: string }[];
+    byDay?: Partial<Record<'1' | '2' | '3' | '4', { slots: string[]; intervals?: { start: string; end: string; label?: string }[] }>>;
     title?: string;
     subtitle?: string;
     emotions?: string[];
@@ -291,6 +345,7 @@ export function saveCheckinSettings(data: {
   enabledTracks: string[];
   slots: string[];
   intervals?: { start: string; end: string; label?: string }[];
+  byDay?: Partial<Record<'1' | '2' | '3' | '4', { slots: string[]; intervals?: { start: string; end: string; label?: string }[] }>>;
   title?: string;
   subtitle?: string;
   emotions?: string[];
@@ -348,6 +403,9 @@ export interface ExchangeActivityRow {
   id: number;
   text: string;
   status: string;
+  authorFirstName?: string;
+  authorLastName?: string | null;
+  authorTrack?: string | null;
   answerCount: number;
   assignmentCount: number;
 }
@@ -380,6 +438,9 @@ export interface AdminTask {
   allowMultiple?: boolean;
   deadline?: string | null;
   requiresPhoto?: boolean;
+  photoMode?: 'none' | 'optional' | 'required';
+  status?: 'draft' | 'scheduled' | 'published';
+  publishTime?: string | null;
   sendNotification?: boolean;
   isFocusOfDay?: boolean;
   isRandomDistribution?: boolean;
@@ -391,6 +452,10 @@ export interface PendingQuestion {
   id: number;
   text: string;
   status: string;
+  scope?: string;
+  authorFirstName?: string;
+  authorLastName?: string | null;
+  authorTrack?: string | null;
 }
 
 export interface PendingSubmission {
@@ -422,7 +487,8 @@ export interface ReflectionQuestion {
   id: number;
   text: string;
   type: string;
-  publishTime: string;
+  status?: 'draft' | 'scheduled' | 'published';
+  publishTime: string | null;
   endTime: string | null;
   points: number;
   sendNotification: boolean;

@@ -16,6 +16,7 @@ export interface ReflectionLevelData {
   level: number;
   reflectionPoints: number;
   thresholds?: number[];
+  levelDescriptions?: Record<number, string>;
   history: { id: number; oldLevel: number; newLevel: number; createdAt: string }[];
 }
 

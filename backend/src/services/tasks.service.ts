@@ -7,8 +7,14 @@ import { getNetworkingState, joinNetworkingQueue } from './taskNetworking.servic
 import { validatePhotos } from '../utils/photoValidation.js';
 
 export async function getTasks(user: UserDto) {
+  const now = new Date();
   const allTasks = await db.select().from(tasks);
-  const userTasks = allTasks.filter((t) => !t.track || t.track === user.track);
+  const userTasks = allTasks.filter(
+    (t) =>
+      (!t.track || t.track === user.track) &&
+      t.status !== 'draft' &&
+      (!t.publishTime || t.publishTime <= now),
+  );
 
   const submissions = await db
     .select()
@@ -27,6 +33,7 @@ export async function getTasks(user: UserDto) {
       deadline: t.deadline?.toISOString() ?? null,
       allowMultiple: t.allowMultiple,
       requiresPhoto: t.requiresPhoto,
+      photoMode: t.photoMode ?? (t.requiresPhoto ? 'required' : 'none'),
       isRandomDistribution: t.isRandomDistribution,
       isFocusOfDay: t.isFocusOfDay,
       networkingContacts: t.networkingContacts ?? 1,
@@ -90,7 +97,15 @@ export async function submitTask(
     throw new Error('Deadline passed');
   }
 
-  if (task.requiresPhoto && (!photos || photos.length === 0)) {
+  if (task.status === 'draft') {
+    throw new Error('Task is not available');
+  }
+  if (task.publishTime && new Date() < task.publishTime) {
+    throw new Error('Task is not available');
+  }
+
+  const photoMode = task.photoMode ?? (task.requiresPhoto ? 'required' : 'none');
+  if (photoMode === 'required' && (!photos || photos.length === 0)) {
     throw new Error('Photo is required for this task');
   }
 
@@ -134,7 +149,7 @@ export async function submitTask(
     .returning();
 
   if (task.autoApprove) {
-    await awardPoints(user.id, task.points, 'task_submission', created.id);
+    await awardPoints(user.id, task.points, 'task_submission', created.id, undefined, 0, task.points);
   }
 
   return created;

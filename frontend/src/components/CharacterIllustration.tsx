@@ -1,17 +1,23 @@
-export const CHARACTER_IMAGE_SRC = '/assets/character.png';
+import { MASCOT_IMAGES } from '../constants/mascotImages';
 
-type CharacterSize = 80 | 90 | 120;
+export const CHARACTER_IMAGE_SRC = MASCOT_IMAGES.default;
 
 interface Props {
-  size?: CharacterSize;
+  size?: number;
+  src?: string;
   alt?: string;
   className?: string;
 }
 
-export function CharacterIllustration({ size = 80, alt = 'Помощник Форума НФО', className }: Props) {
+export function CharacterIllustration({
+  size = 80,
+  src = MASCOT_IMAGES.default,
+  alt = 'Помощник Форума НФО',
+  className,
+}: Props) {
   return (
     <img
-      src={CHARACTER_IMAGE_SRC}
+      src={src}
       alt={alt}
       className={className}
       style={{ width: size, height: 'auto', display: 'block', margin: '0 auto' }}

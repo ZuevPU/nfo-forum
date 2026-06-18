@@ -66,6 +66,7 @@ export interface TaskItem {
   submissionCount: number;
   isPastDeadline: boolean;
   requiresPhoto: boolean;
+  photoMode?: 'none' | 'optional' | 'required';
   isRandomDistribution?: boolean;
   networkingContacts?: number;
   networkingMode?: 'pair' | 'multi';

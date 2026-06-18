@@ -19,15 +19,37 @@ export function fetchNfoDayConfig() {
   return apiRequest<NfoDayConfig>('/api/reflection/nfo-day/config');
 }
 
-export function submitNfoDayReflection(answerText: string, factors: string[]) {
+export function submitNfoDayReflection(responses: {
+  thesis: string;
+  understanding: string;
+  factors: string[];
+  extra?: string;
+}) {
   return apiRequest('/api/reflection/nfo-day', {
     method: 'POST',
-    body: { answer_text: answerText, factors },
+    body: { responses },
   });
 }
 
 export function fetchNfoDayToday() {
   return apiRequest<{ reflection: NfoDayReflection | null }>('/api/reflection/nfo-day/today');
+}
+
+export function fetchProgramInsights() {
+  return apiRequest<{ insights: ProgramInsight[] }>('/api/reflection/insights');
+}
+
+export function submitProgramInsight(text: string) {
+  return apiRequest<{ insight: ProgramInsight; pointsAwarded: number }>('/api/reflection/insights', {
+    method: 'POST',
+    body: { text },
+  });
+}
+
+export interface ProgramInsight {
+  id: number;
+  text: string;
+  createdAt: string;
 }
 
 export interface ReflectionQuestion {
@@ -51,6 +73,7 @@ export interface EveningQuestion {
 
 export interface NfoDayConfig {
   question: string;
+  questions?: { id: string; label: string; type: string; required?: boolean; maxSelect?: number }[];
   factors: string[];
   publishHour: number;
   publishMinute: number;
@@ -63,5 +86,6 @@ export interface NfoDayConfig {
 export interface NfoDayReflection {
   answerText: string;
   factors: string[];
+  responses?: Record<string, string | string[] | null> | null;
   createdAt: string;
 }

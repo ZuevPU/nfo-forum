@@ -20,6 +20,7 @@ import {
   getDefaultForumDay,
   isEventNowMoscow,
 } from '../lib/scheduleCache';
+import { EventDetailModal } from '../components/EventDetailModal';
 
 export function SchedulePanel() {
   const { user } = useAuthContext();
@@ -28,6 +29,7 @@ export function SchedulePanel() {
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [selectedDay, setSelectedDay] = useState(getDefaultForumDay());
+  const [selectedEvent, setSelectedEvent] = useState<EventDto | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -105,7 +107,8 @@ export function SchedulePanel() {
                 <div
                   key={ev.id}
                   className={`nfo-card nfo-ev${isNow ? ' nfo-ev-now' : ''}`}
-                  style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}
+                  style={{ display: 'flex', gap: 12, alignItems: 'flex-start', cursor: 'pointer' }}
+                  onClick={() => setSelectedEvent(ev)}
                 >
                   <div className="nfo-ev-time" style={{ fontSize: 12, fontWeight: 700, color: isNow ? undefined : 'var(--nfo-primary)', minWidth: 36 }}>
                     {formatEventTimeMoscow(ev.startTime)}
@@ -125,6 +128,7 @@ export function SchedulePanel() {
         </Group>
       )}
       </PullToRefresh>
+      <EventDetailModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
     </Panel>
   );
 }

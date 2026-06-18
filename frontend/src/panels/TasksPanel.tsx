@@ -200,7 +200,8 @@ export function TasksPanel() {
 
   const handleSubmit = async () => {
     if (!modalTask) return;
-    if (modalTask.requiresPhoto && photos.length === 0) {
+    const photoMode = modalTask.photoMode ?? (modalTask.requiresPhoto ? 'required' : 'none');
+    if (photoMode === 'required' && photos.length === 0) {
       alert('Для этого задания необходимо прикрепить фото');
       return;
     }

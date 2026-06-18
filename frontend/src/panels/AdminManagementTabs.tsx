@@ -4,7 +4,6 @@ import {
   adjustUserPoints,
   fetchAdminUsers,
   fetchFeedbackMessages,
-  fetchPointsSettings,
   fetchReflectionLevelSettings,
   fetchReflectionAnswers,
   fetchNfoDayStats,
@@ -19,7 +18,6 @@ import {
   fetchActivityLogs,
   downloadAdminExport,
   type AdminExportType,
-  savePointsSettings,
   saveReflectionLevelSettings,
   type AdminUser,
   type FeedbackMessage,
@@ -28,7 +26,31 @@ import {
   type ActivityLogRow,
 } from '../api/admin';
 import { AdminListCard } from '../components/AdminListCard';
+import { PointsSystemSettings } from '../components/PointsSystemSettings';
+import { inputTimeToMskParts, mskTimeToInput } from '../lib/datetimeMsk';
 import { TRACKS } from '../constants/tracks';
+import { DEFAULT_NFO_DAY_QUESTIONS } from '../constants/nfoFactors';
+import { DEFAULT_REFLECTION_THRESHOLDS } from '../constants/reflectionLevels';
+
+function intervalsToText(intervals?: { start: string; end: string; label?: string }[]): string {
+  return (intervals ?? [])
+    .map((i) => `${i.start}-${i.end}${i.label ? `|${i.label}` : ''}`)
+    .join('\n');
+}
+
+function parseIntervalsText(text: string) {
+  return text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return null;
+      const [range, label] = trimmed.split('|').map((s) => s.trim());
+      const [start, end] = range.split('-').map((s) => s.trim());
+      if (!start || !end) return null;
+      return { start, end, ...(label ? { label } : {}) };
+    })
+    .filter((i): i is { start: string; end: string; label?: string } => i != null);
+}
 
 export function AdminUsersTab() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -210,12 +232,22 @@ export function AdminActivityTab() {
 }
 
 export function AdminSettingsTab() {
-  const [config, setConfig] = useState<Record<string, number>>({});
-  const [reflectionThresholds, setReflectionThresholds] = useState<number[]>([0, 30, 70, 120, 200]);
+  const [reflectionThresholds, setReflectionThresholds] = useState<number[]>(DEFAULT_REFLECTION_THRESHOLDS);
   const [checkin, setCheckin] = useState({
     enabledTracks: [] as string[],
     slots: [] as string[],
-    intervalsText: '',
+    byDaySlots: {
+      '1': '08:30, 19:30',
+      '2': '08:30, 13:15, 19:30',
+      '3': '08:30, 13:15, 19:30',
+      '4': '08:30, 13:15, 19:30',
+    } as Record<'1' | '2' | '3' | '4', string>,
+    byDayIntervals: {
+      '1': '',
+      '2': '',
+      '3': '',
+      '4': '',
+    } as Record<'1' | '2' | '3' | '4', string>,
     title: 'Как ты сейчас?',
     subtitle: '30 секунд',
     emotionsText: '',
@@ -232,20 +264,32 @@ export function AdminSettingsTab() {
     publishHour: 19,
     publishMinute: 30,
     points: 10,
-    question: '',
     panelTitle: '',
     panelSubtitle: '',
     factorsText: '',
+    questions: DEFAULT_NFO_DAY_QUESTIONS.map((q) => ({ ...q })),
   });
   const [dailyFocusTitle, setDailyFocusTitle] = useState('');
 
   useEffect(() => {
-    fetchPointsSettings().then((r) => setConfig(r.config)).catch(console.error);
     fetchReflectionLevelSettings().then((r) => setReflectionThresholds(r.thresholds)).catch(console.error);
-    fetchCheckinSettings().then((r) => setCheckin({
+    fetchCheckinSettings().then((r) => {
+      const globalIntervalsText = intervalsToText(r.intervals);
+      setCheckin({
       enabledTracks: r.enabledTracks ?? [],
       slots: r.slots ?? [],
-      intervalsText: (r.intervals ?? []).map((i) => `${i.start}-${i.end}${i.label ? `|${i.label}` : ''}`).join('\n'),
+      byDaySlots: {
+        '1': (r.byDay?.['1']?.slots ?? ['08:30', '19:30']).join(', '),
+        '2': (r.byDay?.['2']?.slots ?? r.slots ?? ['08:30', '13:15', '19:30']).join(', '),
+        '3': (r.byDay?.['3']?.slots ?? r.slots ?? ['08:30', '13:15', '19:30']).join(', '),
+        '4': (r.byDay?.['4']?.slots ?? r.slots ?? ['08:30', '13:15', '19:30']).join(', '),
+      },
+      byDayIntervals: {
+        '1': intervalsToText(r.byDay?.['1']?.intervals) || globalIntervalsText,
+        '2': intervalsToText(r.byDay?.['2']?.intervals) || globalIntervalsText,
+        '3': intervalsToText(r.byDay?.['3']?.intervals) || globalIntervalsText,
+        '4': intervalsToText(r.byDay?.['4']?.intervals) || globalIntervalsText,
+      },
       title: r.title ?? 'Как ты сейчас?',
       subtitle: r.subtitle ?? '30 секунд',
       emotionsText: (r.emotions ?? []).join('\n'),
@@ -255,61 +299,30 @@ export function AdminSettingsTab() {
       energyHighLabel: r.energyHighLabel ?? 'заряжен',
       emotionLabel: r.emotionLabel ?? 'Настроение',
       commentPlaceholder: r.commentPlaceholder ?? 'Моё состояние вызвано тем, что...',
-    })).catch(console.error);
+    });
+    }).catch(console.error);
     fetchExchangeSlots().then((r) => setExchangeSlots(r.slots)).catch(console.error);
     fetchNfoDaySettings().then((r) => setNfoDay({
       publishHour: r.publishHour,
       publishMinute: r.publishMinute,
       points: r.points,
-      question: r.question ?? '',
       panelTitle: r.panelTitle ?? '',
       panelSubtitle: r.panelSubtitle ?? '',
       factorsText: (r.factors ?? []).join('\n'),
+      questions: r.questions?.length
+        ? r.questions.map((q) => ({ ...q }))
+        : DEFAULT_NFO_DAY_QUESTIONS.map((q) => ({ ...q })),
     })).catch(console.error);
     fetchDailyFocusSettings().then((r) => setDailyFocusTitle(r.title)).catch(console.error);
   }, []);
 
   return (
     <div className="nfo-admin-section">
-      <div className="nfo-sec-title">Баллы за действия</div>
-      <div className="nfo-admin-form-card">
-        {Object.entries(config).map(([key, value]) => (
-          <FormItem key={key} top={key}>
-            <Input
-              type="number"
-              value={String(value)}
-              onChange={(e) => setConfig((c) => ({ ...c, [key]: Number(e.target.value) }))}
-            />
-          </FormItem>
-        ))}
-        <button type="button" className="nfo-admin-btn-primary" onClick={() => void savePointsSettings(config)}>
-          Сохранить баллы
-        </button>
-      </div>
-
-      <div className="nfo-sec-title" style={{ marginTop: 12 }}>Пороги уровней рефлексии</div>
-      <div className="nfo-admin-form-card">
-        {reflectionThresholds.slice(1).map((value, index) => (
-          <FormItem key={index + 2} top={`Уровень ${index + 2} — минимум баллов рефлексии`}>
-            <Input
-              type="number"
-              value={String(value)}
-              onChange={(e) => {
-                const next = [...reflectionThresholds];
-                next[index + 1] = Number(e.target.value);
-                setReflectionThresholds(next);
-              }}
-            />
-          </FormItem>
-        ))}
-        <button
-          type="button"
-          className="nfo-admin-btn-primary"
-          onClick={() => void saveReflectionLevelSettings(reflectionThresholds)}
-        >
-          Сохранить пороги рефлексии
-        </button>
-      </div>
+      <PointsSystemSettings
+        reflectionThresholds={reflectionThresholds}
+        onReflectionThresholdsChange={setReflectionThresholds}
+        onSaveReflectionThresholds={() => void saveReflectionLevelSettings(reflectionThresholds)}
+      />
 
       <div className="nfo-sec-title" style={{ marginTop: 12 }}>Чек-ин по трекам</div>
       <div className="nfo-admin-form-card">
@@ -335,14 +348,30 @@ export function AdminSettingsTab() {
             onChange={(e) => setCheckin((c) => ({ ...c, slots: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }))}
           />
         </FormItem>
-        <FormItem top="Интервалы с–по (строка: HH:MM-HH:MM|подпись)">
-          <Textarea
-            rows={3}
-            value={checkin.intervalsText}
-            onChange={(e) => setCheckin((c) => ({ ...c, intervalsText: e.target.value }))}
-            placeholder={'08:30-13:15|Утренний чек-in\n13:15-19:30|Дневной чек-in\n19:30-24:00|Вечерний чек-in'}
-          />
-        </FormItem>
+        {(['1', '2', '3', '4'] as const).map((day) => (
+          <div key={day}>
+            <FormItem top={`День ${day} — слоты (HH:MM через запятую)`}>
+              <Input
+                value={checkin.byDaySlots[day]}
+                onChange={(e) => setCheckin((c) => ({
+                  ...c,
+                  byDaySlots: { ...c.byDaySlots, [day]: e.target.value },
+                }))}
+              />
+            </FormItem>
+            <FormItem top={`День ${day} — интервалы (строка: HH:MM-HH:MM|подпись)`}>
+              <Textarea
+                rows={2}
+                value={checkin.byDayIntervals[day]}
+                onChange={(e) => setCheckin((c) => ({
+                  ...c,
+                  byDayIntervals: { ...c.byDayIntervals, [day]: e.target.value },
+                }))}
+                placeholder={'08:30-13:15|Утренний чек-in\n19:30-24:00|Вечерний чек-in'}
+              />
+            </FormItem>
+          </div>
+        ))}
         <FormItem top="Заголовок экрана чек-ина">
           <Input value={checkin.title} onChange={(e) => setCheckin((c) => ({ ...c, title: e.target.value }))} />
         </FormItem>
@@ -380,14 +409,24 @@ export function AdminSettingsTab() {
           onClick={() => void saveCheckinSettings({
             enabledTracks: checkin.enabledTracks,
             slots: checkin.slots,
-            intervals: checkin.intervalsText.split('\n').map((line) => {
-              const trimmed = line.trim();
-              if (!trimmed) return null;
-              const [range, label] = trimmed.split('|').map((s) => s.trim());
-              const [start, end] = range.split('-').map((s) => s.trim());
-              if (!start || !end) return null;
-              return { start, end, ...(label ? { label } : {}) };
-            }).filter((i) => i != null),
+            byDay: {
+              '1': {
+                slots: checkin.byDaySlots['1'].split(',').map((s) => s.trim()).filter(Boolean),
+                intervals: parseIntervalsText(checkin.byDayIntervals['1']),
+              },
+              '2': {
+                slots: checkin.byDaySlots['2'].split(',').map((s) => s.trim()).filter(Boolean),
+                intervals: parseIntervalsText(checkin.byDayIntervals['2']),
+              },
+              '3': {
+                slots: checkin.byDaySlots['3'].split(',').map((s) => s.trim()).filter(Boolean),
+                intervals: parseIntervalsText(checkin.byDayIntervals['3']),
+              },
+              '4': {
+                slots: checkin.byDaySlots['4'].split(',').map((s) => s.trim()).filter(Boolean),
+                intervals: parseIntervalsText(checkin.byDayIntervals['4']),
+              },
+            },
             title: checkin.title,
             subtitle: checkin.subtitle,
             emotions: checkin.emotionsText.split('\n').map((s) => s.trim()).filter(Boolean),
@@ -424,17 +463,30 @@ export function AdminSettingsTab() {
         <FormItem top="Подзаголовок">
           <Input value={nfoDay.panelSubtitle} onChange={(e) => setNfoDay((c) => ({ ...c, panelSubtitle: e.target.value }))} placeholder="Вечерняя рефлексия" />
         </FormItem>
-        <FormItem top="Текст вопроса">
-          <Textarea value={nfoDay.question} onChange={(e) => setNfoDay((c) => ({ ...c, question: e.target.value }))} placeholder="Каким НФО было для тебя сегодня?" />
-        </FormItem>
+        {nfoDay.questions.map((q, index) => (
+          <FormItem key={q.id} top={`Вопрос ${index + 1}${q.type === 'multiselect' ? ' (множественный выбор, до 3)' : q.required === false ? ' (необязательный)' : ''}`}>
+            <Textarea
+              rows={2}
+              value={q.label}
+              onChange={(e) => setNfoDay((c) => ({
+                ...c,
+                questions: c.questions.map((item) => (item.id === q.id ? { ...item, label: e.target.value } : item)),
+              }))}
+            />
+          </FormItem>
+        ))}
         <FormItem top="Плашки факторов (по одной на строку, пусто = список по умолчанию)">
           <Textarea rows={4} value={nfoDay.factorsText} onChange={(e) => setNfoDay((c) => ({ ...c, factorsText: e.target.value }))} />
         </FormItem>
-        <FormItem top="Час публикации (MSK)">
-          <Input type="number" min={0} max={23} value={String(nfoDay.publishHour)} onChange={(e) => setNfoDay((c) => ({ ...c, publishHour: Number(e.target.value) }))} />
-        </FormItem>
-        <FormItem top="Минута">
-          <Input type="number" min={0} max={59} value={String(nfoDay.publishMinute)} onChange={(e) => setNfoDay((c) => ({ ...c, publishMinute: Number(e.target.value) }))} />
+        <FormItem top="Время публикации (МСК)">
+          <Input
+            type="time"
+            value={mskTimeToInput(nfoDay.publishHour, nfoDay.publishMinute)}
+            onChange={(e) => {
+              const { hour, minute } = inputTimeToMskParts(e.target.value);
+              setNfoDay((c) => ({ ...c, publishHour: hour, publishMinute: minute }));
+            }}
+          />
         </FormItem>
         <FormItem top="Баллы">
           <Input type="number" value={String(nfoDay.points)} onChange={(e) => setNfoDay((c) => ({ ...c, points: Number(e.target.value) }))} />
@@ -443,10 +495,16 @@ export function AdminSettingsTab() {
           publishHour: nfoDay.publishHour,
           publishMinute: nfoDay.publishMinute,
           points: nfoDay.points,
-          question: nfoDay.question || undefined,
           panelTitle: nfoDay.panelTitle || undefined,
           panelSubtitle: nfoDay.panelSubtitle || undefined,
           factors: nfoDay.factorsText.split('\n').map((s) => s.trim()).filter(Boolean),
+          questions: nfoDay.questions.map((q) => ({
+            id: q.id,
+            label: q.label.trim(),
+            type: q.type,
+            required: q.required,
+            maxSelect: q.maxSelect,
+          })),
         })}>
           Сохранить вечернюю рефлексию
         </button>

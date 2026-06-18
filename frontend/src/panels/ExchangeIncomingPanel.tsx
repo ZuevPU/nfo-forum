@@ -8,7 +8,14 @@ import {
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createExchangeAnswer, fetchIncomingQuestions, skipExchangeQuestion, type IncomingQuestion } from '../api/exchange';
+import {
+  createExchangeAnswer,
+  deferExchangeQuestion,
+  fetchIncomingQuestions,
+  formatExchangeAuthorName,
+  formatExchangeAuthorTrack,
+  type IncomingQuestion,
+} from '../api/exchange';
 import { PanelTitle } from '../components/PanelTitle';
 
 export function ExchangeIncomingPanel() {
@@ -29,11 +36,11 @@ export function ExchangeIncomingPanel() {
       .finally(() => setLoading(false));
   }, [assignmentId]);
 
-  const handleSkip = async () => {
+  const handleDefer = async () => {
     if (!question) return;
     setSubmitting(true);
     try {
-      await skipExchangeQuestion(question.assignmentId);
+      await deferExchangeQuestion(question.assignmentId);
       navigate('/exchange');
     } catch (e) {
       console.error(e);
@@ -67,6 +74,14 @@ export function ExchangeIncomingPanel() {
           <Div style={{ padding: '12px 16px' }}>
             <div className="nfo-card" style={{ margin: 0, borderLeft: '3px solid var(--nfo-accent)' }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nfo-accent)', textTransform: 'uppercase', marginBottom: 6 }}>Ждёт твоего ответа</div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+                {formatExchangeAuthorName(question.authorFirstName, question.authorLastName)}
+              </div>
+              {question.authorTrack ? (
+                <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: 6 }}>
+                  {formatExchangeAuthorTrack(question.authorTrack)}
+                </div>
+              ) : null}
               <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{question.text}</div>
             </div>
           </Div>
@@ -83,8 +98,8 @@ export function ExchangeIncomingPanel() {
             <Button size="l" mode="primary" stretched loading={submitting} onClick={() => void handleSubmit()}>
               Отправить ответ
             </Button>
-            <Button size="l" mode="outline" stretched loading={submitting} onClick={() => void handleSkip()}>
-              Пропустить вопрос
+            <Button size="l" mode="outline" stretched loading={submitting} onClick={() => void handleDefer()}>
+              Ответить позже
             </Button>
           </Div>
         </Group>

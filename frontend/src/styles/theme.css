@@ -710,6 +710,16 @@ body {
   padding: 0 16px 12px;
 }
 
+.nfo-exchange-intro {
+  margin: 0 16px 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--vkui--color_text_secondary);
+  background: var(--vkui--color_background_secondary);
+  border-radius: 12px;
+}
+
 /* Questions (ref: .qcard / .qdone) */
 .nfo-qcard {
   background: #fff;

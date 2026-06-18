@@ -12,16 +12,22 @@ import {
 } from '@vkontakte/vkui';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatExchangeAuthorName, formatExchangeAuthorTrack } from '../api/exchange';
+import { datetimeLocalMskToIso, isoToDatetimeLocalMsk } from '../lib/datetimeMsk';
 import { AdminListCard } from '../components/AdminListCard';
 import { AdminTabNav } from '../components/AdminTabNav';
+import { DatetimeLocalMskInput } from '../components/DatetimeLocalMskInput';
 import { GradientHeader } from '../components/GradientHeader';
 import type { AdminTab } from '../constants/adminTabs';
 import {
   createAdminEvent,
   createAdminTask,
   createReflectionQuestion,
+  publishReflectionQuestion,
+  publishAdminTask,
   deleteAdminEvent,
   deleteAdminTask,
+  deleteExchangeQuestion,
   deleteReflectionQuestion,
   updateReflectionQuestion,
   fetchAdminEvents,
@@ -42,6 +48,7 @@ import {
   fetchDiagnosticsSettings,
   saveDiagnosticsSettings,
   fetchDiagnosticsResults,
+  fetchDiagnosticProfileFeedback,
   getDiagnosticsExportUrl,
   fetchExchangeActivity,
   type ExchangeActivityRow,
@@ -53,12 +60,19 @@ import {
   type TaskSubmissionRow,
   type ReflectionQuestion,
   type DiagnosticResult,
+  type DiagnosticProfileFeedbackRow,
 } from '../api/admin';
 import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab, AdminReflectionAnswersTab, AdminNfoStatsTab, AdminActivityTab } from './AdminManagementTabs';
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
 import { pickImage } from '../lib/vk-bridge';
 import { uploadImageFromUrl } from '../api/uploads';
+
+function contentStatusLabel(status?: string): string {
+  if (status === 'draft') return 'Черновик';
+  if (status === 'scheduled') return 'Запланирован';
+  return 'Опубликован';
+}
 
 export function AdminPanel() {
   const { user } = useAuthContext();
@@ -73,8 +87,10 @@ export function AdminPanel() {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [diagTracks, setDiagTracks] = useState<string[]>([]);
   const [diagResults, setDiagResults] = useState<DiagnosticResult[]>([]);
+  const [diagProfileFeedback, setDiagProfileFeedback] = useState<DiagnosticProfileFeedbackRow[]>([]);
   const [exchangeActivity, setExchangeActivity] = useState<ExchangeActivityRow[]>([]);
   const [submissionComments, setSubmissionComments] = useState<Record<number, string>>({});
+  const [exchangePublishTimes, setExchangePublishTimes] = useState<Record<number, string>>({});
 
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDesc, setNewEventDesc] = useState('');
@@ -96,7 +112,8 @@ export function AdminPanel() {
   const [newTaskPoints, setNewTaskPoints] = useState('20');
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
   const [newTaskAllowMultiple, setNewTaskAllowMultiple] = useState(false);
-  const [newTaskRequiresPhoto, setNewTaskRequiresPhoto] = useState(false);
+  const [newTaskPhotoMode, setNewTaskPhotoMode] = useState<'none' | 'optional' | 'required'>('none');
+  const [newTaskPublishTime, setNewTaskPublishTime] = useState('');
   const [newTaskSendNotification, setNewTaskSendNotification] = useState(true);
   const [newTaskIsFocusOfDay, setNewTaskIsFocusOfDay] = useState(false);
   const [newTaskIsRandomDistribution, setNewTaskIsRandomDistribution] = useState(false);
@@ -201,6 +218,20 @@ export function AdminPanel() {
     return pushLinkType;
   };
 
+  const handleDeleteExchange = (id: number) => {
+    if (!window.confirm('Удалить вопрос? Это действие необратимо.')) return;
+    deleteExchangeQuestion(id)
+      .then(load)
+      .catch((e) => window.alert(e instanceof Error ? e.message : 'Ошибка удаления'));
+  };
+
+  const handleDeleteReflection = (id: number) => {
+    if (!window.confirm('Удалить вопрос? Это действие необратимо.')) return;
+    deleteReflectionQuestion(id)
+      .then(load)
+      .catch((e) => window.alert(e instanceof Error ? e.message : 'Ошибка удаления'));
+  };
+
   const load = () => {
     setLoading(true);
     Promise.all([
@@ -213,9 +244,10 @@ export function AdminPanel() {
       fetchPushStats(),
       fetchDiagnosticsSettings(),
       fetchDiagnosticsResults(),
+      fetchDiagnosticProfileFeedback(),
       fetchExchangeActivity(),
     ])
-      .then(([e, t, q, s, r, b, ps, ds, dr, ea]) => {
+      .then(([e, t, q, s, r, b, ps, ds, dr, dpf, ea]) => {
         setEvents(e.events);
         setTasks(t.tasks);
         setQuestions(q.questions);
@@ -225,6 +257,7 @@ export function AdminPanel() {
         setPushStats(ps.stats);
         setDiagTracks(ds.tracks);
         setDiagResults(dr.results);
+        setDiagProfileFeedback(dpf.feedback);
         setExchangeActivity(ea.activity);
       })
       .catch(console.error)
@@ -300,12 +333,8 @@ export function AdminPanel() {
           <FormItem top="Место проведения">
             <Input value={newEventPlace} onChange={(e) => setNewEventPlace(e.target.value)} />
           </FormItem>
-          <FormItem top="Время начала">
-            <Input type="datetime-local" value={newEventStartTime} onChange={(e) => setNewEventStartTime(e.target.value)} />
-          </FormItem>
-          <FormItem top="Время окончания">
-            <Input type="datetime-local" value={newEventEndTime} onChange={(e) => setNewEventEndTime(e.target.value)} />
-          </FormItem>
+          <DatetimeLocalMskInput top="Время начала (МСК)" value={newEventStartTime} onChange={setNewEventStartTime} />
+          <DatetimeLocalMskInput top="Время окончания (МСК)" value={newEventEndTime} onChange={setNewEventEndTime} />
           <FormItem top="Трек">
             <NativeSelect value={newEventTrack} onChange={(e) => setNewEventTrack(e.target.value)}>
               <option value="">Все</option>
@@ -323,8 +352,8 @@ export function AdminPanel() {
             onClick={() => void createAdminEvent({
               title: newEventTitle,
               description: newEventDesc || undefined,
-              startTime: newEventStartTime ? new Date(newEventStartTime).toISOString() : new Date().toISOString(),
-              endTime: newEventEndTime ? new Date(newEventEndTime).toISOString() : new Date().toISOString(),
+              startTime: newEventStartTime ? datetimeLocalMskToIso(newEventStartTime) : new Date().toISOString(),
+              endTime: newEventEndTime ? datetimeLocalMskToIso(newEventEndTime) : new Date().toISOString(),
               place: newEventPlace || undefined,
               track: newEventTrack || null,
               isKeyBlock: newEventIsKeyBlock,
@@ -359,8 +388,8 @@ export function AdminPanel() {
                       setEditEventTitle(ev.title);
                       setEditEventDesc(ev.description ?? '');
                       setEditEventPlace(ev.place ?? '');
-                      setEditEventStartTime(new Date(ev.startTime).toISOString().slice(0, 16));
-                      setEditEventEndTime(new Date(ev.endTime).toISOString().slice(0, 16));
+                      setEditEventStartTime(isoToDatetimeLocalMsk(ev.startTime));
+                      setEditEventEndTime(isoToDatetimeLocalMsk(ev.endTime));
                       setEditEventIsKeyBlock(ev.isKeyBlock ?? false);
                     }}
                   >
@@ -377,8 +406,8 @@ export function AdminPanel() {
                   <FormItem top="Название"><Input value={editEventTitle} onChange={(e) => setEditEventTitle(e.target.value)} /></FormItem>
                   <FormItem top="Описание"><Textarea value={editEventDesc} onChange={(e) => setEditEventDesc(e.target.value)} /></FormItem>
                   <FormItem top="Место"><Input value={editEventPlace} onChange={(e) => setEditEventPlace(e.target.value)} /></FormItem>
-                  <FormItem top="Начало"><Input type="datetime-local" value={editEventStartTime} onChange={(e) => setEditEventStartTime(e.target.value)} /></FormItem>
-                  <FormItem top="Окончание"><Input type="datetime-local" value={editEventEndTime} onChange={(e) => setEditEventEndTime(e.target.value)} /></FormItem>
+                  <DatetimeLocalMskInput top="Начало (МСК)" value={editEventStartTime} onChange={setEditEventStartTime} />
+                  <DatetimeLocalMskInput top="Окончание (МСК)" value={editEventEndTime} onChange={setEditEventEndTime} />
                   <FormItem top="Ключевой блок">
                     <Checkbox checked={editEventIsKeyBlock} onChange={(e) => setEditEventIsKeyBlock(e.target.checked)}>Ключевой блок</Checkbox>
                   </FormItem>
@@ -390,8 +419,8 @@ export function AdminPanel() {
                         title: editEventTitle,
                         description: editEventDesc,
                         place: editEventPlace,
-                        startTime: new Date(editEventStartTime).toISOString(),
-                        endTime: new Date(editEventEndTime).toISOString(),
+                        startTime: datetimeLocalMskToIso(editEventStartTime),
+                        endTime: datetimeLocalMskToIso(editEventEndTime),
                         isKeyBlock: editEventIsKeyBlock,
                       }).then(() => { setEditingEventId(null); load(); })}
                     >
@@ -474,21 +503,24 @@ export function AdminPanel() {
           <FormItem top="Баллы">
             <Input type="number" value={newTaskPoints} onChange={(e) => setNewTaskPoints(e.target.value)} />
           </FormItem>
-          <FormItem top="Дедлайн (необязательно)">
-            <Input type="datetime-local" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} />
-          </FormItem>
+          <DatetimeLocalMskInput top="Дедлайн (необязательно)" value={newTaskDeadline} onChange={setNewTaskDeadline} />
           <FormItem top="Многократное выполнение">
             <NativeSelect value={newTaskAllowMultiple ? 'yes' : 'no'} onChange={(e) => setNewTaskAllowMultiple(e.target.value === 'yes')}>
               <option value="no">Нет</option>
               <option value="yes">Да</option>
             </NativeSelect>
           </FormItem>
-          <FormItem top="Требуется фото">
-            <NativeSelect value={newTaskRequiresPhoto ? 'yes' : 'no'} onChange={(e) => setNewTaskRequiresPhoto(e.target.value === 'yes')}>
-              <option value="no">Нет</option>
-              <option value="yes">Да</option>
+          <FormItem top="Фото">
+            <NativeSelect
+              value={newTaskPhotoMode}
+              onChange={(e) => setNewTaskPhotoMode(e.target.value as 'none' | 'optional' | 'required')}
+            >
+              <option value="none">Не нужно</option>
+              <option value="optional">Можно приложить</option>
+              <option value="required">Обязательно</option>
             </NativeSelect>
           </FormItem>
+          <DatetimeLocalMskInput top="Публикация (МСК, необязательно)" value={newTaskPublishTime} onChange={setNewTaskPublishTime} />
           <FormItem top="Нетворкинг (рандом-пара)">
             <NativeSelect value={newTaskIsRandomDistribution ? 'yes' : 'no'} onChange={(e) => setNewTaskIsRandomDistribution(e.target.value === 'yes')}>
               <option value="no">Нет</option>
@@ -541,9 +573,11 @@ export function AdminPanel() {
               title: newTaskTitle,
               description: newTaskDesc || newTaskTitle,
               points: Number(newTaskPoints) || 20,
-              deadline: newTaskDeadline ? new Date(newTaskDeadline).toISOString() : null,
+              deadline: newTaskDeadline ? datetimeLocalMskToIso(newTaskDeadline) : null,
               allowMultiple: newTaskAllowMultiple,
-              requiresPhoto: newTaskRequiresPhoto,
+              photoMode: newTaskPhotoMode,
+              publishTime: newTaskPublishTime ? datetimeLocalMskToIso(newTaskPublishTime) : null,
+              asDraft: !newTaskPublishTime,
               sendNotification: newTaskSendNotification,
               isFocusOfDay: newTaskIsFocusOfDay,
               isRandomDistribution: newTaskIsRandomDistribution,
@@ -556,6 +590,7 @@ export function AdminPanel() {
               setNewTaskTitle('');
               setNewTaskDesc('');
               setNewTaskDeadline('');
+              setNewTaskPublishTime('');
               load();
             })}
           >
@@ -570,9 +605,14 @@ export function AdminPanel() {
               key={t.id}
               badge={t.isFocusOfDay && editingTaskId !== t.id ? <Badge mode="prominent">Фокус дня</Badge> : undefined}
               title={editingTaskId === t.id ? 'Редактирование' : t.title}
-              meta={editingTaskId !== t.id ? `${t.points} б.${t.deadline ? ` · до ${new Date(t.deadline).toLocaleString('ru-RU')}` : ''}` : undefined}
+              meta={editingTaskId !== t.id ? `${contentStatusLabel(t.status)} · ${t.points} б.${t.deadline ? ` · до ${new Date(t.deadline).toLocaleString('ru-RU')}` : ''}` : undefined}
               actions={editingTaskId !== t.id ? (
                 <>
+                  {(t.status === 'draft' || t.status === 'scheduled') && (
+                    <button type="button" className="nfo-admin-btn-primary" onClick={() => void publishAdminTask(t.id).then(load)}>
+                      Опубликовать сейчас
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="nfo-admin-btn-outline"
@@ -588,7 +628,7 @@ export function AdminPanel() {
                       setEditTaskTitle(t.title);
                       setEditTaskDesc(t.description);
                       setEditTaskPoints(String(t.points));
-                      setEditTaskDeadline(t.deadline ? new Date(t.deadline).toISOString().slice(0, 16) : '');
+                      setEditTaskDeadline(t.deadline ? isoToDatetimeLocalMsk(t.deadline) : '');
                       setEditTaskAllowMultiple(t.allowMultiple ?? false);
                       setEditTaskRequiresPhoto(t.requiresPhoto ?? false);
                       setEditTaskSendNotification(t.sendNotification ?? true);
@@ -608,7 +648,7 @@ export function AdminPanel() {
                   <FormItem top="Название"><Input value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} /></FormItem>
                   <FormItem top="Описание"><Textarea value={editTaskDesc} onChange={(e) => setEditTaskDesc(e.target.value)} /></FormItem>
                   <FormItem top="Баллы"><Input type="number" value={editTaskPoints} onChange={(e) => setEditTaskPoints(e.target.value)} /></FormItem>
-                  <FormItem top="Дедлайн"><Input type="datetime-local" value={editTaskDeadline} onChange={(e) => setEditTaskDeadline(e.target.value)} /></FormItem>
+                  <DatetimeLocalMskInput top="Дедлайн" value={editTaskDeadline} onChange={setEditTaskDeadline} />
                   <FormItem top="Многократное"><NativeSelect value={editTaskAllowMultiple ? 'yes' : 'no'} onChange={(e) => setEditTaskAllowMultiple(e.target.value === 'yes')}><option value="no">Нет</option><option value="yes">Да</option></NativeSelect></FormItem>
                   <FormItem top="Требует фото"><NativeSelect value={editTaskRequiresPhoto ? 'yes' : 'no'} onChange={(e) => setEditTaskRequiresPhoto(e.target.value === 'yes')}><option value="no">Нет</option><option value="yes">Да</option></NativeSelect></FormItem>
                   <FormItem top="Фокус дня"><NativeSelect value={editTaskIsFocusOfDay ? 'yes' : 'no'} onChange={(e) => setEditTaskIsFocusOfDay(e.target.value === 'yes')}><option value="no">Нет</option><option value="yes">Да</option></NativeSelect></FormItem>
@@ -620,7 +660,7 @@ export function AdminPanel() {
                         title: editTaskTitle,
                         description: editTaskDesc,
                         points: Number(editTaskPoints) || 20,
-                        deadline: editTaskDeadline ? new Date(editTaskDeadline).toISOString() : null,
+                        deadline: editTaskDeadline ? datetimeLocalMskToIso(editTaskDeadline) : null,
                         allowMultiple: editTaskAllowMultiple,
                         requiresPhoto: editTaskRequiresPhoto,
                         sendNotification: editTaskSendNotification,
@@ -647,17 +687,27 @@ export function AdminPanel() {
             <div className="nfo-admin-empty">Нет вопросов на модерации</div>
           ) : (
             questions.map((q) => (
-              <AdminListCard key={q.id} title={q.text}>
-                <FormItem top="Время отправки (пусто = сейчас)">
-                  <Input type="datetime-local" id={`publish-time-${q.id}`} />
-                </FormItem>
+              <AdminListCard
+                key={q.id}
+                title={q.text}
+                meta={[
+                  formatExchangeAuthorName(q.authorFirstName, q.authorLastName),
+                  formatExchangeAuthorTrack(q.authorTrack),
+                ].filter(Boolean).join(' · ')}
+              >
+                <DatetimeLocalMskInput
+                  top="Время отправки (пусто = сейчас)"
+                  value={exchangePublishTimes[q.id] ?? ''}
+                  onChange={(v) => setExchangePublishTimes((prev) => ({ ...prev, [q.id]: v }))}
+                />
                 <div className="nfo-admin-actions">
                   <button
                     type="button"
                     className="nfo-admin-btn-primary stretched"
                     onClick={() => {
-                      const timeInput = document.getElementById(`publish-time-${q.id}`) as HTMLInputElement;
-                      const publishTime = timeInput?.value ? new Date(timeInput.value).toISOString() : undefined;
+                      const publishTime = exchangePublishTimes[q.id]
+                        ? datetimeLocalMskToIso(exchangePublishTimes[q.id])
+                        : undefined;
                       void moderateExchange(q.id, 'approved', publishTime).then(load);
                     }}
                   >
@@ -665,6 +715,9 @@ export function AdminPanel() {
                   </button>
                   <button type="button" className="nfo-admin-btn-secondary stretched" onClick={() => void moderateExchange(q.id, 'rejected').then(load)}>
                     Отклонить
+                  </button>
+                  <button type="button" className="nfo-admin-btn-danger stretched" onClick={() => handleDeleteExchange(q.id)}>
+                    Удалить
                   </button>
                 </div>
               </AdminListCard>
@@ -677,12 +730,23 @@ export function AdminPanel() {
             <AdminListCard
               key={a.id}
               title={a.text}
-              meta={`${a.status} · ${a.answerCount} ответов · ${a.assignmentCount} назначений`}
-              actions={a.status === 'published' ? (
-                <button type="button" className="nfo-admin-btn-secondary stretched" onClick={() => void hideExchangeQuestion(a.id).then(load)}>
-                  Скрыть вопрос
-                </button>
-              ) : undefined}
+              meta={[
+                formatExchangeAuthorName(a.authorFirstName, a.authorLastName),
+                formatExchangeAuthorTrack(a.authorTrack),
+                `${a.status} · ${a.answerCount} ответов · ${a.assignmentCount} назначений`,
+              ].filter(Boolean).join(' · ')}
+              actions={
+                <div className="nfo-admin-actions">
+                  {a.status === 'published' ? (
+                    <button type="button" className="nfo-admin-btn-secondary stretched" onClick={() => void hideExchangeQuestion(a.id).then(load)}>
+                      Скрыть вопрос
+                    </button>
+                  ) : null}
+                  <button type="button" className="nfo-admin-btn-danger stretched" onClick={() => handleDeleteExchange(a.id)}>
+                    Удалить
+                  </button>
+                </div>
+              }
             />
           ))}
         </div>
@@ -743,12 +807,12 @@ export function AdminPanel() {
               <option value="final">Финальный</option>
             </NativeSelect>
           </FormItem>
-          <FormItem top="Время публикации">
-            <Input type="datetime-local" value={newReflectionPublishTime} onChange={(e) => setNewReflectionPublishTime(e.target.value)} />
-          </FormItem>
-          <FormItem top="Время закрытия (необязательно)">
-            <Input type="datetime-local" value={newReflectionEndTime} onChange={(e) => setNewReflectionEndTime(e.target.value)} />
-          </FormItem>
+          <DatetimeLocalMskInput
+            top="Время публикации (МСК, необязательно — пусто = черновик)"
+            value={newReflectionPublishTime}
+            onChange={setNewReflectionPublishTime}
+          />
+          <DatetimeLocalMskInput top="Время закрытия (необязательно)" value={newReflectionEndTime} onChange={setNewReflectionEndTime} />
           <FormItem top="Баллы за ответ">
             <Input type="number" value={newReflectionPoints} onChange={(e) => setNewReflectionPoints(e.target.value)} />
           </FormItem>
@@ -773,19 +837,21 @@ export function AdminPanel() {
               <option value="yes">Можно отвечать повторно</option>
             </NativeSelect>
           </FormItem>
+          <div className="nfo-admin-actions">
           <button
             type="button"
             className="nfo-admin-btn-primary"
             onClick={() => void createReflectionQuestion({
               text: newReflectionText,
               type: newReflectionType,
-              publishTime: newReflectionPublishTime ? new Date(newReflectionPublishTime).toISOString() : new Date().toISOString(),
-              endTime: newReflectionEndTime ? new Date(newReflectionEndTime).toISOString() : null,
+              publishTime: newReflectionPublishTime ? datetimeLocalMskToIso(newReflectionPublishTime) : null,
+              endTime: newReflectionEndTime ? datetimeLocalMskToIso(newReflectionEndTime) : null,
               points: Number(newReflectionPoints) || 10,
               sendNotification: newReflectionSendNotification,
               groupId: newReflectionGroupId || null,
               track: newReflectionTrack || null,
               allowMultiple: newReflectionAllowMultiple,
+              asDraft: !newReflectionPublishTime,
             }).then(() => {
               setNewReflectionText('');
               setNewReflectionPublishTime('');
@@ -795,8 +861,9 @@ export function AdminPanel() {
               load();
             })}
           >
-            Добавить вопрос
+            {newReflectionPublishTime ? 'Добавить вопрос' : 'Сохранить черновик'}
           </button>
+          </div>
           </div>
 
           <div className="nfo-sec-title" style={{ marginTop: 8 }}>Список вопросов</div>
@@ -804,8 +871,8 @@ export function AdminPanel() {
             editingReflectionId === r.id ? (
               <div key={r.id} className="nfo-admin-list-card">
                 <FormItem top="Текст"><Textarea value={editReflectionText} onChange={(e) => setEditReflectionText(e.target.value)} /></FormItem>
-                <FormItem top="Публикация"><Input type="datetime-local" value={editReflectionPublishTime} onChange={(e) => setEditReflectionPublishTime(e.target.value)} /></FormItem>
-                <FormItem top="Закрытие"><Input type="datetime-local" value={editReflectionEndTime} onChange={(e) => setEditReflectionEndTime(e.target.value)} /></FormItem>
+                <DatetimeLocalMskInput top="Публикация" value={editReflectionPublishTime} onChange={setEditReflectionPublishTime} />
+                <DatetimeLocalMskInput top="Закрытие" value={editReflectionEndTime} onChange={setEditReflectionEndTime} />
                 <FormItem top="Баллы"><Input type="number" value={editReflectionPoints} onChange={(e) => setEditReflectionPoints(e.target.value)} /></FormItem>
                 <FormItem top="Ответы">
                   <NativeSelect value={editReflectionAllowMultiple ? 'yes' : 'no'} onChange={(e) => setEditReflectionAllowMultiple(e.target.value === 'yes')}>
@@ -816,8 +883,8 @@ export function AdminPanel() {
                 <div className="nfo-admin-actions">
                   <button type="button" className="nfo-admin-btn-primary" onClick={() => void updateReflectionQuestion(r.id, {
                     text: editReflectionText,
-                    publishTime: new Date(editReflectionPublishTime).toISOString(),
-                    endTime: editReflectionEndTime ? new Date(editReflectionEndTime).toISOString() : null,
+                    publishTime: datetimeLocalMskToIso(editReflectionPublishTime),
+                    endTime: editReflectionEndTime ? datetimeLocalMskToIso(editReflectionEndTime) : null,
                     points: Number(editReflectionPoints) || 10,
                     allowMultiple: editReflectionAllowMultiple,
                   }).then(() => { setEditingReflectionId(null); load(); })}>Сохранить</button>
@@ -829,16 +896,21 @@ export function AdminPanel() {
                 key={r.id}
                 badge={r.groupId ? <Badge mode="prominent">Группа {r.groupId}</Badge> : undefined}
                 title={r.text}
-                meta={`${r.type} · ${r.allowMultiple ? 'повторно' : '1×'} · ${new Date(r.publishTime).toLocaleString('ru-RU')}${r.endTime ? ` – ${new Date(r.endTime).toLocaleString('ru-RU')}` : ''} · ${r.points} б.`}
+                meta={`${contentStatusLabel(r.status)} · ${r.type} · ${r.allowMultiple ? 'повторно' : '1×'} · ${r.publishTime ? new Date(r.publishTime).toLocaleString('ru-RU') : 'без времени'}${r.endTime ? ` – ${new Date(r.endTime).toLocaleString('ru-RU')}` : ''} · ${r.points} б.`}
                 actions={
                   <>
+                    {(r.status === 'draft' || r.status === 'scheduled') && (
+                      <button type="button" className="nfo-admin-btn-primary" onClick={() => void publishReflectionQuestion(r.id).then(load)}>
+                        Опубликовать сейчас
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="nfo-admin-btn-outline"
                       onClick={() => void createReflectionQuestion({
                         text: r.text,
                         type: r.type,
-                        publishTime: r.publishTime,
+                        publishTime: r.publishTime ?? undefined,
                         endTime: r.endTime,
                         points: r.points,
                         sendNotification: false,
@@ -855,15 +927,15 @@ export function AdminPanel() {
                       onClick={() => {
                         setEditingReflectionId(r.id);
                         setEditReflectionText(r.text);
-                        setEditReflectionPublishTime(new Date(r.publishTime).toISOString().slice(0, 16));
-                        setEditReflectionEndTime(r.endTime ? new Date(r.endTime).toISOString().slice(0, 16) : '');
+                        setEditReflectionPublishTime(r.publishTime ? isoToDatetimeLocalMsk(r.publishTime) : '');
+                        setEditReflectionEndTime(r.endTime ? isoToDatetimeLocalMsk(r.endTime) : '');
                         setEditReflectionPoints(String(r.points));
                         setEditReflectionAllowMultiple(r.allowMultiple ?? false);
                       }}
                     >
                       Изменить
                     </button>
-                    <button type="button" className="nfo-admin-btn-danger" onClick={() => void deleteReflectionQuestion(r.id).then(load)}>
+                    <button type="button" className="nfo-admin-btn-danger" onClick={() => handleDeleteReflection(r.id)}>
                       Удалить
                     </button>
                   </>
@@ -992,9 +1064,7 @@ export function AdminPanel() {
               <Input type="number" value={pushUserId} onChange={(e) => setPushUserId(e.target.value)} />
             </FormItem>
           )}
-          <FormItem top="Отложенная отправка (необязательно)">
-            <Input type="datetime-local" value={pushScheduledAt} onChange={(e) => setPushScheduledAt(e.target.value)} />
-          </FormItem>
+          <DatetimeLocalMskInput top="Отложенная отправка (необязательно)" value={pushScheduledAt} onChange={setPushScheduledAt} />
           <button
             type="button"
             className="nfo-admin-btn-primary stretched"
@@ -1008,7 +1078,7 @@ export function AdminPanel() {
               target_type: pushTarget,
               target_tracks: pushTarget === 'track' && pushTracks.length ? pushTracks : undefined,
               target_user_id: pushTarget === 'user' ? Number(pushUserId) : undefined,
-              scheduled_at: pushScheduledAt ? new Date(pushScheduledAt).toISOString() : undefined,
+              scheduled_at: pushScheduledAt ? datetimeLocalMskToIso(pushScheduledAt) : undefined,
             }).then((result) => {
               if (result.scheduled) {
                 setPushResult('Рассылка запланирована.');
@@ -1095,6 +1165,18 @@ export function AdminPanel() {
               meta={`${r.user?.track ?? '—'} · ${new Date(r.createdAt).toLocaleString('ru-RU')} · Блок ${r.blockId} · Попытка ${r.attemptNumber}`}
               actions={<span style={{ fontWeight: 700, color: 'var(--nfo-primary)', fontSize: 14 }}>{r.score}/5</span>}
             />
+          ))}
+
+          <div className="nfo-sec-title" style={{ marginTop: 12 }}>Комментарии после профиля</div>
+          {diagProfileFeedback.length === 0 && <div className="nfo-admin-empty">Нет комментариев</div>}
+          {diagProfileFeedback.slice(0, 50).map((f) => (
+            <AdminListCard
+              key={f.id}
+              title={`${f.userName} ${f.userLastName ?? ''}`.trim()}
+              meta={`${f.track ?? '—'} · попытка ${f.attemptNumber} · ${new Date(f.createdAt).toLocaleString('ru-RU')}`}
+            >
+              <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{f.comment}</div>
+            </AdminListCard>
           ))}
         </div>
       ) : tab === 'users' ? (

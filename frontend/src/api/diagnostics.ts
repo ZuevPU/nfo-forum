@@ -63,3 +63,16 @@ export function startNewDiagnosticAttempt() {
     method: 'POST',
   });
 }
+
+export function submitDiagnosticProfileFeedback(comment: string) {
+  return apiRequest('/api/diagnostics/profile-feedback', {
+    method: 'POST',
+    body: { comment },
+  });
+}
+
+export function fetchDiagnosticProfileFeedback() {
+  return apiRequest<{ feedback: { comment: string; attemptNumber: number } | null }>(
+    '/api/diagnostics/profile-feedback',
+  );
+}

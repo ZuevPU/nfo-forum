@@ -12,6 +12,8 @@ import {
   createExchangeQuestion,
   fetchExchangeFeed,
   fetchIncomingQuestions,
+  formatExchangeAuthorName,
+  formatExchangeAuthorTrack,
   type ExchangeFeedItem,
   type IncomingQuestion,
 } from '../api/exchange';
@@ -92,6 +94,10 @@ export function ExchangePanel() {
     <Panel id="exchange">
       <GradientHeader title="Обмен опытом 💡" subtitle={subtitle} backToHome actions={<NotificationBell />} />
 
+      <div className="nfo-exchange-intro">
+        В течение дня здесь могут появляться вопросы от других участников программы. Ваш опыт и взгляд могут быть полезны коллегам, поэтому отвечайте на те вопросы, где вам есть чем поделиться.
+      </div>
+
       <PullToRefresh onRefresh={() => load()} isFetching={loading}>
         <div className="nfo-bg">
           {firstIncoming && (
@@ -151,6 +157,12 @@ export function ExchangePanel() {
                   >
                     <div className="nfo-ex-notify-lbl">Ждёт твоего ответа</div>
                     <div className="nfo-ex-notify-q">{q.text}</div>
+                    {(q.authorFirstName || q.authorTrack) && (
+                      <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>
+                        {formatExchangeAuthorName(q.authorFirstName, q.authorLastName)}
+                        {q.authorTrack ? ` · ${formatExchangeAuthorTrack(q.authorTrack)}` : ''}
+                      </div>
+                    )}
                   </div>
                 ))}
               </Div>
@@ -172,7 +184,7 @@ export function ExchangePanel() {
                     className={`nfo-scope-btn${feedScope === 'all' ? ' active' : ''}`}
                     onClick={() => setFeedScope('all')}
                   >
-                    Все треки
+                    Вопросы форума
                   </button>
                   <button
                     type="button"
@@ -189,7 +201,9 @@ export function ExchangePanel() {
                     message={
                       feedScope === 'track' && !user?.track
                         ? 'Укажи трек в профиле, чтобы видеть вопросы своего направления'
-                        : 'Пока никто не задал вопрос. Будь первым!'
+                        : feedScope === 'track'
+                          ? 'Пока нет вопросов от участников твоего трека'
+                          : 'Пока никто не задал вопрос. Будь первым!'
                     }
                   />
                 ) : feed.map((item) => (
@@ -200,6 +214,16 @@ export function ExchangePanel() {
                     onClick={() => navigate(`/exchange/${item.id}`)}
                   >
                     <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{item.text}</div>
+                    {(item.authorFirstName || item.authorTrack) && (
+                      <div style={{ fontSize: 12, lineHeight: 1.35, marginBottom: 4 }}>
+                        <div>{formatExchangeAuthorName(item.authorFirstName, item.authorLastName)}</div>
+                        {item.authorTrack ? (
+                          <div style={{ color: 'var(--vkui--color_text_secondary)' }}>
+                            {formatExchangeAuthorTrack(item.authorTrack)}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                     <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>
                       {item.answerCount} ответов · {item.scopeLabel}
                       {item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}` : ''}

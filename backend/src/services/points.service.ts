@@ -12,10 +12,14 @@ export async function awardPoints(
   sourceId?: number,
   comment?: string,
   reflectionPoints = 0,
+  historyAmount?: number,
 ): Promise<void> {
+  const loggedAmount = historyAmount ?? points + reflectionPoints;
+  if (loggedAmount === 0 && points === 0 && reflectionPoints === 0) return;
+
   await db.insert(pointsHistory).values({
     userId,
-    points,
+    points: loggedAmount,
     source,
     sourceId: sourceId ?? null,
     comment: comment ?? null,

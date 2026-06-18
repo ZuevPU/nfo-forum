@@ -1,21 +1,42 @@
 export const NFO_DAY_FACTORS = [
   'Работа в направлении',
   'Общие образовательные блоки',
-  'Выступления спикеров',
-  'Практические занятия',
+  'Выступления спикеров на направлении',
   'Работа в группе',
   'Общение с участниками',
-  'Общение с модераторами',
   'Личные размышления',
-  'Вопросы и рефлексия',
   'Атмосфера программы',
-  'Внеформальное общение',
+  'Среда Центра',
   'Истории других участников',
   'Задания программы',
   'Культурная программа',
   'Другое',
 ] as const;
 
+export const NFO_DAY_PANEL_TITLE = 'Главное по итогам дня';
+export const NFO_DAY_PANEL_SUBTITLE = 'Вечерняя рефлексия';
+
+export type NfoDayQuestionConfig = {
+  id: string;
+  label: string;
+  type: 'text' | 'multiselect';
+  required?: boolean;
+  maxSelect?: number;
+};
+
+export const DEFAULT_NFO_DAY_QUESTIONS: NfoDayQuestionConfig[] = [
+  { id: 'thesis', label: 'Главный тезис (вывод дня)', type: 'text', required: true },
+  {
+    id: 'understanding',
+    label: 'Как изменилось твоё понимание / отношение к деятельности сегодня?',
+    type: 'text',
+    required: true,
+  },
+  { id: 'factors', label: 'Что больше всего повлияло?', type: 'multiselect', maxSelect: 3, required: true },
+  { id: 'extra', label: 'Что ещё важно сказать по итогам дня?', type: 'text', required: false },
+];
+
+/** @deprecated use structured questions */
 export const NFO_DAY_QUESTION = 'Каким НФО было для тебя сегодня?';
 
 export const REFLECTION_LEVEL_NAMES: Record<number, string> = {

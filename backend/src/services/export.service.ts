@@ -185,7 +185,7 @@ export async function generateNfoDayCSV(): Promise<string> {
       r.userLastName ?? '',
       r.track ?? '',
       r.date,
-      r.answer,
+      r.answer ?? '',
       r.factors.join('; '),
     ]),
   );

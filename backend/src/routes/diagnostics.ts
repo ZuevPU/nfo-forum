@@ -4,9 +4,11 @@ import { requireUser } from '../middleware/requireUser.js';
 import {
   completeAttempt,
   getBlocks,
+  getProfileFeedback,
   getProgress,
   isTrainerTrack,
   saveAnswer,
+  saveProfileFeedback,
   startNewAttempt,
 } from '../services/diagnostics.service.js';
 import { logActivity } from '../services/activity.service.js';
@@ -88,5 +90,34 @@ diagnosticsRouter.post('/start-new', requireUser, async (req: AuthenticatedReque
   } catch (error) {
     console.error('Diagnostics start new attempt error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+diagnosticsRouter.get('/profile-feedback', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const feedback = await getProfileFeedback(req.user!.id);
+    res.json({ feedback });
+  } catch (error) {
+    console.error('Diagnostics profile feedback get error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+diagnosticsRouter.post('/profile-feedback', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!(await isTrainerTrack(req.user!.track))) {
+      res.status(403).json({ error: 'Diagnostics available only for trainer tracks' });
+      return;
+    }
+    const { comment } = req.body as { comment?: string };
+    if (!comment?.trim()) {
+      res.status(400).json({ error: 'comment is required' });
+      return;
+    }
+    const feedback = await saveProfileFeedback(req.user!.id, comment);
+    res.status(201).json({ feedback });
+  } catch (error) {
+    console.error('Diagnostics profile feedback error:', error);
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Error' });
   }
 });

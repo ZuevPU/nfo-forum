@@ -6,8 +6,7 @@ import {
 } from '@vkontakte/vkui';
 import { useEffect, useState } from 'react';
 import { fetchPointsHistory, fetchRating, type PointsHistoryItem, type RatingData } from '../api/rating';
-import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
-import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
+import { REFLECTION_LEVEL_DESCRIPTIONS, REFLECTION_LEVEL_NAMES, DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
 import { PanelLayout } from '../components/PanelLayout';
 import { ProgressBar } from '../components/ProgressBar';
 
@@ -51,6 +50,11 @@ export function RatingPanel() {
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                   Ур. {me.reflectionLevel} — {REFLECTION_LEVEL_NAMES[me.reflectionLevel] ?? ''}
                 </div>
+                {REFLECTION_LEVEL_DESCRIPTIONS[me.reflectionLevel] && (
+                  <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginBottom: 6, lineHeight: 1.4 }}>
+                    {REFLECTION_LEVEL_DESCRIPTIONS[me.reflectionLevel]}
+                  </div>
+                )}
                 <ProgressBar value={reflectionProgress} max={100} />
                 {me.nextLevelPoints != null && (
                   <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>

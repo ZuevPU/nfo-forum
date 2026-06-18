@@ -17,6 +17,8 @@ import {
   fetchQuestionDetail,
   addReaction,
   reportExchangeAnswer,
+  formatExchangeAuthorName,
+  formatExchangeAuthorTrack,
   type QuestionDetail,
 } from '../api/exchange';
 import { PanelTitle } from '../components/PanelTitle';
@@ -39,14 +41,19 @@ export function ExchangeDetailPanel() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const reload = async () => {
+    if (!id) return;
+    const updated = await fetchQuestionDetail(Number(id));
+    setDetail(updated);
+  };
+
   const handleAnswer = async () => {
     if (!id || !answer.trim()) return;
     setSubmitting(true);
     try {
       await createExchangeAnswer(Number(id), answer.trim());
       setAnswer('');
-      const updated = await fetchQuestionDetail(Number(id));
-      setDetail(updated);
+      await reload();
     } catch (e) {
       console.error(e);
     } finally {
@@ -63,11 +70,10 @@ export function ExchangeDetailPanel() {
     }
   };
 
-  const handleReaction = async (answerId: number) => {
+  const handleReaction = async (answerId: number, reactionType: 'like' | 'discuss') => {
     try {
-      await addReaction(answerId, 'like');
-      const updated = await fetchQuestionDetail(Number(id));
-      setDetail(updated);
+      await addReaction(answerId, reactionType);
+      await reload();
     } catch (e) {
       console.error(e);
     }
@@ -101,6 +107,16 @@ export function ExchangeDetailPanel() {
             >
               {detail.question.text}
             </SimpleCell>
+            {!detail.question.isMine && (detail.question.authorFirstName || detail.question.authorTrack) ? (
+              <Div style={{ padding: '0 16px 12px', fontSize: 12, lineHeight: 1.4 }}>
+                <div>{formatExchangeAuthorName(detail.question.authorFirstName, detail.question.authorLastName)}</div>
+                {detail.question.authorTrack ? (
+                  <div style={{ color: 'var(--vkui--color_text_secondary)' }}>
+                    {formatExchangeAuthorTrack(detail.question.authorTrack)}
+                  </div>
+                ) : null}
+              </Div>
+            ) : null}
           </Group>
           {collected && (
             <Group>
@@ -116,21 +132,40 @@ export function ExchangeDetailPanel() {
             ) : (
               detail.answers.map((a) => (
                 <div key={a.id} className="nfo-card" style={{ margin: 0 }}>
+                  {!a.isMine && (a.authorFirstName || a.authorTrack) ? (
+                    <div style={{ fontSize: 12, lineHeight: 1.35, marginBottom: 6 }}>
+                      <div style={{ fontWeight: 600 }}>{formatExchangeAuthorName(a.authorFirstName, a.authorLastName)}</div>
+                      {a.authorTrack ? (
+                        <div style={{ color: 'var(--vkui--color_text_secondary)' }}>
+                          {formatExchangeAuthorTrack(a.authorTrack)}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{a.answerText}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                     <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)' }}>{new Date(a.createdAt).toLocaleString('ru-RU')}</div>
                     {!a.isMine && (
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                         <Button mode="tertiary" size="s" onClick={() => void handleReport(a.id)}>Пожаловаться</Button>
-                        <IconButton
-                          onClick={() => void handleReaction(a.id)}
-                          style={{ opacity: a.likedByMe ? 1 : 0.6 }}
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <IconButton
+                            onClick={() => void handleReaction(a.id, 'like')}
+                            style={{ opacity: a.likedByMe ? 1 : 0.6 }}
+                          >
+                            <Icon28LikeOutline width={20} height={20} fill={a.likedByMe ? 'var(--nfo-accent)' : undefined} />
+                          </IconButton>
+                          {a.likeCount > 0 && (
+                            <span style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>{a.likeCount}</span>
+                          )}
+                        </div>
+                        <Button
+                          mode={a.discussedByMe ? 'primary' : 'outline'}
+                          size="s"
+                          onClick={() => void handleReaction(a.id, 'discuss')}
                         >
-                          <Icon28LikeOutline width={20} height={20} fill={a.likedByMe ? 'var(--nfo-accent)' : undefined} />
-                        </IconButton>
-                        {a.reactionCount > 0 && (
-                          <span style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>{a.reactionCount}</span>
-                        )}
+                          💬 Хочу обсудить{a.discussCount > 0 ? ` (${a.discussCount})` : ''}
+                        </Button>
                       </div>
                     )}
                   </div>

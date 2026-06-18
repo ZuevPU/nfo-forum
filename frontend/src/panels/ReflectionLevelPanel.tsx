@@ -12,8 +12,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchReflectionLevel, type ReflectionLevelData } from '../api/rating';
 import { GradientHeader } from '../components/GradientHeader';
-import { REFLECTION_LEVEL_NAMES } from '../constants/nfoFactors';
-import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
+import { REFLECTION_LEVEL_DESCRIPTIONS, REFLECTION_LEVEL_NAMES, DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
 import { useAuthContext } from '../contexts/AuthContext';
 
 export function ReflectionLevelPanel() {
@@ -58,6 +57,11 @@ export function ReflectionLevelPanel() {
                 <div style={{ fontSize: 16, color: 'var(--vkui--color_text_secondary)', marginTop: 8 }}>
                   {REFLECTION_LEVEL_NAMES[level] ?? ''}
                 </div>
+                {(data?.levelDescriptions?.[level] ?? REFLECTION_LEVEL_DESCRIPTIONS[level]) && (
+                  <div style={{ fontSize: 13, color: 'var(--vkui--color_text_secondary)', marginTop: 10, lineHeight: 1.45 }}>
+                    {data?.levelDescriptions?.[level] ?? REFLECTION_LEVEL_DESCRIPTIONS[level]}
+                  </div>
+                )}
                 <div style={{ marginTop: 16 }}>
                   <Progress value={Math.min(100, Math.max(0, progress))} />
                 </div>
@@ -70,7 +74,10 @@ export function ReflectionLevelPanel() {
 
             <Group header={<div className="nfo-sec-title">Пороги уровней</div>}>
               {thresholds.slice(1).map((threshold, index) => (
-                <SimpleCell key={threshold} subtitle={`от ${threshold} баллов рефлексии`}>
+                <SimpleCell
+                  key={threshold}
+                  subtitle={`от ${threshold} баллов · ${REFLECTION_LEVEL_DESCRIPTIONS[index + 2] ?? ''}`}
+                >
                   Уровень {index + 2}: {REFLECTION_LEVEL_NAMES[index + 2] ?? ''}
                 </SimpleCell>
               ))}

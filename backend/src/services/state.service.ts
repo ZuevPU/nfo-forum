@@ -2,8 +2,8 @@ import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { stateCheckins } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
-import { awardPointsForSource } from './pointsConfig.service.js';
-import { getCheckinSettings } from './admin.service.js';
+import { awardAction } from './pointsEngine.service.js';
+import { getCheckinSettings, resolveCheckinSettingsForDay } from './admin.service.js';
 import {
   getCheckinSlotLabel,
   getCurrentCheckinSlotIndex,
@@ -14,7 +14,7 @@ import {
   mapCheckinToSlotIndex,
   type CheckinInterval,
 } from '../utils/slotMatching.js';
-import { moscowDateString } from '../utils/moscowTime.js';
+import { moscowDateString, programDayFromMsk } from '../utils/moscowTime.js';
 
 const BOT_REACTIONS: Record<string, string> = {
   тревога: 'Тревога нормальна — попробуй сфокусироваться на одном блоке за раз.',
@@ -85,7 +85,8 @@ function mapCheckinTimeToSlotIndex(createdAt: Date, timing: ReturnType<typeof re
 }
 
 export async function getCheckinStatus(user: UserDto) {
-  const settings = await getCheckinSettings();
+  const baseSettings = await getCheckinSettings();
+  const settings = resolveCheckinSettingsForDay(baseSettings, programDayFromMsk());
   const available = isTrackEnabled(settings, user);
   const now = new Date();
   const timing = resolveCheckinTiming(settings, now);
@@ -126,7 +127,8 @@ export async function createCheckin(
   energyLevel: number,
   comment?: string,
 ) {
-  const settings = await getCheckinSettings();
+  const baseSettings = await getCheckinSettings();
+  const settings = resolveCheckinSettingsForDay(baseSettings, programDayFromMsk());
   if (!isTrackEnabled(settings, user)) {
     throw new Error('Чек-ин недоступен для вашего трека');
   }
@@ -162,7 +164,11 @@ export async function createCheckin(
 
   const botReaction = BOT_REACTIONS[emotion.toLowerCase()] ?? 'Спасибо за чек-ин! Я рядом весь день.';
 
-  await awardPointsForSource(user.id, 'checkin', created.id);
+  await awardAction(user.id, 'checkin_emotion', created.id, { skipIfSourceIdExists: true });
+  await awardAction(user.id, 'checkin_energy', created.id, { skipIfSourceIdExists: true });
+  if (comment?.trim()) {
+    await awardAction(user.id, 'checkin_comment', created.id, { skipIfSourceIdExists: true });
+  }
 
   return { checkin: created, botReaction };
 }

@@ -58,6 +58,14 @@ const checks = {
   ),
   tasks_networking_contacts: await colExists('tasks', 'networking_contacts'),
   user_notifications: await tableExists('user_notifications'),
+  exchange_assignments_deferred_at: await colExists('exchange_assignments', 'deferred_at'),
+  diagnostic_profile_feedback: await tableExists('diagnostic_profile_feedback'),
+  reflection_questions_status: await colExists('reflection_questions', 'status'),
+  tasks_status: await colExists('tasks', 'status'),
+  tasks_publish_time: await colExists('tasks', 'publish_time'),
+  tasks_photo_mode: await colExists('tasks', 'photo_mode'),
+  nfo_day_reflections_answers: await colExists('nfo_day_reflections', 'answers'),
+  program_insights: await tableExists('program_insights'),
 };
 
 console.log('Current state:');
@@ -133,6 +141,51 @@ if (!checks.user_notifications) {
   statements.push(
     'CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created ON user_notifications (user_id, created_at)',
   );
+}
+if (!checks.exchange_assignments_deferred_at) {
+  statements.push('ALTER TABLE exchange_assignments ADD COLUMN IF NOT EXISTS deferred_at timestamp');
+}
+if (!checks.diagnostic_profile_feedback) {
+  statements.push(`CREATE TABLE IF NOT EXISTS diagnostic_profile_feedback (
+  id serial PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  attempt_number integer NOT NULL,
+  comment text NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+)`);
+  statements.push(
+    'CREATE UNIQUE INDEX IF NOT EXISTS diagnostic_profile_feedback_user_attempt ON diagnostic_profile_feedback (user_id, attempt_number)',
+  );
+}
+if (!checks.reflection_questions_status) {
+  statements.push(
+    "ALTER TABLE reflection_questions ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'published'",
+  );
+  statements.push('ALTER TABLE reflection_questions ALTER COLUMN publish_time DROP NOT NULL');
+}
+if (!checks.tasks_status) {
+  statements.push("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'published'");
+}
+if (!checks.tasks_publish_time) {
+  statements.push('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS publish_time timestamp');
+  statements.push('UPDATE tasks SET publish_time = created_at WHERE publish_time IS NULL');
+}
+if (!checks.tasks_photo_mode) {
+  statements.push("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS photo_mode text NOT NULL DEFAULT 'none'");
+  statements.push("UPDATE tasks SET photo_mode = 'required' WHERE requires_photo = true");
+  statements.push("UPDATE tasks SET photo_mode = 'none' WHERE requires_photo = false AND photo_mode = 'none'");
+}
+if (!checks.nfo_day_reflections_answers) {
+  statements.push('ALTER TABLE nfo_day_reflections ADD COLUMN IF NOT EXISTS answers jsonb');
+}
+if (!checks.program_insights) {
+  statements.push(`CREATE TABLE IF NOT EXISTS program_insights (
+  id serial PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text text NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now()
+)`);
 }
 
 if (statements.length === 0) {

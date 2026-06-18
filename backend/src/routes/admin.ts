@@ -5,8 +5,11 @@ import { requireUser } from '../middleware/requireUser.js';
 import {
   createEvent,
   createReflectionQuestion,
+  publishReflectionQuestion,
   createTask,
+  publishTask,
   deleteEvent,
+  deleteExchangeQuestion,
   deleteReflectionQuestion,
   deleteTask,
   listEvents,
@@ -38,6 +41,7 @@ import {
   setNfoDaySettings,
   getDailyFocusSettings,
   setDailyFocusSettings,
+  listDiagnosticProfileFeedback,
   listActivityLogs,
 } from '../services/admin.service.js';
 import {
@@ -128,6 +132,15 @@ adminRouter.patch('/tasks/:id', async (req, res) => {
   res.json({ task });
 });
 
+adminRouter.post('/tasks/:id/publish', async (req, res) => {
+  const task = await publishTask(Number(req.params.id));
+  if (!task) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  res.json({ task });
+});
+
 adminRouter.delete('/tasks/:id', async (req, res) => {
   await deleteTask(Number(req.params.id));
   res.json({ ok: true });
@@ -155,6 +168,15 @@ adminRouter.post('/exchange/:id/hide', async (req, res) => {
     return;
   }
   res.json({ question });
+});
+
+adminRouter.delete('/exchange/:id', async (req, res) => {
+  const deleted = await deleteExchangeQuestion(Number(req.params.id));
+  if (!deleted) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 adminRouter.get('/submissions/pending', async (_req, res) => {
@@ -279,8 +301,21 @@ adminRouter.post('/reflection-questions', async (req, res) => {
   res.status(201).json({ question });
 });
 
+adminRouter.post('/reflection-questions/:id/publish', async (req, res) => {
+  const question = await publishReflectionQuestion(Number(req.params.id));
+  if (!question) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  res.json({ question });
+});
+
 adminRouter.delete('/reflection-questions/:id', async (req, res) => {
-  await deleteReflectionQuestion(Number(req.params.id));
+  const deleted = await deleteReflectionQuestion(Number(req.params.id));
+  if (!deleted) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ ok: true });
 });
 
@@ -338,6 +373,11 @@ adminRouter.get('/diagnostics/results', async (_req, res) => {
   res.json({ results });
 });
 
+adminRouter.get('/diagnostics/profile-feedback', async (_req, res) => {
+  const feedback = await listDiagnosticProfileFeedback();
+  res.json({ feedback });
+});
+
 adminRouter.get('/diagnostics/export', async (_req, res) => {
   const csv = await generateDiagnosticsCSV();
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -367,12 +407,14 @@ adminRouter.get('/feedback', async (_req, res) => {
 });
 
 adminRouter.get('/settings/points', async (_req, res) => {
-  const config = await getPointsSettings();
-  res.json({ config });
+  const { getPointsSystemForAdmin } = await import('../services/pointsEngine.service.js');
+  const data = await getPointsSystemForAdmin();
+  res.json(data);
 });
 
 adminRouter.post('/settings/points', async (req, res) => {
-  await setPointsSettings(req.body as Record<string, number>);
+  const body = req.body as { rules?: Record<string, { pointsPerAction?: number; maxTotal?: number; maxCount?: number }> };
+  await setPointsSettings({ rules: body.rules ?? {} });
   res.json({ ok: true });
 });
 
