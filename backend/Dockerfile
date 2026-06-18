@@ -14,6 +14,4 @@ RUN npm ci -w backend --omit=dev
 COPY --from=builder /app/backend/dist ./backend/dist
 ENV NODE_ENV=production
 EXPOSE 3001
-HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3001/health || exit 1
 CMD ["node", "backend/dist/index.js"]

@@ -12,33 +12,9 @@ Railway и VK Hosting в проекте **не используются** для
 |------------|----------|
 | `DATABASE_URL` | PostgreSQL (Timeweb DB) |
 | `API_PUBLIC_URL` | `https://zuevpu-nfo-forum-d400.twc1.net` |
-| `DB_POOL_MAX` | `10` (не больше 15 без проверки лимита БД) |
 | `SKIP_VK_SIGN` | `false` |
 | `FRONTEND_ORIGIN` | `https://vk.com` |
 | `CRON_SECRET` | случайная строка 32+ символов |
-
-## Настройки App Platform (если деплой «висит» после Build succeeded)
-
-Timeweb ждёт **2xx от health-check**. Частые причины зависания 15–30 мин:
-
-| Проблема | Решение |
-|----------|---------|
-| Путь health-check = `/` или `/api/health`, а БД ещё не готова | В панели: **Путь проверки состояния → `/health`** (не зависит от БД) |
-| Приложение слушает только localhost | В коде: `app.listen(PORT, '0.0.0.0')` — уже исправлено |
-| Нет `DATABASE_URL` в env | Контейнер падает при старте — добавьте в переменные окружения |
-| Auto Node + pm2, без lockfile | Лучше: **тип деплоя Dockerfile**, файл `Dockerfile` в корне репо |
-
-**Рекомендуемые настройки backend-приложения:**
-
-| Поле | Значение |
-|------|----------|
-| Тип | Dockerfile (корневой `Dockerfile`) |
-| Порт | `3001` или переменная `PORT` |
-| Health path | `/health` |
-| Build (если без Docker) | `npm ci && npm run build:backend` |
-| Start (если без Docker) | `npm start` |
-
-После redeploy проверка: `https://zuevpu-nfo-forum-d400.twc1.net/health` → `{"status":"ok"}`.
 
 ## Деплой backend
 

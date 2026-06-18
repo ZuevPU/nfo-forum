@@ -3,9 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   adjustUserPoints,
   fetchAdminUsers,
-  fetchAllTaskSubmissions,
   fetchFeedbackMessages,
-  moderateSubmission,
   fetchReflectionLevelSettings,
   fetchReflectionAnswers,
   fetchNfoDayStats,
@@ -28,10 +26,8 @@ import {
   type ReflectionAnswerRow,
   type NfoDayStats,
   type ActivityLogRow,
-  type TaskSubmissionRow,
 } from '../api/admin';
 import { AdminListCard } from '../components/AdminListCard';
-import { resolvePhotoUrl } from '../lib/mediaUrls';
 import { PointsSystemSettings } from '../components/PointsSystemSettings';
 import { inputTimeToMskParts, mskTimeToInput } from '../lib/datetimeMsk';
 import { TRACKS } from '../constants/tracks';
@@ -115,140 +111,17 @@ export function AdminFeedbackTab() {
 
   return (
     <div className="nfo-admin-section">
-      <div className="nfo-sec-title">Обращения к организаторам</div>
-      <div
-        style={{ marginBottom: 12, fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.45 }}
-      >
-        Участники пишут через Главную → «Связь с организаторами» или Настройки → «Написать организатору».
-      </div>
-      <div className="nfo-admin-export-row" style={{ marginBottom: 12 }}>
-        <button type="button" className="nfo-admin-btn-secondary" onClick={() => void downloadAdminExport('feedback', 'csv').catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'))}>
-          CSV
-        </button>
-        <button type="button" className="nfo-admin-btn-outline" onClick={() => void downloadAdminExport('feedback', 'xlsx').catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'))}>
-          XLSX
-        </button>
-      </div>
-      {!messages.length && <div className="nfo-admin-empty">Пока нет обращений</div>}
+      <div className="nfo-sec-title">Сообщения от участников</div>
+      {!messages.length && <div className="nfo-admin-empty">Нет сообщений</div>}
       {messages.map((m) => (
         <AdminListCard
           key={m.id}
           title={`${m.firstName} ${m.lastName ?? ''}`.trim()}
           meta={`${m.track ?? '—'} · ${new Date(m.createdAt).toLocaleString('ru-RU')}`}
         >
-          <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{m.text}</div>
+          <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.4 }}>{m.text}</div>
         </AdminListCard>
       ))}
-    </div>
-  );
-}
-
-type SubmissionFilter = 'pending' | 'approved' | 'rejected' | 'all';
-
-function submissionStatusLabel(status: string) {
-  if (status === 'approved') return 'Принято';
-  if (status === 'rejected') return 'Отклонено';
-  if (status === 'pending') return 'На проверке';
-  return status;
-}
-
-export function AdminTaskSubmissionsTab({ initialTaskId }: { initialTaskId?: number | null }) {
-  const [filter, setFilter] = useState<SubmissionFilter>('pending');
-  const [taskId, setTaskId] = useState(initialTaskId != null ? String(initialTaskId) : '');
-  const [submissions, setSubmissions] = useState<TaskSubmissionRow[]>([]);
-  const [comments, setComments] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState(true);
-
-  const load = () => {
-    setLoading(true);
-    fetchAllTaskSubmissions({
-      status: filter === 'all' ? undefined : filter,
-      taskId: taskId.trim() ? Number(taskId) : undefined,
-      limit: 200,
-    })
-      .then((r) => setSubmissions(r.submissions))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, [filter, taskId]);
-
-  return (
-    <div className="nfo-admin-section">
-      <div className="nfo-sec-title">Ответы на задания</div>
-      <div className="nfo-admin-form-card" style={{ marginBottom: 12 }}>
-        <FormItem top="Статус">
-          <NativeSelect value={filter} onChange={(e) => setFilter(e.target.value as SubmissionFilter)}>
-            <option value="pending">На модерации</option>
-            <option value="approved">Принятые</option>
-            <option value="rejected">Отклонённые</option>
-            <option value="all">Все</option>
-          </NativeSelect>
-        </FormItem>
-        <FormItem top="ID задания (необязательно)">
-          <Input value={taskId} onChange={(e) => setTaskId(e.target.value)} placeholder="Например: 3" />
-        </FormItem>
-      </div>
-      {loading ? (
-        <Div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>Загрузка…</Div>
-      ) : submissions.length === 0 ? (
-        <div className="nfo-admin-empty">Нет ответов по выбранным фильтрам</div>
-      ) : (
-        submissions.map((s) => (
-          <AdminListCard
-            key={s.id}
-            title={s.taskTitle ?? `Задание #${s.taskId}`}
-            meta={[
-              `${s.userName} ${s.userLastName ?? ''}`.trim(),
-              s.userTrack ?? '—',
-              submissionStatusLabel(s.status),
-              new Date(s.createdAt).toLocaleString('ru-RU'),
-            ].filter(Boolean).join(' · ')}
-          >
-            {s.answerText ? (
-              <div style={{ marginTop: 4, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{s.answerText}</div>
-            ) : (
-              <div style={{ marginTop: 4, fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>Текст не указан</div>
-            )}
-            {s.photos && s.photos.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                {s.photos.map((stored, i) => {
-                  const url = resolvePhotoUrl(stored);
-                  return (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" title="Открыть фото">
-                      <img src={url} alt={`Фото ${i + 1}`} style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }} />
-                    </a>
-                  );
-                })}
-              </div>
-            )}
-            {s.status === 'pending' && (
-              <>
-                <FormItem top="Комментарий при отклонении">
-                  <Input
-                    value={comments[s.id] ?? ''}
-                    onChange={(e) => setComments((c) => ({ ...c, [s.id]: e.target.value }))}
-                    placeholder="Необязательно"
-                  />
-                </FormItem>
-                <div className="nfo-admin-actions">
-                  <button type="button" className="nfo-admin-btn-primary stretched" onClick={() => void moderateSubmission(s.id, 'approved').then(load)}>
-                    Принять
-                  </button>
-                  <button type="button" className="nfo-admin-btn-secondary stretched" onClick={() => void moderateSubmission(s.id, 'rejected', comments[s.id]).then(load)}>
-                    Отклонить
-                  </button>
-                </div>
-              </>
-            )}
-            {s.adminComment && (
-              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>
-                Комментарий модератора: {s.adminComment}
-              </div>
-            )}
-          </AdminListCard>
-        ))
-      )}
     </div>
   );
 }
@@ -394,8 +267,6 @@ export function AdminSettingsTab() {
   const [nfoDay, setNfoDay] = useState({
     publishHour: 19,
     publishMinute: 30,
-    closeHour: null as number | null,
-    closeMinute: null as number | null,
     points: 10,
     panelTitle: '',
     panelSubtitle: '',
@@ -440,8 +311,6 @@ export function AdminSettingsTab() {
     fetchNfoDaySettings().then((r) => setNfoDay({
       publishHour: r.publishHour,
       publishMinute: r.publishMinute,
-      closeHour: r.closeHour ?? null,
-      closeMinute: r.closeMinute ?? null,
       points: r.points,
       panelTitle: r.panelTitle ?? '',
       panelSubtitle: r.panelSubtitle ?? '',
@@ -659,20 +528,6 @@ export function AdminSettingsTab() {
             }}
           />
         </FormItem>
-        <FormItem top="Время закрытия (МСК, необязательно)">
-          <Input
-            type="time"
-            value={nfoDay.closeHour != null && nfoDay.closeMinute != null ? mskTimeToInput(nfoDay.closeHour, nfoDay.closeMinute) : ''}
-            onChange={(e) => {
-              if (!e.target.value) {
-                setNfoDay((c) => ({ ...c, closeHour: null, closeMinute: null }));
-                return;
-              }
-              const { hour, minute } = inputTimeToMskParts(e.target.value);
-              setNfoDay((c) => ({ ...c, closeHour: hour, closeMinute: minute }));
-            }}
-          />
-        </FormItem>
         <FormItem top="Баллы">
           <Input type="number" value={String(nfoDay.points)} onChange={(e) => setNfoDay((c) => ({ ...c, points: Number(e.target.value) }))} />
         </FormItem>
@@ -682,8 +537,6 @@ export function AdminSettingsTab() {
           onClick={() => void saveNfoDaySettings({
             publishHour: nfoDay.publishHour,
             publishMinute: nfoDay.publishMinute,
-            closeHour: nfoDay.closeHour,
-            closeMinute: nfoDay.closeMinute,
             points: nfoDay.points,
             panelTitle: nfoDay.panelTitle.trim(),
             panelSubtitle: nfoDay.panelSubtitle.trim(),
@@ -700,8 +553,6 @@ export function AdminSettingsTab() {
             setNfoDay({
               publishHour: saved.publishHour,
               publishMinute: saved.publishMinute,
-              closeHour: saved.closeHour ?? null,
-              closeMinute: saved.closeMinute ?? null,
               points: saved.points,
               panelTitle: saved.panelTitle ?? '',
               panelSubtitle: saved.panelSubtitle ?? '',
@@ -736,7 +587,7 @@ export function AdminSettingsTab() {
       <div className="nfo-sec-title" style={{ marginTop: 12 }}>Выгрузки CSV / Excel</div>
       <div className="nfo-admin-form-card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(['reflection', 'tasks', 'exchange', 'rating', 'checkins', 'nfo-day', 'feedback', 'points-history', 'activity'] as const).map((type) => (
+          {(['reflection', 'tasks', 'exchange', 'rating', 'checkins', 'nfo-day', 'points-history', 'activity'] as const).map((type) => (
             <div key={type} className="nfo-admin-export-row">
               <button
                 type="button"

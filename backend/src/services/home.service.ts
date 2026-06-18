@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, gte, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   events,
@@ -21,7 +21,6 @@ import { PARTICIPANT_ROLE } from '../constants/roles.js';
 import { getCheckinStatus } from './state.service.js';
 import { getTasks } from './tasks.service.js';
 import { getNfoDayConfig, getNfoDayReflectionToday } from './reflection.service.js';
-import { INSIGHTS_QUESTION_GROUP_ID } from '../constants/insights.js';
 
 export async function submitFeedback(userId: number, text: string) {
   await db.insert(feedbackMessages).values({
@@ -163,13 +162,9 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     .from(reflectionQuestions)
     .where(
       and(
-        ne(reflectionQuestions.status, 'draft'),
         lte(reflectionQuestions.publishTime, now),
         or(isNull(reflectionQuestions.endTime), gt(reflectionQuestions.endTime, now)),
         or(isNull(reflectionQuestions.track), eq(reflectionQuestions.track, user.track ?? '')),
-        or(isNull(reflectionQuestions.groupId), ne(reflectionQuestions.groupId, INSIGHTS_QUESTION_GROUP_ID)),
-        ne(reflectionQuestions.type, 'insight'),
-        ne(reflectionQuestions.type, 'evening'),
       ),
     );
 

@@ -162,33 +162,6 @@ try {
     console.log(`Set ${draftInsights.rowCount} program-insights question(s) to draft`);
   }
 
-  const draftInsightLike = await client.query(
-    `UPDATE reflection_questions SET status = 'draft'
-     WHERE status != 'draft'
-       AND group_id IS DISTINCT FROM 'program-main-thought'
-       AND (
-         type = 'insight'
-         OR group_id = 'program-insights'
-         OR text ILIKE '%озарен%'
-         OR text ILIKE '%важн% мысл%'
-       )
-     RETURNING id`,
-  );
-  if (draftInsightLike.rowCount > 0) {
-    console.log(`Set ${draftInsightLike.rowCount} insight-like question(s) to draft`);
-  }
-
-  const draftEveningDupes = await client.query(
-    `UPDATE reflection_questions SET status = 'draft', send_notification = false
-     WHERE status != 'draft'
-       AND type = 'evening'
-       AND group_id IS DISTINCT FROM 'program-main-thought'
-     RETURNING id`,
-  );
-  if (draftEveningDupes.rowCount > 0) {
-    console.log(`Set ${draftEveningDupes.rowCount} evening reflection duplicate(s) to draft`);
-  }
-
   // program-main-thought question (create if missing)
   const mainThoughtRes = await client.query(
     `SELECT id FROM reflection_questions WHERE group_id = $1 LIMIT 1`,

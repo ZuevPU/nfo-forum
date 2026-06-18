@@ -2,7 +2,7 @@ import 'express-async-errors';
 import cors from 'cors';
 import express, { Request, Response, NextFunction } from 'express';
 import { env } from './config/env.js';
-import { getPoolStats, pool } from './db/index.js';
+import { pool } from './db/index.js';
 import { validateVkSign } from './middleware/validateVkSign.js';
 import { authRouter } from './routes/auth.js';
 import { cronRouter } from './routes/cron.js';
@@ -36,14 +36,6 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
 export function createApp() {
   const app = express();
 
-  // Liveness for Timeweb/App Platform — no DB, must return 2xx quickly
-  app.get('/', (_req, res) => {
-    res.status(200).json({ status: 'ok', service: 'nfo-forum-api' });
-  });
-  app.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok' });
-  });
-
   app.use(
     cors({
       origin(origin, callback) {
@@ -62,14 +54,13 @@ export function createApp() {
   app.use(validateVkSign);
 
   app.get('/api/health', async (_req, res) => {
-    const poolStats = getPoolStats();
     try {
       await pool.query('SELECT 1');
-      res.status(200).json({ status: 'ok', database: 'connected', pool: poolStats });
+      res.status(200).json({ status: 'ok', database: 'connected' });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('Health check failed:', message, poolStats);
-      res.status(503).json({ status: 'error', database: 'disconnected', pool: poolStats });
+      console.error('Health check failed:', message);
+      res.status(503).json({ status: 'error', database: 'disconnected' });
     }
   });
 

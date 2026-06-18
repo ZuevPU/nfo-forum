@@ -260,7 +260,8 @@ export function HomePanel() {
           <div
             className="nfo-hcard"
             onClick={() => {
-              navigate('/tasks');
+              const taskId = data?.stats.firstAvailableTaskId;
+              navigate(taskId ? `/tasks/${taskId}` : '/tasks');
             }}
           >
             <ActivityIcon emoji="⭐" variant="tasks" />

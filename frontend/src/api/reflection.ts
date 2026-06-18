@@ -81,8 +81,6 @@ export interface NfoDayConfig {
   factors: string[];
   publishHour: number;
   publishMinute: number;
-  closeHour?: number | null;
-  closeMinute?: number | null;
   points: number;
   isOpen?: boolean;
   panelTitle?: string;

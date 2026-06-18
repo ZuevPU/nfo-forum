@@ -23,19 +23,10 @@ function buildConnectionString(): string {
   return `${poolerUrl}${separator}uselibpqcompat=true&pgbouncer=true`;
 }
 
-export function getPoolStats() {
-  return {
-    total: pool.totalCount,
-    idle: pool.idleCount,
-    waiting: pool.waitingCount,
-    max: env.DB_POOL_MAX,
-  };
-}
-
 const pool = new Pool({
   connectionString: buildConnectionString(),
   ssl: { rejectUnauthorized: false },
-  max: env.DB_POOL_MAX,
+  max: 2,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 15_000,
   ...({ prepare: false } as object),
@@ -44,10 +35,6 @@ const pool = new Pool({
 pool.on('error', (err) => {
   console.error('[db] Idle client error (pool will recover):', err.message);
 });
-
-if (env.NODE_ENV === 'production') {
-  console.info(`[db] Pool max=${env.DB_POOL_MAX}`);
-}
 
 export const db = drizzle(pool, { schema });
 export { pool };

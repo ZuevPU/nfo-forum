@@ -66,7 +66,6 @@ const checks = {
   tasks_photo_mode: await colExists('tasks', 'photo_mode'),
   nfo_day_reflections_answers: await colExists('nfo_day_reflections', 'answers'),
   program_insights: await tableExists('program_insights'),
-  media_files: await tableExists('media_files'),
 };
 
 console.log('Current state:');
@@ -188,20 +187,6 @@ if (!checks.program_insights) {
   created_at timestamp NOT NULL DEFAULT now()
 )`);
 }
-if (!checks.media_files) {
-  statements.push(`CREATE TABLE IF NOT EXISTS media_files (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  mime_type text NOT NULL,
-  data bytea NOT NULL,
-  size_bytes integer NOT NULL,
-  source text,
-  created_at timestamptz NOT NULL DEFAULT now()
-)`);
-  statements.push(
-    'ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS image_media_id uuid REFERENCES media_files(id) ON DELETE SET NULL',
-  );
-  statements.push('ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS link_hash text');
-}
 
 if (statements.length === 0) {
   console.log('\nAll migrations already applied. Nothing to do.');
@@ -212,27 +197,6 @@ if (statements.length === 0) {
     console.log('OK:', sql.split('\n')[0]);
   }
   console.log('\nDone.');
-}
-
-// Normalize legacy localhost photo URLs in task submissions
-const photoFix = await client.query(`
-  UPDATE task_submissions
-  SET photos = (
-    SELECT array_agg(
-      CASE
-        WHEN elem ~ '^https?://[^/]+/api/media/' THEN regexp_replace(elem, '^https?://[^/]+', '')
-        ELSE elem
-      END
-    )
-    FROM unnest(photos) AS elem
-  )
-  WHERE photos IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM unnest(photos) AS p WHERE p ~ '^https?://[^/]+/api/media/'
-    )
-`);
-if ((photoFix.rowCount ?? 0) > 0) {
-  console.log(`Normalized localhost photo URLs in ${photoFix.rowCount} task submission(s).`);
 }
 
 await client.end();

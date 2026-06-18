@@ -363,14 +363,24 @@ export async function pickImage(): Promise<PickedImage | null> {
   if (!isDevMode()) {
     const urls = await uploadFiles(1);
     if (urls[0]) {
-      const { uploadImageFromUrl } = await import('../api/uploads');
-      return photoRefFromUpload(await uploadImageFromUrl(urls[0]));
+      try {
+        const { uploadImageFromUrl } = await import('../api/uploads');
+        return photoRefFromUpload(await uploadImageFromUrl(urls[0]));
+      } catch (error) {
+        console.warn('[pickImage] VK URL ingest failed', error);
+        return { url: urls[0] };
+      }
     }
   }
   const dataUrl = await pickImageAsDataUrl();
   if (!dataUrl) return null;
-  const { uploadImage } = await import('../api/uploads');
-  return photoRefFromUpload(await uploadImage(dataUrl));
+  try {
+    const { uploadImage } = await import('../api/uploads');
+    return photoRefFromUpload(await uploadImage(dataUrl));
+  } catch (error) {
+    console.warn('[pickImage] server upload failed, using data URL fallback', error);
+    return { url: dataUrl };
+  }
 }
 
 export { bridge };

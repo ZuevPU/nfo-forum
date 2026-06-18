@@ -6,8 +6,6 @@
     "backend"
   ],
   "scripts": {
-    "start": "node backend/dist/index.js",
-    "build": "npm run build -w backend",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "tunnel:frontend": "npm run tunnel -w frontend",
@@ -29,8 +27,6 @@
     "deploy:vk:prod": "powershell -File deploy/deploy-vk-hosting.ps1 -Environment production",
     "deploy:vk:curl": "node deploy/deploy-vk-curl.mjs",
     "deploy:backend": "powershell -File deploy/deploy-backend-timeweb.ps1",
-    "verify:prod": "powershell -File deploy/verify-production.ps1",
-    "verify:plan": "node scripts/plan-smoke.mjs",
-    "db:seed-mascot": "node backend/scripts/seed-push-mascot.mjs"
+    "verify:prod": "powershell -File deploy/verify-production.ps1"
   }
 }

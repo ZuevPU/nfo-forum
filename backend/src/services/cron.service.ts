@@ -1,10 +1,10 @@
-import { and, eq, gte, isNotNull, isNull, lte, ne } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, isNull, lte, or } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { broadcasts, events, reflectionQuestions, systemSettings } from '../db/schema.js';
 import type { NotificationCategory } from '../constants/notifications.js';
 import { sendPush, deliverPush, notifyUsersForTrack } from './push.service.js';
 import { getEnabledTracks } from './diagnostics.service.js';
-import { getCheckinSettings, getExchangeSlotSettings, getPushMascotMediaId } from './admin.service.js';
+import { getCheckinSettings, getExchangeSlotSettings } from './admin.service.js';
 import { getNfoDayConfig } from './reflection.service.js';
 import { isInSlotWindow, slotDedupKey } from '../utils/slotMatching.js';
 import { appendAppLink, entityLink } from '../utils/appLinks.js';
@@ -29,12 +29,26 @@ const CRON_JOBS: Record<
     hash: entityLink('schedule'),
     category: 'program',
   },
+  'morning-checkin': {
+    text: 'Утренний чек-ин: как ты себя чувствуешь? Займи 30 секунд.',
+    hour: 8,
+    minute: 30,
+    hash: entityLink('checkin'),
+    category: 'program',
+  },
   'daily-tasks': {
     text: 'Задания дня обновлены! Посмотри, что ждёт тебя сегодня.',
     hour: 9,
     minute: 0,
     hash: entityLink('tasks'),
     category: 'tasks',
+  },
+  'evening-reflection': {
+    text: 'Вечерняя рефлексия открыта. Поделись мыслями о прошедшем дне.',
+    hour: 19,
+    minute: 30,
+    hash: entityLink('nfo-day'),
+    category: 'questions',
   },
   goodnight: {
     text: 'Спокойной ночи! Завтра — новый день на Форуме НФО.',
@@ -148,8 +162,6 @@ async function runReflectionPublish(): Promise<number> {
         lte(reflectionQuestions.publishTime, now),
         isNull(reflectionQuestions.notificationSentAt),
         eq(reflectionQuestions.sendNotification, true),
-        ne(reflectionQuestions.type, 'evening'),
-        ne(reflectionQuestions.type, 'insight'),
       ),
     );
 
@@ -195,17 +207,10 @@ async function markCronSlotSent(key: string): Promise<void> {
   }
 }
 
-type SlotPushPayload = {
-  text: string;
-  hash?: string;
-  category: NotificationCategory;
-  imageMediaId?: string;
-};
-
 async function sendIfSlotNotSent(
   type: string,
   slot: string,
-  payload: SlotPushPayload,
+  payload: { text: string; hash?: string; category: NotificationCategory },
 ): Promise<number> {
   const key = slotDedupKey(type, slot);
   const dedup = await getCronDedup();
@@ -214,7 +219,6 @@ async function sendIfSlotNotSent(
   const text = payload.hash ? appendAppLink(payload.text, payload.hash) : payload.text;
   const result = await sendPush({
     text,
-    imageMediaId: payload.imageMediaId,
     targetType: 'all',
     category: payload.category,
     skipBroadcastLog: true,
@@ -227,7 +231,7 @@ async function sendIfSlotNotSentForTracks(
   type: string,
   slot: string,
   tracks: string[],
-  payload: SlotPushPayload,
+  payload: { text: string; hash?: string; category: NotificationCategory },
 ): Promise<number> {
   const key = slotDedupKey(type, slot);
   const dedup = await getCronDedup();
@@ -236,7 +240,6 @@ async function sendIfSlotNotSentForTracks(
   const text = payload.hash ? appendAppLink(payload.text, payload.hash) : payload.text;
   const result = await sendPush({
     text,
-    imageMediaId: payload.imageMediaId,
     targetType: 'track',
     targetTracks: tracks,
     category: payload.category,
@@ -249,16 +252,14 @@ async function sendIfSlotNotSentForTracks(
 async function runDynamicSlots(): Promise<number> {
   const now = new Date();
   let sent = 0;
-  const mascotMediaId = await getPushMascotMediaId();
 
   const checkin = await getCheckinSettings();
   for (const slot of checkin.slots) {
     if (!isInSlotWindow(slot, now)) continue;
-    const payload: SlotPushPayload = {
-      text: 'Время посмотреть на своё состояние и ответить на короткий вопрос.',
+    const payload = {
+      text: 'Чек-ин: как ты себя чувствуешь? Займи 30 секунд.',
       hash: entityLink('checkin'),
-      category: 'program',
-      imageMediaId: mascotMediaId,
+      category: 'program' as NotificationCategory,
     };
     if (checkin.enabledTracks.length > 0) {
       sent += await sendIfSlotNotSentForTracks('checkin', slot, checkin.enabledTracks, payload);
@@ -274,7 +275,6 @@ async function runDynamicSlots(): Promise<number> {
       text: 'Время обмена опытом! Задай вопрос или ответь коллегам.',
       hash: entityLink('exchange'),
       category: 'exchange',
-      imageMediaId: mascotMediaId,
     });
   }
 
@@ -282,10 +282,9 @@ async function runDynamicSlots(): Promise<number> {
   const nfoSlot = `${String(nfoConfig.publishHour).padStart(2, '0')}:${String(nfoConfig.publishMinute).padStart(2, '0')}`;
   if (isInSlotWindow(nfoSlot, now)) {
     sent += await sendIfSlotNotSent('nfo-day', nfoSlot, {
-      text: 'Настало время подвести итоги дня.',
+      text: 'Вечерняя рефлексия открыта. Поделись мыслями о прошедшем дне.',
       hash: entityLink('nfo-day'),
       category: 'questions',
-      imageMediaId: mascotMediaId,
     });
   }
 
@@ -321,7 +320,6 @@ export async function runCronJob(
   }
 
   const text = job.text!;
-  const mascotMediaId = await getPushMascotMediaId();
 
   if (job.isDiagnostics) {
     const enabledTracks = await getEnabledTracks();
@@ -332,7 +330,6 @@ export async function runCronJob(
       text,
       hash: job.hash,
       linkHash: job.hash,
-      imageMediaId: mascotMediaId,
       targetType: 'track',
       targetTracks: enabledTracks,
       category: job.category,
@@ -345,7 +342,6 @@ export async function runCronJob(
     text,
     hash: job.hash,
     linkHash: job.hash,
-    imageMediaId: mascotMediaId,
     targetType: 'all',
     category: job.category,
     skipBroadcastLog: true,

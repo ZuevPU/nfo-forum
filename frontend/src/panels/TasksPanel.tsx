@@ -16,8 +16,10 @@ import { useLayout } from '../contexts/LayoutContext';
 import {
   applyNetworkingTask,
   fetchDailyFocus,
+  fetchTask,
   fetchTasks,
   submitTask,
+  taskFromDetail,
   type DailyFocus,
   type TaskItem,
 } from '../api/tasks';
@@ -44,6 +46,7 @@ export function TasksPanel() {
   const { taskId } = useParams<{ taskId?: string }>();
   const navigate = useNavigate();
   const { setBackHandler } = useLayout();
+  const deepLinkHandledRef = useRef<string | null>(null);
   const suppressCloseUntilRef = useRef(0);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
@@ -53,6 +56,7 @@ export function TasksPanel() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
   const [networkingLoading, setNetworkingLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [taskSuccess, setTaskSuccess] = useState<{ points?: number; pendingReview?: boolean } | null>(null);
@@ -99,24 +103,48 @@ export function TasksPanel() {
     resetModalForm();
   }, [beginModalOpen, resetModalForm]);
 
-  // Deep link: /tasks/:id — подсветка в списке (без авто-открытия модалки)
+  // Deep link: /tasks/:id с главной или из уведомления
   useEffect(() => {
     if (!taskId || loading) return;
-    const el = document.getElementById(`task-${taskId}`);
-    if (!el) return;
+    if (deepLinkHandledRef.current === taskId) return;
 
-    const frame = window.requestAnimationFrame(() => {
-      el.scrollIntoView({ block: 'center' });
-      el.style.outline = '2px solid var(--nfo-primary)';
-      el.style.borderRadius = '12px';
-    });
+    const id = Number(taskId);
+    if (Number.isNaN(id)) return;
+
+    const fromList = findTaskById(tasks, id);
+    if (fromList) {
+      deepLinkHandledRef.current = taskId;
+      beginModalOpen();
+      setModalTask(fromList);
+      return;
+    }
+
+    let cancelled = false;
+    setModalLoading(true);
+    fetchTask(id)
+      .then((data) => {
+        if (!cancelled) {
+          deepLinkHandledRef.current = taskId;
+          beginModalOpen();
+          setModalTask(taskFromDetail(data));
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        if (!cancelled) navigate('/tasks', { replace: true });
+      })
+      .finally(() => {
+        if (!cancelled) setModalLoading(false);
+      });
 
     return () => {
-      window.cancelAnimationFrame(frame);
-      el.style.outline = '';
-      el.style.borderRadius = '';
+      cancelled = true;
     };
-  }, [taskId, loading, tasks]);
+  }, [taskId, tasks, loading, navigate, beginModalOpen]);
+
+  useEffect(() => {
+    if (!taskId) deepLinkHandledRef.current = null;
+  }, [taskId]);
 
   useEffect(() => {
     if (!taskSuccess) return;
@@ -234,7 +262,6 @@ export function TasksPanel() {
             return (
               <div
                 key={t.id}
-                id={`task-${t.id}`}
                 className="nfo-card"
                 style={{ margin: 0, opacity: t.status === 'approved' ? 0.6 : 1, touchAction: 'manipulation' }}
                 onPointerDown={stopTouchPropagation}
@@ -353,7 +380,7 @@ export function TasksPanel() {
 
       <TaskDetailModal
         task={modalTask}
-        loading={false}
+        loading={modalLoading}
         answer={answer}
         photos={photos}
         uploading={uploading}
