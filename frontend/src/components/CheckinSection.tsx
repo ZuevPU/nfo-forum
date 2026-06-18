@@ -172,9 +172,9 @@ export function CheckinSection({ showHistory = true, onSubmitted }: CheckinSecti
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--vkui--color_text_secondary)' }}>
               {status.energyLabel ?? 'Энергия (0-10)'}
             </div>
-            <Div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto', alignItems: 'flex-end', gap: 2, padding: 0 }}>
+            <div className="nfo-checkin-energy-row">
               {energyLevels.map((e) => (
-                <div key={e.level} style={{ textAlign: 'center', minWidth: 36 }}>
+                <div key={e.level} className="nfo-checkin-energy-item">
                   <button
                     type="button"
                     className={`nfo-checkin-energy-btn${energy === e.level ? ' nfo-checkin-energy-btn--selected' : ''}`}
@@ -182,10 +182,10 @@ export function CheckinSection({ showHistory = true, onSubmitted }: CheckinSecti
                   >
                     {e.level}
                   </button>
-                  {e.label && <div style={{ fontSize: 9, marginTop: 4, color: 'var(--vkui--color_text_secondary)' }}>{e.label}</div>}
+                  {e.label && <div className="nfo-checkin-energy-label">{e.label}</div>}
                 </div>
               ))}
-            </Div>
+            </div>
 
             <div style={{ fontSize: 12, fontWeight: 600, margin: '16px 0 8px', color: 'var(--vkui--color_text_secondary)' }}>
               {status.emotionLabel ?? 'Настроение'}

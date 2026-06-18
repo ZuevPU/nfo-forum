@@ -64,10 +64,12 @@ import {
   listUsers,
 } from '../services/export.service.js';
 import { sendPush, getPushSubscriptionStats } from '../services/push.service.js';
+import { analyticsRouter } from './analytics.js';
 
 export const adminRouter = Router();
 
 adminRouter.use(requireUser, requireAdmin);
+adminRouter.use('/analytics', analyticsRouter);
 
 adminRouter.get('/broadcasts', async (_req, res) => {
   const rows = await listBroadcasts();
@@ -257,17 +259,16 @@ adminRouter.post('/settings/nfo-day', async (req, res) => {
     panelTitle?: string;
     panelSubtitle?: string;
     factors?: string[];
+    questions?: Array<{
+      id: string;
+      label: string;
+      type: 'text' | 'multiselect';
+      required?: boolean;
+      maxSelect?: number;
+    }>;
   };
-  await setNfoDaySettings({
-    publishHour: body.publishHour ?? 19,
-    publishMinute: body.publishMinute ?? 30,
-    points: body.points ?? 10,
-    question: body.question,
-    panelTitle: body.panelTitle,
-    panelSubtitle: body.panelSubtitle,
-    factors: body.factors,
-  });
-  res.json({ ok: true });
+  const settings = await setNfoDaySettings(body);
+  res.json({ ok: true, settings });
 });
 
 adminRouter.get('/settings/daily-focus', async (_req, res) => {

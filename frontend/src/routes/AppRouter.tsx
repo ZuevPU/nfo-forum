@@ -16,6 +16,7 @@ import { NfoDayPanel } from '../panels/NfoDayPanel';
 import { QuestionsPanel } from '../panels/QuestionsPanel';
 import { RatingPanel } from '../panels/RatingPanel';
 import { ReflectionLevelPanel } from '../panels/ReflectionLevelPanel';
+import { CommunityMessagesGuidePanel } from '../panels/CommunityMessagesGuidePanel';
 import { RegisterPanel } from '../panels/RegisterPanel';
 import { SchedulePanel } from '../panels/SchedulePanel';
 import { SettingsPanel } from '../panels/SettingsPanel';
@@ -82,6 +83,7 @@ export function AppRouter() {
           <Route path="/welcome" element={<WelcomePanel />} />
           <Route path="/reflection-level" element={<ReflectionLevelPanel />} />
           <Route path="/register" element={<RegisterPanel />} />
+          <Route path="/onboarding/messages" element={<CommunityMessagesGuidePanel />} />
           <Route path="/home" element={<HomePanel />} />
           <Route path="/schedule" element={<SchedulePanel />} />
           <Route path="/questions/:questionId" element={<QuestionsPanel />} />

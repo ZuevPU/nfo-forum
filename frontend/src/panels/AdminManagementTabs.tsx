@@ -270,6 +270,7 @@ export function AdminSettingsTab() {
     questions: DEFAULT_NFO_DAY_QUESTIONS.map((q) => ({ ...q })),
   });
   const [dailyFocusTitle, setDailyFocusTitle] = useState('');
+  const [nfoSaveMessage, setNfoSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReflectionLevelSettings().then((r) => setReflectionThresholds(r.thresholds)).catch(console.error);
@@ -491,23 +492,47 @@ export function AdminSettingsTab() {
         <FormItem top="Баллы">
           <Input type="number" value={String(nfoDay.points)} onChange={(e) => setNfoDay((c) => ({ ...c, points: Number(e.target.value) }))} />
         </FormItem>
-        <button type="button" className="nfo-admin-btn-primary" onClick={() => void saveNfoDaySettings({
-          publishHour: nfoDay.publishHour,
-          publishMinute: nfoDay.publishMinute,
-          points: nfoDay.points,
-          panelTitle: nfoDay.panelTitle || undefined,
-          panelSubtitle: nfoDay.panelSubtitle || undefined,
-          factors: nfoDay.factorsText.split('\n').map((s) => s.trim()).filter(Boolean),
-          questions: nfoDay.questions.map((q) => ({
-            id: q.id,
-            label: q.label.trim(),
-            type: q.type,
-            required: q.required,
-            maxSelect: q.maxSelect,
-          })),
-        })}>
+        <button
+          type="button"
+          className="nfo-admin-btn-primary"
+          onClick={() => void saveNfoDaySettings({
+            publishHour: nfoDay.publishHour,
+            publishMinute: nfoDay.publishMinute,
+            points: nfoDay.points,
+            panelTitle: nfoDay.panelTitle.trim(),
+            panelSubtitle: nfoDay.panelSubtitle.trim(),
+            factors: nfoDay.factorsText.split('\n').map((s) => s.trim()).filter(Boolean),
+            questions: nfoDay.questions.map((q) => ({
+              id: q.id,
+              label: q.label.trim(),
+              type: q.type,
+              required: q.required,
+              maxSelect: q.maxSelect,
+            })),
+          }).then((r) => {
+            const saved = r.settings;
+            setNfoDay({
+              publishHour: saved.publishHour,
+              publishMinute: saved.publishMinute,
+              points: saved.points,
+              panelTitle: saved.panelTitle ?? '',
+              panelSubtitle: saved.panelSubtitle ?? '',
+              factorsText: (saved.factors ?? []).join('\n'),
+              questions: saved.questions?.length
+                ? saved.questions.map((q) => ({ ...q }))
+                : nfoDay.questions,
+            });
+            setNfoSaveMessage('Сохранено');
+            window.setTimeout(() => setNfoSaveMessage(null), 2500);
+          }).catch((e) => alert(e instanceof Error ? e.message : 'Ошибка сохранения'))}
+        >
           Сохранить вечернюю рефлексию
         </button>
+        {nfoSaveMessage && (
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--nfo-green)', textAlign: 'center' }}>
+            {nfoSaveMessage}
+          </div>
+        )}
       </div>
 
       <div className="nfo-sec-title" style={{ marginTop: 12 }}>Фокус дня (текст на главной)</div>

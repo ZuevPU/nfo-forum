@@ -29,7 +29,7 @@ export function RegisterPanel() {
   const handleRegister = async () => {
     if (!termsAccepted || !firstName.trim()) return;
     await registerUser(selectedTrack, { firstName: firstName.trim(), lastName: lastName.trim() || undefined });
-    navigate('/home');
+    navigate('/onboarding/messages', { replace: true });
   };
 
   if (status === 'loading') {

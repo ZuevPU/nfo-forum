@@ -263,25 +263,7 @@ export function downloadAdminExport(type: AdminExportType, format: 'csv' | 'xlsx
   return downloadApiFile(path, `${type}.${format === 'xlsx' ? 'xlsx' : 'csv'}`);
 }
 
-export function fetchNfoDaySettings() {
-  return apiRequest<{
-    publishHour: number;
-    publishMinute: number;
-    points: number;
-    panelTitle?: string;
-    panelSubtitle?: string;
-    factors?: string[];
-    questions?: Array<{
-      id: string;
-      label: string;
-      type: 'text' | 'multiselect';
-      required?: boolean;
-      maxSelect?: number;
-    }>;
-  }>('/api/admin/settings/nfo-day');
-}
-
-export function saveNfoDaySettings(data: {
+export interface NfoDaySettings {
   publishHour: number;
   publishMinute: number;
   points: number;
@@ -295,8 +277,25 @@ export function saveNfoDaySettings(data: {
     required?: boolean;
     maxSelect?: number;
   }>;
+}
+
+export function fetchNfoDaySettings() {
+  return apiRequest<NfoDaySettings>('/api/admin/settings/nfo-day');
+}
+
+export function saveNfoDaySettings(data: {
+  publishHour: number;
+  publishMinute: number;
+  points: number;
+  panelTitle?: string;
+  panelSubtitle?: string;
+  factors?: string[];
+  questions?: NfoDaySettings['questions'];
 }) {
-  return apiRequest('/api/admin/settings/nfo-day', { method: 'POST', body: data });
+  return apiRequest<{ ok: true; settings: NfoDaySettings }>(
+    '/api/admin/settings/nfo-day',
+    { method: 'POST', body: data },
+  );
 }
 
 export function fetchDailyFocusSettings() {

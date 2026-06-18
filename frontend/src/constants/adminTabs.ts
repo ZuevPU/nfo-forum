@@ -11,6 +11,7 @@ export type AdminTab =
   | 'reflection-answers'
   | 'nfo-stats'
   | 'activity'
+  | 'analytics-dashboard'
   | 'settings';
 
 export interface AdminTabItem {
@@ -53,6 +54,7 @@ export const ADMIN_TAB_GROUPS: AdminTabGroup[] = [
       { id: 'reflection-answers', label: 'Рефл. ответы' },
       { id: 'nfo-stats', label: 'НФО день' },
       { id: 'activity', label: 'Активность' },
+      { id: 'analytics-dashboard', label: 'Дашборд' },
     ],
   },
   {

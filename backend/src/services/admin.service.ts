@@ -750,15 +750,27 @@ export async function getNfoDaySettings() {
 }
 
 export async function setNfoDaySettings(value: {
-  publishHour: number;
-  publishMinute: number;
-  points: number;
+  publishHour?: number;
+  publishMinute?: number;
+  points?: number;
   question?: string;
   panelTitle?: string;
   panelSubtitle?: string;
   factors?: string[];
   questions?: typeof DEFAULT_NFO_DAY_QUESTIONS;
 }) {
+  const current = await getNfoDaySettings();
+  const merged = {
+    publishHour: value.publishHour ?? current.publishHour,
+    publishMinute: value.publishMinute ?? current.publishMinute,
+    points: value.points ?? current.points,
+    question: value.question !== undefined ? value.question : current.question,
+    panelTitle: value.panelTitle !== undefined ? value.panelTitle : current.panelTitle,
+    panelSubtitle: value.panelSubtitle !== undefined ? value.panelSubtitle : current.panelSubtitle,
+    factors: value.factors !== undefined ? value.factors : current.factors,
+    questions: value.questions !== undefined ? value.questions : current.questions,
+  };
+
   const [existing] = await db
     .select()
     .from(systemSettings)
@@ -767,11 +779,13 @@ export async function setNfoDaySettings(value: {
   if (existing) {
     await db
       .update(systemSettings)
-      .set({ value, updatedAt: new Date() })
+      .set({ value: merged, updatedAt: new Date() })
       .where(eq(systemSettings.id, existing.id));
   } else {
-    await db.insert(systemSettings).values({ key: 'nfo_day_config', value });
+    await db.insert(systemSettings).values({ key: 'nfo_day_config', value: merged });
   }
+
+  return merged;
 }
 
 export async function getDailyFocusSettings(): Promise<{ title: string; taskId: number | null }> {

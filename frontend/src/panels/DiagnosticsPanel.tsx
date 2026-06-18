@@ -43,13 +43,6 @@ export function DiagnosticsPanel() {
   const [profileFeedbackSaved, setProfileFeedbackSaved] = useState(false);
   const [profileFeedbackSubmitting, setProfileFeedbackSubmitting] = useState(false);
   const nextFooterRef = useRef<HTMLDivElement>(null);
-  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     setTabbarHidden(activeSkillId !== null);
@@ -89,6 +82,33 @@ export function DiagnosticsPanel() {
     if (!data || !activeSkillId) return -1;
     return data.skills.findIndex(s => s.id === activeSkillId);
   }, [data, activeSkillId]);
+
+  useEffect(() => {
+    if (activeSkillId === null) return;
+    const answer = currentAnswers.find(a => a.blockId === activeSkillId);
+    setCommentText(answer?.comment || '');
+    setExpandedDetails(null);
+  }, [activeSkillId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveCurrentBlockComment = async () => {
+    if (!activeSkillId || !commentText.trim()) return;
+    const currentScore = currentAnswers.find(a => a.blockId === activeSkillId)?.score;
+    if (!currentScore) return;
+    await submitDiagnosticAnswer(activeSkillId, 1, currentScore, commentText);
+    setAnswers(prev => {
+      const idx = prev.findIndex(a => a.blockId === activeSkillId && a.attemptNumber === latestAttemptNumber);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], comment: commentText };
+      return next;
+    });
+  };
+
+  const navigateToSkill = (skillId: number) => {
+    void saveCurrentBlockComment().finally(() => {
+      setActiveSkillId(skillId);
+    });
+  };
 
   const handleStart = () => {
     if (isCompleted) {
@@ -145,25 +165,12 @@ export function DiagnosticsPanel() {
     requestAnimationFrame(() => {
       nextFooterRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
-
-    if (expandedDetails === null) {
-      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        void handleNextRef.current();
-      }, 300);
-    }
   };
 
   const handleNext = async () => {
     if (currentSkillIndex < 0 || !data) return;
-    
-    // Save comment before moving to next
-    if (activeSkillId && commentText) {
-      const currentScore = currentAnswers.find(a => a.blockId === activeSkillId)?.score;
-      if (currentScore) {
-        await submitDiagnosticAnswer(activeSkillId, 1, currentScore, commentText);
-      }
-    }
+
+    await saveCurrentBlockComment();
 
     if (currentSkillIndex === data.skills.length - 1) {
       if (isCompleted) {
@@ -177,13 +184,8 @@ export function DiagnosticsPanel() {
       setShowProfile(true);
     } else {
       setActiveSkillId(data.skills[currentSkillIndex + 1].id);
-      setCommentText('');
-      setExpandedDetails(null);
     }
   };
-
-  const handleNextRef = useRef(handleNext);
-  handleNextRef.current = handleNext;
 
   const handleStartNew = async () => {
     setLoading(true);
@@ -371,7 +373,6 @@ export function DiagnosticsPanel() {
                     <div 
                       onClick={(e) => { 
                         e.stopPropagation();
-                        if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
                         setExpandedDetails(level.level);
                       }}
                       style={{ color: '#4f3ec0', fontWeight: 500, marginTop: 8, cursor: 'pointer', fontSize: 13 }}
@@ -386,7 +387,7 @@ export function DiagnosticsPanel() {
             <div style={{ marginTop: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Мои заметки (опционально)</div>
               <Textarea 
-                value={commentText || currentAnswer?.comment || ''} 
+                value={commentText} 
                 onChange={(e) => setCommentText(e.target.value)} 
                 placeholder="Напишите здесь мысли или примеры..."
               />
@@ -396,7 +397,7 @@ export function DiagnosticsPanel() {
         
         <div className="nfo-diag-footer" ref={nextFooterRef}>
           {currentSkillIndex > 0 && (
-            <Button size="l" mode="secondary" onClick={() => setActiveSkillId(data.skills[currentSkillIndex - 1].id)}>
+            <Button size="l" mode="secondary" onClick={() => navigateToSkill(data.skills[currentSkillIndex - 1].id)}>
               Назад
             </Button>
           )}
@@ -452,7 +453,7 @@ export function DiagnosticsPanel() {
               key={b.id} 
               className="nfo-card" 
               style={{ margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: isAnswered ? 0.7 : 1 }} 
-              onClick={() => setActiveSkillId(b.id)}
+              onClick={() => navigateToSkill(b.id)}
             >
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <div style={{ width: 28, height: 28, borderRadius: 14, background: isAnswered ? '#e1e3e6' : 'rgba(79, 62, 192, 0.1)', color: isAnswered ? '#818c99' : '#4f3ec0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13 }}>

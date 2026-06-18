@@ -7,7 +7,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   fetchReflectionQuestions,
+  fetchNfoDayConfig,
   submitReflectionAnswer,
+  type NfoDayConfig,
   type ReflectionQuestion,
 } from '../api/reflection';
 import { PanelLayout } from '../components/PanelLayout';
@@ -59,12 +61,16 @@ export function QuestionsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [nfoConfig, setNfoConfig] = useState<NfoDayConfig | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetchReflectionQuestions()
-      .then((r) => setQuestions(r.questions))
+    Promise.all([fetchReflectionQuestions(), fetchNfoDayConfig()])
+      .then(([questionsRes, nfoRes]) => {
+        setQuestions(questionsRes.questions);
+        setNfoConfig(nfoRes);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
       .finally(() => setLoading(false));
   }, []);
@@ -233,7 +239,18 @@ export function QuestionsPanel() {
         <ProgramInsightsSection />
       </Group>
 
-      <Group header={<div className="nfo-sec-title">Каким было НФО сегодня?</div>}>
+      <Group
+        header={
+          <div>
+            <div className="nfo-sec-title">{nfoConfig?.panelTitle ?? 'Каким было НФО сегодня?'}</div>
+            {nfoConfig?.panelSubtitle ? (
+              <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>
+                {nfoConfig.panelSubtitle}
+              </div>
+            ) : null}
+          </div>
+        }
+      >
         <NfoDaySection onSubmitted={() => setRefreshKey((k) => k + 1)} />
       </Group>
     </PanelLayout>
