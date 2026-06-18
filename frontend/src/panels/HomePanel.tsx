@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchHome, submitFeedback, type HomeData } from '../api/home';
 import { fetchReflectionLevel } from '../api/rating';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
+import { EmptyState } from '../components/EmptyState';
 import { ActivityIcon } from '../components/ActivityIcon';
 import { GradientHeader } from '../components/GradientHeader';
 import { NotificationBell } from '../components/NotificationBell';
@@ -225,9 +226,7 @@ export function HomePanel() {
         {event ? (
           <CurrentBlockCard event={event} />
         ) : (
-          <Div style={{ padding: '0 16px 12px', fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>
-            Сейчас нет активного блока по расписанию. Загляни в «Что далее» ниже или открой программу.
-          </Div>
+          <EmptyState message="Сейчас нет активного блока — программа скоро появится" />
         )}
       </Group>
 

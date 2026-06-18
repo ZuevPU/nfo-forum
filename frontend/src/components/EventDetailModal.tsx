@@ -1,5 +1,7 @@
 import { Button, Div, ModalPage, ModalPageHeader, ModalRoot } from '@vkontakte/vkui';
 import type { EventDto } from '../api/home';
+import { CharacterIllustration } from './CharacterIllustration';
+import { MASCOT_IMAGES } from '../constants/mascotImages';
 import { formatEventTimeMoscow } from '../lib/scheduleCache';
 
 interface Props {
@@ -10,6 +12,8 @@ interface Props {
 export function EventDetailModal({ event, onClose }: Props) {
   if (!event) return null;
 
+  const hasDescription = Boolean(event.description?.trim());
+
   return (
     <ModalRoot activeModal="event-detail" onClose={onClose}>
       <ModalPage id="event-detail" onClose={onClose} settlingHeight={100}>
@@ -17,6 +21,14 @@ export function EventDetailModal({ event, onClose }: Props) {
           {event.title}
         </ModalPageHeader>
         <Div style={{ padding: '12px 16px' }}>
+          {!hasDescription && (
+            <div style={{ textAlign: 'center', marginBottom: 12 }}>
+              <CharacterIllustration src={MASCOT_IMAGES.empty} size={100} alt="Заходи позже" />
+              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--vkui--color_text_secondary)' }}>
+                Скоро всё появится
+              </div>
+            </div>
+          )}
           <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginBottom: 12 }}>
             {formatEventTimeMoscow(event.startTime)}
             {' – '}
@@ -24,9 +36,11 @@ export function EventDetailModal({ event, onClose }: Props) {
             {event.place ? ` · ${event.place}` : ''}
             {event.track ? ` · ${event.track}` : ' · Общее'}
           </div>
-          <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-            {event.description?.trim() || 'Описание не добавлено'}
-          </div>
+          {hasDescription && (
+            <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+              {event.description}
+            </div>
+          )}
         </Div>
       </ModalPage>
     </ModalRoot>

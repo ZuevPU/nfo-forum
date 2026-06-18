@@ -21,6 +21,9 @@ import {
   isEventNowMoscow,
 } from '../lib/scheduleCache';
 import { EventDetailModal } from '../components/EventDetailModal';
+import { CharacterIllustration } from '../components/CharacterIllustration';
+import { EmptyState } from '../components/EmptyState';
+import { MASCOT_IMAGES } from '../constants/mascotImages';
 
 export function SchedulePanel() {
   const { user } = useAuthContext();
@@ -97,12 +100,11 @@ export function SchedulePanel() {
         <Group>
           <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
             {events.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--vkui--color_text_secondary)', padding: 24 }}>
-                Нет событий на этот день
-              </div>
+              <EmptyState message="Программа скоро появится — загляни позже" />
             )}
             {events.map((ev) => {
               const isNow = isEventNowMoscow(ev.startTime, ev.endTime);
+              const hasDescription = Boolean(ev.description?.trim());
               return (
                 <div
                   key={ev.id}
@@ -115,6 +117,9 @@ export function SchedulePanel() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div className="nfo-ev-title" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>{ev.title}</div>
+                    {!hasDescription && (
+                      <CharacterIllustration src={MASCOT_IMAGES.empty} size={72} alt="Заходи позже" />
+                    )}
                     {ev.place && <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 2 }}>{ev.place}</div>}
                     <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                       {isNow && <span className="nfo-tag nfo-tag--now">СЕЙЧАС</span>}
