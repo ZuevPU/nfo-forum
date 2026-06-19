@@ -126,9 +126,10 @@ async function syncLinkedTask(config: NetworkingLunchConfig): Promise<number> {
   if (!title) throw new Error('Укажите заголовок задания');
   if (!description) throw new Error('Укажите описание задания');
 
-  const publishTime = publishTimeFromConfig(config);
-  const now = new Date();
-  const status = publishTime > now ? 'scheduled' : 'published';
+  const slotTime = publishTimeFromConfig(config);
+  const isPublished = !!config.publishedAt;
+  const status = isPublished ? 'published' : 'draft';
+  const publishTime = isPublished ? new Date(config.publishedAt!) : slotTime;
 
   if (config.taskId) {
     await db
@@ -150,8 +151,8 @@ async function syncLinkedTask(config: NetworkingLunchConfig): Promise<number> {
       title,
       description,
       points: 5,
-      publishTime,
-      status,
+      publishTime: slotTime,
+      status: 'draft',
       sendNotification: false,
       requiresPhoto: false,
       photoMode: 'none',
@@ -160,6 +161,59 @@ async function syncLinkedTask(config: NetworkingLunchConfig): Promise<number> {
     .returning({ id: tasks.id });
 
   return row.id;
+}
+
+export async function publishNetworkingLunchRegistration(): Promise<NetworkingLunchConfig> {
+  const config = await readConfig();
+  if (!config.taskTitle.trim()) throw new Error('Укажите заголовок задания');
+  if (!config.taskDescription.trim()) throw new Error('Укажите описание задания');
+  if (config.publishedAt) throw new Error('Registration already published');
+
+  const taskId = config.taskId ?? (await syncLinkedTask(config));
+  const now = new Date();
+
+  await db
+    .update(tasks)
+    .set({
+      title: config.taskTitle.trim(),
+      description: config.taskDescription.trim(),
+      publishTime: now,
+      status: 'published',
+      sendNotification: false,
+    })
+    .where(eq(tasks.id, taskId));
+
+  const saved = normalizeConfig({
+    ...config,
+    taskId,
+    publishedAt: now.toISOString(),
+  });
+  await writeConfig(saved);
+  return saved;
+}
+
+export async function unpublishNetworkingLunchRegistration(): Promise<NetworkingLunchConfig> {
+  const config = await readConfig();
+  if (!config.publishedAt) throw new Error('Registration is not published');
+  if (config.assignmentsSentAt) {
+    throw new Error('Нельзя снять с публикации после рассылки столов');
+  }
+  if (!config.taskId) throw new Error('Задание не настроено');
+
+  await db
+    .update(tasks)
+    .set({
+      status: 'draft',
+      sendNotification: false,
+    })
+    .where(eq(tasks.id, config.taskId));
+
+  const saved = normalizeConfig({
+    ...config,
+    publishedAt: null,
+  });
+  await writeConfig(saved);
+  return saved;
 }
 
 export async function getNetworkingLunchConfig(): Promise<NetworkingLunchConfig> {
@@ -250,9 +304,70 @@ export async function listNetworkingLunchAssignments(): Promise<LunchTablePrevie
   return tables.sort((a, b) => a.tableNumber - b.tableNumber);
 }
 
+export type NetworkingLunchPhase = 'registration' | 'applied' | 'seated' | 'closed';
+
+export type NetworkingLunchParticipantView = {
+  taskId: number;
+  title: string;
+  description: string;
+  points: number;
+  phase: NetworkingLunchPhase;
+  applied: boolean;
+  tableNumber: number | null;
+  assignmentsSent: boolean;
+  registrationOpen: boolean;
+  publishedAt: string | null;
+  canApply: boolean;
+};
+
+function resolveParticipantPhase(
+  config: NetworkingLunchConfig,
+  status: { applied: boolean; tableNumber: number | null; assignmentsSent: boolean },
+): NetworkingLunchPhase | null {
+  if (status.tableNumber != null) return 'seated';
+  if (status.assignmentsSent) return 'closed';
+  if (status.applied) return 'applied';
+  if (config.publishedAt && !config.assignmentsSentAt) return 'registration';
+  return null;
+}
+
+export async function getNetworkingLunchParticipantView(
+  userId: number,
+): Promise<NetworkingLunchParticipantView | null> {
+  const config = await readConfig();
+  if (!config.taskId) return null;
+
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, config.taskId)).limit(1);
+  if (!task) return null;
+
+  const status = await getUserLunchStatus(userId);
+  const phase = resolveParticipantPhase(config, status);
+
+  if (!config.publishedAt || !phase) return null;
+
+  const registrationOpen = !!config.publishedAt && !config.assignmentsSentAt;
+  const canApply = registrationOpen && !status.applied;
+
+  return {
+    taskId: config.taskId,
+    title: config.taskTitle || task.title,
+    description: config.taskDescription || task.description,
+    points: task.points,
+    phase,
+    applied: status.applied,
+    tableNumber: status.tableNumber,
+    assignmentsSent: status.assignmentsSent,
+    registrationOpen,
+    publishedAt: config.publishedAt,
+    canApply,
+  };
+}
+
 export async function applyNetworkingLunch(userId: number): Promise<{ applied: boolean }> {
   const config = await readConfig();
   if (!config.taskId) throw new Error('Networking lunch is not configured — save settings in admin first');
+  if (!config.publishedAt) throw new Error('Registration is not open yet');
+  if (config.assignmentsSentAt) throw new Error('Registration is closed');
 
   const [existing] = await db
     .select()
@@ -434,7 +549,7 @@ export async function publishNetworkingLunchAssignments(): Promise<{ sent: numbe
 
   for (const row of assignments) {
     const result = await sendPush({
-      text: `Вы участвуете в нетворкинг-обеде. Ваш стол: № ${row.tableNumber}`,
+      text: `Ваш стол на нетворкинг-обед: № ${row.tableNumber}. Приятного аппетита!`,
       hash,
       linkHash: hash,
       targetType: 'user',
@@ -452,17 +567,12 @@ export async function sendNetworkingLunchInvitation(): Promise<{ sent: number }>
   const config = await readConfig();
   const invitationText = config.invitationText.trim();
   if (!invitationText) throw new Error('Укажите текст приглашения и сохраните настройки');
+  if (!config.publishedAt) throw new Error('Сначала опубликуйте регистрацию');
+  if (!config.taskId) throw new Error('Задание не настроено — сохраните настройки');
 
-  const taskId = config.taskId ?? (await syncLinkedTask(config));
   const now = new Date();
   const mascotMediaId = await getPushMascotMediaId();
-
-  await db
-    .update(tasks)
-    .set({ publishTime: now, status: 'published' })
-    .where(eq(tasks.id, taskId));
-
-  const hash = entityLink('tasks', taskId);
+  const hash = entityLink('tasks', config.taskId);
   const result = await sendPush({
     text: invitationText,
     hash,
@@ -474,8 +584,6 @@ export async function sendNetworkingLunchInvitation(): Promise<{ sent: number }>
 
   const updated = normalizeConfig({
     ...config,
-    taskId,
-    publishedAt: config.publishedAt ?? now.toISOString(),
     invitationSentAt: now.toISOString(),
   });
   await writeConfig(updated);
@@ -488,7 +596,7 @@ export async function runNetworkingLunchPublishPush(
   imageMediaId?: string,
 ): Promise<number> {
   const config = await readConfig();
-  if (!config.taskId || !config.invitationText.trim()) return 0;
+  if (!config.taskId || !config.invitationText.trim() || !config.publishedAt) return 0;
 
   const slot = `${String(config.publishHour).padStart(2, '0')}:${String(config.publishMinute).padStart(2, '0')}`;
   if (!isInSlotWindow(slot, now)) return 0;
@@ -523,17 +631,10 @@ export async function runNetworkingLunchPublishPush(
     await db.insert(systemSettings).values({ key: 'cron_slot_dedup', value: dedup });
   }
 
-  if (!config.publishedAt) {
-    await db
-      .update(tasks)
-      .set({ publishTime: now, status: 'published' })
-      .where(eq(tasks.id, config.taskId));
-    await writeConfig({
-      ...config,
-      publishedAt: now.toISOString(),
-      invitationSentAt: now.toISOString(),
-    });
-  }
+  await writeConfig({
+    ...config,
+    invitationSentAt: config.invitationSentAt ?? now.toISOString(),
+  });
 
   return result.sent;
 }

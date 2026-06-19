@@ -10,9 +10,12 @@ import { pickImage } from '../lib/vk-bridge';
 import { EmptyState } from '../components/EmptyState';
 import { PanelLayout } from '../components/PanelLayout';
 import { NotificationBell } from '../components/NotificationBell';
+import { NetworkingLunchActions } from '../components/NetworkingLunchActions';
 import { TaskDetailModal } from '../components/TaskDetailModal';
 import { TaskSuccessBanner } from '../components/TaskSuccessBanner';
 import { useLayout } from '../contexts/LayoutContext';
+import { useAuthContext } from '../contexts/AuthContext';
+import { navBadgesFromHome, refreshParticipantSnapshot } from '../lib/participantSnapshot';
 import {
   applyNetworkingTask,
   applyNetworkingLunch,
@@ -44,7 +47,8 @@ function stopTouchPropagation(e: { stopPropagation: () => void }) {
 export function TasksPanel() {
   const { taskId } = useParams<{ taskId?: string }>();
   const navigate = useNavigate();
-  const { setBackHandler } = useLayout();
+  const { setNavBadges, setBackHandler } = useLayout();
+  const { syncUser } = useAuthContext();
   const suppressCloseUntilRef = useRef(0);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
@@ -63,6 +67,15 @@ export function TasksPanel() {
   const beginModalOpen = useCallback(() => {
     suppressCloseUntilRef.current = performance.now() + MODAL_CLOSE_SUPPRESS_MS;
   }, []);
+
+  const syncSnapshot = useCallback(() => {
+    void refreshParticipantSnapshot()
+      .then((data) => {
+        syncUser(data.user);
+        setNavBadges(navBadgesFromHome(data));
+      })
+      .catch(console.error);
+  }, [syncUser, setNavBadges]);
 
   const load = useCallback((silent = false) => {
     if (silent) setRefreshing(true);
@@ -180,6 +193,7 @@ export function TasksPanel() {
       setTasks(updated.tasks);
       const fresh = findTaskById(updated.tasks, task.id);
       if (fresh) setModalTask((prev) => (prev?.id === task.id ? fresh : prev));
+      syncSnapshot();
     } catch (e) {
       console.error(e);
       alert('Не удалось принять участие. Попробуй ещё раз.');
@@ -191,6 +205,9 @@ export function TasksPanel() {
   const handleSubmit = async () => {
     if (!modalTask) return;
     const photoMode = modalTask.photoMode ?? (modalTask.requiresPhoto ? 'required' : 'none');
+    // #region agent log
+    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'TasksPanel.tsx:handleSubmit',message:'submit attempt',data:{taskId:modalTask.id,photoMode,requiresPhoto:modalTask.requiresPhoto,rawPhotoMode:modalTask.photoMode,photosCount:photos.length,answerLen:answer.trim().length,blocked:photoMode==='required'&&photos.length===0},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     if (photoMode === 'required' && photos.length === 0) {
       alert('Для этого задания необходимо прикрепить фото');
       return;
@@ -206,6 +223,7 @@ export function TasksPanel() {
       suppressCloseUntilRef.current = 0;
       closeTaskModal();
       load(true);
+      syncSnapshot();
     } catch (e) {
       console.error(e);
       alert('Не удалось отправить задание. Попробуй ещё раз.');
@@ -266,36 +284,17 @@ export function TasksPanel() {
                   {t.description}
                 </div>
                 {t.isNetworkingLunch && (
-                  <div style={{ marginTop: 8 }}>
-                    {t.lunchTableNumber ? (
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#27ae60' }}>
-                        Ваш стол: № {t.lunchTableNumber}
-                      </div>
-                    ) : t.lunchApplied ? (
-                      <div style={{ fontSize: 11, color: '#f39c12' }}>
-                        Заявка принята. Состав столов объявят позже.
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: 11, color: '#f39c12', marginBottom: 6 }}>
-                          Подтверди участие в нетворкинг-обеде
-                        </div>
-                        <Button
-                          size="s"
-                          mode="primary"
-                          loading={lunchLoading}
-                          onPointerDown={stopTouchPropagation}
-                          onTouchStart={stopTouchPropagation}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleApplyLunch(t);
-                          }}
-                        >
-                          Принять участие
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                  <NetworkingLunchActions
+                    lunch={{
+                      phase: t.lunchPhase ?? undefined,
+                      applied: !!t.lunchApplied,
+                      tableNumber: t.lunchTableNumber,
+                      assignmentsSent: t.lunchAssignmentsSent,
+                      canApply: t.lunchCanApply ?? (!t.lunchApplied && !t.lunchAssignmentsSent),
+                    }}
+                    loading={lunchLoading}
+                    onApply={() => void handleApplyLunch(t)}
+                  />
                 )}
                 {t.isRandomDistribution && !t.isNetworkingLunch && (
                   <div style={{ marginTop: 8 }}>
@@ -415,6 +414,8 @@ export function TasksPanel() {
         onUploadPhoto={() => void handleUploadPhoto()}
         onSubmit={() => void handleSubmit()}
         onApplyNetworking={(task) => void handleApplyNetworking(task)}
+        onApplyLunch={(task) => void handleApplyLunch(task)}
+        lunchLoading={lunchLoading}
       />
     </>
   );

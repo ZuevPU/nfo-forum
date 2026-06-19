@@ -629,6 +629,20 @@ export function removeNetworkingLunchAssignment(userId: number) {
   );
 }
 
+export function publishNetworkingLunchRegistration() {
+  return apiRequest<{ config: NetworkingLunchConfig }>('/api/admin/networking-lunch/publish-registration', {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export function unpublishNetworkingLunchRegistration() {
+  return apiRequest<{ config: NetworkingLunchConfig }>('/api/admin/networking-lunch/unpublish-registration', {
+    method: 'POST',
+    body: {},
+  });
+}
+
 export function publishNetworkingLunch() {
   return apiRequest<{ sent: number }>('/api/admin/networking-lunch/publish', {
     method: 'POST',

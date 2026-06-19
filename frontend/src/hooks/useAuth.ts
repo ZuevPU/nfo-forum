@@ -21,6 +21,7 @@ interface UseAuthResult {
   registerUser: (track: Track, profile?: { firstName?: string; lastName?: string }) => Promise<void>;
   deleteUserAccount: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  syncUser: (user: UserDto) => void;
   retry: () => void;
 }
 
@@ -156,6 +157,10 @@ export function useAuth(): UseAuthResult {
     }
   }, []);
 
+  const syncUser = useCallback((next: UserDto) => {
+    setUser(next);
+  }, []);
+
   return {
     status,
     user,
@@ -164,6 +169,7 @@ export function useAuth(): UseAuthResult {
     registerUser,
     deleteUserAccount: deleteUserAccountFunc,
     refreshUser,
+    syncUser,
     retry,
   };
 }

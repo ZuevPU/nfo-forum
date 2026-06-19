@@ -36,6 +36,8 @@ import {
   saveNetworkingLunchAssignments,
   removeNetworkingLunchAssignment,
   publishNetworkingLunch,
+  publishNetworkingLunchRegistration,
+  unpublishNetworkingLunchRegistration,
   sendNetworkingLunchInvitation,
   type NetworkingLunchConfig,
   type NetworkingLunchApplication,
@@ -1034,6 +1036,11 @@ export function AdminNetworkingLunchTab() {
           />
         </FormItem>
 
+        {config.publishedAt && (
+          <div style={{ fontSize: 12, color: '#27ae60', marginBottom: 8 }}>
+            Регистрация открыта: {new Date(config.publishedAt).toLocaleString('ru-RU')}
+          </div>
+        )}
         {config.invitationSentAt && (
           <div style={{ fontSize: 12, color: '#27ae60', marginBottom: 8 }}>
             Приглашение отправлено: {new Date(config.invitationSentAt).toLocaleString('ru-RU')}
@@ -1045,14 +1052,74 @@ export function AdminNetworkingLunchTab() {
           </div>
         )}
 
+        <div
+          className="nfo-admin-form-card"
+          style={{ marginBottom: 12, fontSize: 13, lineHeight: 1.5, background: '#f8f9fc' }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Статус</div>
+          {!config.publishedAt && (
+            <div style={{ color: 'var(--vkui--color_text_secondary)' }}>
+              Черновик — участники не видят регистрацию. Сохраните настройки и нажмите «Опубликовать».
+            </div>
+          )}
+          {config.publishedAt && !config.assignmentsSentAt && (
+            <div style={{ color: '#f39c12' }}>
+              Регистрация открыта · заявок: {applications.length}
+            </div>
+          )}
+          {config.assignmentsSentAt && (
+            <div style={{ color: '#27ae60' }}>Столы разосланы участникам</div>
+          )}
+        </div>
+
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-          <button type="button" className="nfo-admin-btn-primary" disabled={saving} onClick={() => void saveConfig()}>
+          <button type="button" className="nfo-admin-btn-secondary" disabled={saving} onClick={() => void saveConfig()}>
             {saving ? 'Сохранение…' : 'Сохранить настройки'}
           </button>
           <button
             type="button"
+            className="nfo-admin-btn-primary"
+            disabled={actionLoading != null || saving || !!config.publishedAt}
+            onClick={() =>
+              void runAction('publish-reg', async () => {
+                if (!window.confirm('Открыть регистрацию на нетворкинг-обед для участников?')) return;
+                const res = await publishNetworkingLunchRegistration();
+                setConfig(res.config);
+                setMessage('Регистрация опубликована — плашка появится на главной');
+              })
+            }
+          >
+            {actionLoading === 'publish-reg' ? '…' : 'Опубликовать'}
+          </button>
+          <button
+            type="button"
             className="nfo-admin-btn-secondary"
-            disabled={actionLoading != null}
+            disabled={
+              actionLoading != null ||
+              !config.publishedAt ||
+              !!config.assignmentsSentAt
+            }
+            onClick={() =>
+              void runAction('unpublish-reg', async () => {
+                if (
+                  !window.confirm(
+                    'Снять регистрацию с публикации? Плашка и задание пропадут у всех участников.',
+                  )
+                ) {
+                  return;
+                }
+                const res = await unpublishNetworkingLunchRegistration();
+                setConfig(res.config);
+                setMessage('Регистрация снята с публикации — участники больше не видят нетворкинг-обед');
+              })
+            }
+          >
+            {actionLoading === 'unpublish-reg' ? '…' : 'Снять с публикации'}
+          </button>
+          <button
+            type="button"
+            className="nfo-admin-btn-secondary"
+            disabled={actionLoading != null || !config.publishedAt}
             onClick={() =>
               void runAction('invite', async () => {
                 if (!window.confirm('Отправить push-приглашение на нетворкинг-обед всем участникам?')) return;
@@ -1063,7 +1130,7 @@ export function AdminNetworkingLunchTab() {
               })
             }
           >
-            {actionLoading === 'invite' ? '…' : 'Отправить приглашение на нетворкинг-обед'}
+            {actionLoading === 'invite' ? '…' : 'Отправить приглашение (push)'}
           </button>
         </div>
         {message && <div style={{ marginTop: 8, fontSize: 12, color: '#27ae60' }}>{message}</div>}
@@ -1111,7 +1178,7 @@ export function AdminNetworkingLunchTab() {
             })
           }
         >
-          {actionLoading === 'publish' ? '…' : 'Отправить распределение участникам'}
+          {actionLoading === 'publish' ? '…' : 'Отправить столы участникам'}
         </button>
       </div>
 

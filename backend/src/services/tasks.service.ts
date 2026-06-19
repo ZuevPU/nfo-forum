@@ -4,7 +4,7 @@ import { pointsHistory, systemSettings, taskSubmissions, tasks } from '../db/sch
 import type { UserDto } from '../types/api.js';
 import { awardPoints } from './points.service.js';
 import { getNetworkingState, joinNetworkingQueue } from './taskNetworking.service.js';
-import { getNetworkingLunchTaskId, getUserLunchStatus } from './networkingLunch.service.js';
+import { getNetworkingLunchConfig, getNetworkingLunchParticipantView, getNetworkingLunchTaskId, getUserLunchStatus } from './networkingLunch.service.js';
 import { validatePhotos } from '../utils/photoValidation.js';
 import { isTaskVisibleToParticipant, resolveTaskContentStatus } from '../utils/taskContentStatus.js';
 import { promoteScheduledTasks } from './taskPublish.service.js';
@@ -14,6 +14,18 @@ export async function getTasks(user: UserDto) {
   await promoteScheduledTasks(now);
   const allTasks = await db.select().from(tasks);
   const userTasks = allTasks.filter((t) => isTaskVisibleToParticipant(t, user.track, now));
+
+  const lunchConfig = await getNetworkingLunchConfig();
+  if (lunchConfig.taskId && lunchConfig.publishedAt) {
+    const lunchTask = allTasks.find((t) => t.id === lunchConfig.taskId);
+    if (
+      lunchTask &&
+      !userTasks.some((t) => t.id === lunchTask.id) &&
+      (!lunchTask.track || lunchTask.track === user.track)
+    ) {
+      userTasks.push(lunchTask);
+    }
+  }
 
   const submissions = await db
     .select()
@@ -47,6 +59,7 @@ export async function getTasks(user: UserDto) {
   return Promise.all(
     baseTasks.map(async (t) => {
       if (lunchTaskId && t.id === lunchTaskId) {
+        const view = await getNetworkingLunchParticipantView(user.id);
         const lunch = await getUserLunchStatus(user.id);
         return {
           ...t,
@@ -54,6 +67,8 @@ export async function getTasks(user: UserDto) {
           lunchApplied: lunch.applied,
           lunchTableNumber: lunch.tableNumber,
           lunchAssignmentsSent: lunch.assignmentsSent,
+          lunchPhase: view?.phase ?? null,
+          lunchCanApply: view?.canApply ?? false,
         };
       }
       if (!t.isRandomDistribution) return t;
@@ -129,6 +144,9 @@ export async function submitTask(
   }
 
   const photoMode = task.photoMode ?? (task.requiresPhoto ? 'required' : 'none');
+  // #region agent log
+  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'tasks.service.ts:submitTask',message:'task submit photo check',data:{taskId,photoMode,requiresPhoto:task.requiresPhoto,rawPhotoMode:task.photoMode,photosCount:photos?.length ?? 0,hasAnswer:!!answerText?.trim()},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
   if (photoMode === 'required' && (!photos || photos.length === 0)) {
     throw new Error('Photo is required for this task');
   }

@@ -17,6 +17,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchHome, type HomeData } from '../api/home';
+import { applyNetworkingLunch } from '../api/tasks';
 import { FeedbackOrganizersContent } from '../components/FeedbackOrganizersContent';
 import { fetchReflectionLevel } from '../api/rating';
 import { CurrentBlockCard } from '../components/CurrentBlockCard';
@@ -27,7 +28,10 @@ import { NotificationBell } from '../components/NotificationBell';
 import { ProgressBar } from '../components/ProgressBar';
 import { UserProfileCard } from '../components/UserProfileCard';
 import { CommunityMessagesBanner } from '../components/CommunityMessagesBanner';
+import { NetworkingLunchHomeSection } from '../components/NetworkingLunchHomeSection';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useLayout } from '../contexts/LayoutContext';
+import { navBadgesFromHome } from '../lib/participantSnapshot';
 import { requestVkNotifications } from '../lib/vk-bridge';
 import { FORUM_DAYS } from '../constants/nfoFactors';
 import { DEFAULT_REFLECTION_THRESHOLDS, getReflectionProgress } from '../constants/reflectionLevels';
@@ -50,16 +54,25 @@ function getProgramDayInfo() {
 export function HomePanel() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, deleteUserAccount, refreshUser } = useAuthContext();
+  const { user, deleteUserAccount, refreshUser, syncUser } = useAuthContext();
+  const { setNavBadges } = useLayout();
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [reflectionThresholds, setReflectionThresholds] = useState<number[]>(DEFAULT_REFLECTION_THRESHOLDS);
+  const [lunchLoading, setLunchLoading] = useState(false);
 
   const load = () => {
     setLoading(true);
     fetchHome()
-      .then(setData)
+      .then((homeData) => {
+        setData(homeData);
+        syncUser(homeData.user);
+        setNavBadges(navBadgesFromHome(homeData));
+        // #region agent log
+        fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'HomePanel.tsx:load',message:'fetchHome resolved',data:{homeUserPoints:homeData.user.points},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -90,6 +103,27 @@ export function HomePanel() {
     }
   }, [searchParams, setSearchParams]);
 
+  // #region agent log
+  useEffect(() => {
+    if (loading || !user) return;
+    const displayPoints = (data?.user ?? user).points;
+    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'HomePanel.tsx:displayUser',message:'points sources',data:{authUserPoints:user.points,dataUserPoints:data?.user?.points ?? null,displayUserPoints:displayPoints,hasData:!!data},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  }, [loading, user, data]);
+  // #endregion
+
+  const handleApplyLunch = async () => {
+    setLunchLoading(true);
+    try {
+      await applyNetworkingLunch();
+      load();
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : 'Не удалось записаться на обед');
+    } finally {
+      setLunchLoading(false);
+    }
+  };
+
   if (loading || !user) {
     return (
       <Panel id="home">
@@ -103,10 +137,11 @@ export function HomePanel() {
 
   const event = data?.currentEvent ?? null;
   const { dateStr, programDay } = getProgramDayInfo();
+  const displayUser = data?.user ?? user;
 
   const { progress: reflectionProgress, pointsToNextLevel, nextLevel } = getReflectionProgress(
-    user.reflectionLevel,
-    user.reflectionPoints,
+    displayUser.reflectionLevel,
+    displayUser.reflectionPoints,
     reflectionThresholds,
   );
 
@@ -184,7 +219,7 @@ export function HomePanel() {
           <Text weight="2">{dateStr}</Text>
           {programDay ? <Text weight="2">День {programDay}</Text> : null}
         </div>
-        <UserProfileCard user={data?.user ?? user} trackRank={data?.trackRank} />
+        <UserProfileCard user={displayUser} trackRank={data?.trackRank} />
       </GradientHeader>
 
       {user && !user.messagesFromGroupAllowed && (
@@ -210,6 +245,16 @@ export function HomePanel() {
           <EmptyState message="Сейчас нет активного блока — программа скоро появится" />
         )}
       </Group>
+
+      {data?.networkingLunch && (
+        <Group header={<div className="nfo-sec-title">Регистрация на нетворкинг-обед</div>}>
+          <NetworkingLunchHomeSection
+            lunch={data.networkingLunch}
+            loading={lunchLoading}
+            onApply={() => void handleApplyLunch()}
+          />
+        </Group>
+      )}
 
       <Group header={<div className="nfo-sec-title">Активности</div>}>
         <Div style={{ padding: '12px 16px' }}>
@@ -320,7 +365,7 @@ export function HomePanel() {
             <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)' }}>место в треке</div>
             <div className="nfo-progress-card__spacer" />
             <div>
-              <ProgressBar value={user.points} max={200} color="var(--nfo-primary)" />
+              <ProgressBar value={displayUser.points} max={200} color="var(--nfo-primary)" />
             </div>
           </div>
           <div
@@ -328,8 +373,8 @@ export function HomePanel() {
             onClick={() => navigate('/reflection-level')}
           >
             <ActivityIcon emoji="🧠" variant="purple" />
-            <Headline level="2" weight="2" style={{ marginTop: 4 }}>Ур. {user.reflectionLevel}</Headline>
-            <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)' }}>рефлексия · {user.reflectionPoints} б.</div>
+            <Headline level="2" weight="2" style={{ marginTop: 4 }}>Ур. {displayUser.reflectionLevel}</Headline>
+            <div style={{ fontSize: 10, color: 'var(--vkui--color_text_secondary)' }}>рефлексия · {displayUser.reflectionPoints} б.</div>
             <div style={{ marginTop: 4 }}>
               <ProgressBar value={reflectionProgress} max={100} />
             </div>

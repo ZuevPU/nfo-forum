@@ -3,7 +3,7 @@ import type { AuthenticatedRequest } from '../middleware/requireUser.js';
 import { requireUser } from '../middleware/requireUser.js';
 import {
   applyNetworkingLunch,
-  getUserLunchStatus,
+  getNetworkingLunchParticipantView,
 } from '../services/networkingLunch.service.js';
 
 export const networkingLunchRouter = Router();
@@ -19,6 +19,6 @@ networkingLunchRouter.post('/apply', requireUser, async (req: AuthenticatedReque
 });
 
 networkingLunchRouter.get('/my-status', requireUser, async (req: AuthenticatedRequest, res) => {
-  const status = await getUserLunchStatus(req.user!.id);
-  res.json({ status });
+  const view = await getNetworkingLunchParticipantView(req.user!.id);
+  res.json({ status: view });
 });

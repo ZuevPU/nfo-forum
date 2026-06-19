@@ -8,6 +8,7 @@ import {
 } from '@vkontakte/vkui';
 import type { TaskItem } from '../api/tasks';
 import { resolvePhotoUrl } from '../lib/mediaUrls';
+import { NetworkingLunchActions } from './NetworkingLunchActions';
 
 function contactsRequired(task: TaskItem) {
   return task.contactsRequired ?? task.networkingContacts ?? 1;
@@ -51,6 +52,8 @@ export interface TaskDetailModalProps {
   onUploadPhoto: () => void;
   onSubmit: () => void;
   onApplyNetworking: (task: TaskItem) => void;
+  onApplyLunch?: (task: TaskItem) => void;
+  lunchLoading?: boolean;
 }
 
 function TaskDetailContent({
@@ -65,7 +68,31 @@ function TaskDetailContent({
   onUploadPhoto,
   onSubmit,
   onApplyNetworking,
+  onApplyLunch,
+  lunchLoading,
 }: Omit<TaskDetailModalProps, 'task' | 'loading' | 'onClose'> & { task: TaskItem }) {
+  if (task.isNetworkingLunch && task.lunchPhase) {
+    return (
+      <Div style={{ padding: '12px 16px 24px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{task.title}</div>
+        <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', lineHeight: 1.4 }}>
+          {task.description}
+        </div>
+        <NetworkingLunchActions
+          lunch={{
+            phase: task.lunchPhase,
+            applied: !!task.lunchApplied,
+            tableNumber: task.lunchTableNumber,
+            assignmentsSent: task.lunchAssignmentsSent,
+            canApply: task.lunchCanApply ?? false,
+          }}
+          loading={lunchLoading}
+          onApply={onApplyLunch ? () => onApplyLunch(task) : undefined}
+        />
+      </Div>
+    );
+  }
+
   const blockedNetworking =
     task.isRandomDistribution &&
     task.networkingStatus !== 'paired' &&

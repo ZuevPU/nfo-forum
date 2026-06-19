@@ -16,11 +16,12 @@ import {
 import type { UserDto } from '../types/api.js';
 import type { EventDto } from './events.service.js';
 import { isTrainerTrack } from './diagnostics.service.js';
-import { PARTICIPANT_ROLE } from '../constants/roles.js';
 import { getCheckinStatus } from './state.service.js';
 import { getTasks } from './tasks.service.js';
 import { getNfoDayConfig, getNfoDayReflectionToday } from './reflection.service.js';
 import { submitFeedback as createFeedbackMessage } from './feedback.service.js';
+import { getNetworkingLunchParticipantView } from './networkingLunch.service.js';
+import { getTrackRank } from './points.service.js';
 
 export async function submitFeedback(userId: number, text: string) {
   return createFeedbackMessage(userId, text);
@@ -58,6 +59,15 @@ export interface HomeData {
     canSubmit: boolean;
     nextSlotAt: string | null;
   };
+  networkingLunch: {
+    taskId: number;
+    title: string;
+    description: string;
+    applied: boolean;
+    tableNumber: number | null;
+    assignmentsSent: boolean;
+    canApply: boolean;
+  } | null;
 }
 
 function toEventDto(e: typeof events.$inferSelect): EventDto {
@@ -80,7 +90,23 @@ function trackCondition(track?: string | null) {
 
 export async function getHomeData(user: UserDto): Promise<HomeData> {
   const now = new Date();
-  const trackFilter = trackCondition(user.track);
+
+  const [freshRow] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+  const freshUser: UserDto = freshRow
+    ? {
+        ...user,
+        track: freshRow.track,
+        points: freshRow.points,
+        reflectionLevel: freshRow.reflectionLevel,
+        reflectionPoints: freshRow.reflectionPoints,
+      }
+    : user;
+
+  // #region agent log
+  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'home.service.ts:getHomeData',message:'home user points',data:{userId:user.id,reqUserPoints:user.points,freshRowPoints:freshRow?.points ?? null,freshUserPoints:freshUser.points},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
+
+  const trackFilter = trackCondition(freshUser.track);
 
   const eventConditions = [gte(events.endTime, now)];
   if (trackFilter) eventConditions.push(trackFilter);
@@ -100,14 +126,8 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     null;
 
   let trackRank = 0;
-  if (user.track) {
-    const trackUsers = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(and(eq(users.track, user.track), eq(users.role, PARTICIPANT_ROLE)))
-      .orderBy(desc(users.points));
-    const idx = trackUsers.findIndex((u) => u.id === user.id);
-    trackRank = idx >= 0 ? idx + 1 : 0;
+  if (freshUser.track) {
+    trackRank = await getTrackRank(freshUser.id, freshUser.track);
   }
 
   const [taskStats] = await db
@@ -157,7 +177,7 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
         ne(reflectionQuestions.status, 'draft'),
         lte(reflectionQuestions.publishTime, now),
         or(isNull(reflectionQuestions.endTime), gt(reflectionQuestions.endTime, now)),
-        or(isNull(reflectionQuestions.track), eq(reflectionQuestions.track, user.track ?? '')),
+        or(isNull(reflectionQuestions.track), eq(reflectionQuestions.track, freshUser.track ?? '')),
         ne(reflectionQuestions.type, 'evening'),
       ),
     );
@@ -203,7 +223,7 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     focusOfDay = focusTask ?? null;
   }
 
-  const diagnosticsAvailable = await isTrainerTrack(user.track);
+  const diagnosticsAvailable = await isTrainerTrack(freshUser.track);
   const TOTAL_DIAGNOSTICS_BLOCKS = 9;
   let completedBlocks = 0;
 
@@ -228,7 +248,7 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     completedBlocks = progressResult?.value ?? 0;
   }
 
-  const userTasks = await getTasks(user);
+  const userTasks = await getTasks(freshUser);
   const availableTasks = userTasks.filter((t) => {
     if (t.isFocusOfDay || t.isPastDeadline) return false;
     const networkingOk =
@@ -237,9 +257,10 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
     return t.status !== 'approved' && networkingOk;
   });
   const firstAvailableTask = availableTasks[0] ?? null;
+  const networkingLunch = await getNetworkingLunchParticipantView(user.id);
 
   return {
-    user,
+    user: freshUser,
     currentEvent: currentEvent ? toEventDto(currentEvent) : null,
     upcomingBlock: upcomingBlock ? toEventDto(upcomingBlock) : null,
     trackRank,
@@ -267,5 +288,6 @@ export async function getHomeData(user: UserDto): Promise<HomeData> {
       canSubmit: checkinStatus.canSubmit,
       nextSlotAt: checkinStatus.nextSlotAt,
     },
+    networkingLunch,
   };
 }

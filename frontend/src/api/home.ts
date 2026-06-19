@@ -33,6 +33,19 @@ export interface HomeData {
     canSubmit?: boolean;
     nextSlotAt?: string | null;
   };
+  networkingLunch?: {
+    taskId: number;
+    title: string;
+    description: string;
+    points: number;
+    phase: 'registration' | 'applied' | 'seated' | 'closed';
+    applied: boolean;
+    tableNumber: number | null;
+    assignmentsSent: boolean;
+    registrationOpen: boolean;
+    publishedAt: string | null;
+    canApply: boolean;
+  } | null;
 }
 
 export interface EventDto {

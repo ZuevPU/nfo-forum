@@ -56,6 +56,8 @@ import {
   saveNetworkingLunchAssignments,
   removeNetworkingLunchAssignment,
   publishNetworkingLunchAssignments,
+  publishNetworkingLunchRegistration,
+  unpublishNetworkingLunchRegistration,
   sendNetworkingLunchInvitation,
 } from '../services/networkingLunch.service.js';
 import {
@@ -549,6 +551,26 @@ adminRouter.delete('/networking-lunch/assignments/:userId', async (req, res) => 
   await removeNetworkingLunchAssignment(userId);
   const tables = await listNetworkingLunchAssignments();
   res.json({ tables });
+});
+
+adminRouter.post('/networking-lunch/publish-registration', async (_req, res) => {
+  try {
+    const config = await publishNetworkingLunchRegistration();
+    res.json({ config });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Publish failed';
+    res.status(400).json({ error: message });
+  }
+});
+
+adminRouter.post('/networking-lunch/unpublish-registration', async (_req, res) => {
+  try {
+    const config = await unpublishNetworkingLunchRegistration();
+    res.json({ config });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unpublish failed';
+    res.status(400).json({ error: message });
+  }
 });
 
 adminRouter.post('/networking-lunch/publish', async (_req, res) => {

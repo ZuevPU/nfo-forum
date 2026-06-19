@@ -85,6 +85,8 @@ export interface TaskItem {
   lunchApplied?: boolean;
   lunchTableNumber?: number | null;
   lunchAssignmentsSent?: boolean;
+  lunchPhase?: 'registration' | 'applied' | 'seated' | 'closed' | null;
+  lunchCanApply?: boolean;
 }
 
 export interface DailyFocus {

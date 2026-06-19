@@ -16,6 +16,9 @@ import { PanelLayout } from '../components/PanelLayout';
 import { NotificationBell } from '../components/NotificationBell';
 import { CheckinSection } from '../components/CheckinSection';
 import { NfoDaySection } from '../components/NfoDaySection';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useLayout } from '../contexts/LayoutContext';
+import { navBadgesFromHome, refreshParticipantSnapshot } from '../lib/participantSnapshot';
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
   entry: 'Входной вопрос',
@@ -54,6 +57,8 @@ function groupQuestions(questions: ReflectionQuestion[]) {
 
 export function QuestionsPanel() {
   const { questionId } = useParams<{ questionId?: string }>();
+  const { syncUser } = useAuthContext();
+  const { setNavBadges } = useLayout();
   const [questions, setQuestions] = useState<ReflectionQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
@@ -102,6 +107,15 @@ export function QuestionsPanel() {
     return () => window.clearTimeout(timer);
   }, [successMessage]);
 
+  const syncSnapshot = useCallback(() => {
+    void refreshParticipantSnapshot()
+      .then((data) => {
+        syncUser(data.user);
+        setNavBadges(navBadgesFromHome(data));
+      })
+      .catch(console.error);
+  }, [syncUser, setNavBadges]);
+
   const handleSubmit = async (q: ReflectionQuestion) => {
     const text = answers[q.id]?.trim();
     if (!text) return;
@@ -113,6 +127,7 @@ export function QuestionsPanel() {
     });
     setSuccessMessage('Ответ сохранён');
     load();
+    syncSnapshot();
   };
 
   const renderQuestionGroup = ([key, group]: [string, ReflectionQuestion[]]) => {
@@ -190,6 +205,7 @@ export function QuestionsPanel() {
                   });
                   setSuccessMessage('Ответы сохранены');
                   load();
+                  syncSnapshot();
                 })();
               }}
             >

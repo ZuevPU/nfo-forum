@@ -2,6 +2,7 @@ import { Panel } from '@vkontakte/vkui';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { resolveActiveDeepLinkRoute } from '../lib/deepLink';
 import { Tabbar } from '../components/Tabbar';
+import { ParticipantSync } from '../components/ParticipantSync';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useLayout } from '../contexts/LayoutContext';
 import { useDeepLink } from '../hooks/useDeepLink';
@@ -78,6 +79,7 @@ export function AppRouter() {
 
   return (
     <>
+      <ParticipantSync />
       <div className={isMain ? 'nfo-with-tabbar' : undefined}>
       <Routes>
           <Route path="/welcome" element={<WelcomePanel />} />

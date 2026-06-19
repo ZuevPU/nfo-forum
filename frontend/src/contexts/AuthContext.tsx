@@ -11,6 +11,7 @@ interface AuthContextValue {
   registerUser: (track: Track, profile?: { firstName?: string; lastName?: string }) => Promise<void>;
   deleteUserAccount: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  syncUser: (user: UserDto) => void;
   retry: () => void;
 }
 
