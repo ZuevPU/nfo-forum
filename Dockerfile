@@ -13,5 +13,5 @@ COPY backend/package.json ./backend/
 RUN npm ci -w backend --omit=dev
 COPY --from=builder /app/backend/dist ./backend/dist
 ENV NODE_ENV=production
-EXPOSE 3001
+EXPOSE 8080
 CMD ["node", "backend/dist/index.js"]

@@ -50,10 +50,12 @@ export function createApp() {
   // #endregion
 
   // Liveness for Timeweb/App Platform — no DB, must return 2xx quickly
-  app.get('/', (_req, res) => {
+  app.get('/', (req, res) => {
+    console.info('[startup-debug 4d6e6b] Health check hit on /');
     res.status(200).json({ status: 'ok', service: 'nfo-forum-api' });
   });
-  app.get('/health', (_req, res) => {
+  app.get('/health', (req, res) => {
+    console.info('[startup-debug 4d6e6b] Health check hit on /health');
     res.status(200).json({ status: 'ok' });
   });
 
