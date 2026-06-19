@@ -13,8 +13,40 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function cleanEnvValue(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+function resolveDatabaseUrl(): string {
+  const direct = process.env.DATABASE_URL;
+  if (direct) {
+    return cleanEnvValue(direct);
+  }
+
+  const host = process.env.DB_HOST ?? process.env.PGHOST;
+  const user = process.env.DB_USER ?? process.env.PGUSER;
+  const password = process.env.DB_PASSWORD ?? process.env.PGPASSWORD;
+  const database = process.env.DB_NAME ?? process.env.PGDATABASE;
+  const port = process.env.DB_PORT ?? process.env.PGPORT ?? '5432';
+
+  if (host && user && password && database) {
+    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}?sslmode=require`;
+  }
+
+  throw new Error(
+    'Missing DATABASE_URL or DB_HOST + DB_USER + DB_PASSWORD + DB_NAME (Timeweb: use separate vars if URL fails)',
+  );
+}
+
 export const env = {
-  DATABASE_URL: requireEnv('DATABASE_URL'),
+  DATABASE_URL: resolveDatabaseUrl(),
   PORT: Number(process.env.PORT ?? 3001),
   VITE_API_URL: process.env.VITE_API_URL ?? 'http://localhost:3001',
   API_PUBLIC_URL: process.env.API_PUBLIC_URL ?? process.env.VITE_API_URL ?? `http://localhost:${Number(process.env.PORT ?? 3001)}`,

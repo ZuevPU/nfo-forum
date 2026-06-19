@@ -15,12 +15,39 @@ Railway и VK Hosting в проекте **не используются** для
 
 Скопируйте [`.env.production.example`](../.env.production.example) в панель Timeweb → переменные окружения приложения backend.
 
+### Вариант A — одна строка (простой пароль без спецсимволов)
+
+```
+DATABASE_URL=postgresql://adminzuev:NfoForum2026Pass@147.45.185.213:5432/nfobd?sslmode=require
+```
+
+### Вариант B — отдельные переменные (надёжнее для Timeweb)
+
+Если `DATABASE_URL` не срабатывает, удалите её и задайте:
+
 | Переменная | Значение |
 |------------|----------|
-| `DATABASE_URL` | PostgreSQL (Timeweb DB) — **актуальная строка из панели БД** (пользователь, пароль, имя БД, хост) |
+| `DB_HOST` | `147.45.185.213` *(или **приватный IP** из вкладки «Подключение» БД)* |
+| `DB_USER` | `adminzuev` |
+| `DB_PASSWORD` | `NfoForum2026Pass` |
+| `DB_NAME` | `nfobd` |
+| `DB_PORT` | `5432` |
+
+### Приватная сеть (важно)
+
+Если backend и PostgreSQL оба на Timeweb Cloud — в `DB_HOST` / `DATABASE_URL` используйте **приватный IP** базы (вкладка «Подключение» → «Приватный IP»), а не публичный `147.45.185.213`. Публичный IP работает с вашего ПК, но из контейнера App Platform может не подходить.
+
+### Порт приложения
+
+- **Не задавайте** `PORT=3001` в Timeweb — платформа сама подставляет `PORT`.
+- Health check path: **`/health`** (не `/api/health`).
+
+| Переменная | Значение |
+|------------|----------|
+| `DATABASE_URL` | см. вариант A или B выше |
 | `API_PUBLIC_URL` | `https://zuevpu-nfo-forum-d400.twc1.net` |
 | `SKIP_VK_SIGN` | `false` |
-| `FRONTEND_ORIGIN` | `https://vk.com` |
+| `FRONTEND_ORIGIN` | `https://zuevpu-nfo-forum-2212.twc1.net` |
 | `CRON_SECRET` | случайная строка 32+ символов |
 
 ## Деплой backend
