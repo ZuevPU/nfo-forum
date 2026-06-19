@@ -52,6 +52,23 @@ DATABASE_URL=postgresql://adminzuev:NfoForum2026Pass@147.45.185.213:5432/nfobd?s
 
 ## Деплой backend
 
+### Тип приложения в панели Timeweb
+
+Используйте **Dockerfile** (не «Node.js» с ручными командами сборки/запуска):
+
+| Поле | Значение |
+|------|----------|
+| Тип | **Dockerfile** |
+| Путь к директории проекта | *(пусто — Dockerfile в корне репозитория)* |
+| Команда сборки | *(пусто — сборка внутри Dockerfile)* |
+| Команда запуска | *(пусто — `CMD` в Dockerfile)* |
+| Health check path | `/health` |
+| Порт | `3001` *(или оставьте авто — Dockerfile содержит `EXPOSE 3001`)* |
+
+Корневой [`Dockerfile`](../Dockerfile) собирает `backend/dist/index.js` и запускает `node backend/dist/index.js`.
+
+Если оставить тип «Node.js» с командами `npm ci --include=dev && npm run build -w backend` и `node backend/dist/index.js`, Timeweb генерирует свой Dockerfile **без `EXPOSE`**. Тогда деплой может упасть на шаге «Recreating container with discovered ports» — даже если сборка прошла успешно.
+
 ```powershell
 npm run deploy:backend
 npm run verify:prod

@@ -27,7 +27,7 @@ const TIMEWEB_ORIGIN = /^https:\/\/.*\.twc1\.net$/;
 function isAllowedCorsOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
   if (origin === env.FRONTEND_ORIGIN) return true;
-  if (origin === 'http://localhost:5173') return true;
+  if (origin.startsWith('http://localhost:')) return true;
   if (origin === 'https://vk.com' || origin === 'https://m.vk.com') return true;
   if (VERCEL_ORIGIN.test(origin)) return true;
   if (TIMEWEB_ORIGIN.test(origin)) return true;
