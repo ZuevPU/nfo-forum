@@ -71,6 +71,7 @@ import {
   EXPORT_GENERATORS,
   generateExportXlsx,
   listUsers,
+  updateUserTrack,
 } from '../services/export.service.js';
 import { listAdminFeedbackMessages, replyToFeedback } from '../services/feedback.service.js';
 import { sendPush, getPushSubscriptionStats } from '../services/push.service.js';
@@ -438,6 +439,21 @@ adminRouter.post('/users/:id/points', async (req, res) => {
   }
   const result = await adjustUserPoints(Number(req.params.id), points, comment ?? 'Admin adjustment');
   res.json(result);
+});
+
+adminRouter.patch('/users/:id/track', async (req, res) => {
+  try {
+    const { track } = req.body as { track?: string };
+    if (!track || typeof track !== 'string') {
+      res.status(400).json({ error: 'track is required' });
+      return;
+    }
+    const result = await updateUserTrack(Number(req.params.id), track);
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Update track failed';
+    res.status(400).json({ error: message });
+  }
 });
 
 adminRouter.get('/feedback', async (_req, res) => {

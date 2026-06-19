@@ -1,5 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
+import { isValidTrack } from '../constants/tracks.js';
 import { getExportMeta } from '../constants/exportMeta.js';
 import { db } from '../db/index.js';
 import {
@@ -339,6 +340,35 @@ export async function adjustUserPoints(userId: number, points: number, comment: 
     .where(eq(users.id, userId));
 
   return { newPoints: user.points + points };
+}
+
+export async function updateUserTrack(userId: number, track: string) {
+  if (!isValidTrack(track)) {
+    throw new Error('Invalid track value');
+  }
+
+  const [updated] = await db
+    .update(users)
+    .set({ track })
+    .where(eq(users.id, userId))
+    .returning({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      track: users.track,
+      points: users.points,
+      role: users.role,
+      createdAt: users.createdAt,
+    });
+
+  if (!updated) throw new Error('User not found');
+
+  return {
+    user: {
+      ...updated,
+      createdAt: updated.createdAt.toISOString(),
+    },
+  };
 }
 
 function parseCsvLine(line: string): string[] {

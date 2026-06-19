@@ -4,7 +4,7 @@ import { broadcasts, events, reflectionQuestions, systemSettings } from '../db/s
 import type { NotificationCategory } from '../constants/notifications.js';
 import { sendPush, deliverPush, notifyUsersForTrack } from './push.service.js';
 import { getEnabledTracks } from './diagnostics.service.js';
-import { getCheckinSettings, getExchangeSlotSettings, getPushCheckinMascotMediaId, getPushMascotMediaId } from './admin.service.js';
+import { getCheckinSettings, getExchangeSlotSettings, getPushCheckinMascotMediaId } from './admin.service.js';
 import { getNfoDayConfig } from './reflection.service.js';
 import { runNetworkingLunchPublishPush } from './networkingLunch.service.js';
 import { isInSlotWindow, slotDedupKey } from '../utils/slotMatching.js';
@@ -251,7 +251,6 @@ async function runDynamicSlots(): Promise<number> {
   const now = new Date();
   let sent = 0;
   const checkinMascot = await getPushCheckinMascotMediaId();
-  const nfoMascot = await getPushMascotMediaId();
 
   const checkin = await getCheckinSettings();
   for (const slot of checkin.slots) {
@@ -276,7 +275,6 @@ async function runDynamicSlots(): Promise<number> {
       text: 'Время обмена опытом! Задай вопрос или ответь коллегам.',
       hash: entityLink('exchange'),
       category: 'exchange',
-      imageMediaId: nfoMascot,
     });
   }
 
@@ -287,11 +285,10 @@ async function runDynamicSlots(): Promise<number> {
       text: 'Настало время подвести итоги дня.',
       hash: entityLink('nfo-day'),
       category: 'questions',
-      imageMediaId: nfoMascot,
     });
   }
 
-  sent += await runNetworkingLunchPublishPush(now, nfoMascot);
+  sent += await runNetworkingLunchPublishPush(now);
 
   return sent;
 }
@@ -325,7 +322,6 @@ export async function runCronJob(
   }
 
   const text = job.text!;
-  const mascotMediaId = await getPushMascotMediaId();
 
   if (job.isDiagnostics) {
     const enabledTracks = await getEnabledTracks();
@@ -336,7 +332,6 @@ export async function runCronJob(
       text,
       hash: job.hash,
       linkHash: job.hash,
-      imageMediaId: mascotMediaId,
       targetType: 'track',
       targetTracks: enabledTracks,
       category: job.category,
@@ -349,7 +344,6 @@ export async function runCronJob(
     text,
     hash: job.hash,
     linkHash: job.hash,
-    imageMediaId: mascotMediaId,
     targetType: 'all',
     category: job.category,
     skipBroadcastLog: true,

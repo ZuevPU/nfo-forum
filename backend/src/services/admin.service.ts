@@ -827,7 +827,7 @@ export async function getPushMascotMediaId(): Promise<string | undefined> {
 }
 
 export async function getPushCheckinMascotMediaId(): Promise<string | undefined> {
-  return (await readMediaSetting('push_mascot_checkin_media_id')) ?? (await getPushMascotMediaId());
+  return readMediaSetting('push_mascot_checkin_media_id');
 }
 
 async function readMediaSetting(key: string): Promise<string | undefined> {

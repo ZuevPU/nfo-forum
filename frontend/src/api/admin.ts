@@ -240,6 +240,13 @@ export function adjustUserPoints(userId: number, points: number, comment: string
   });
 }
 
+export function updateAdminUserTrack(userId: number, track: string) {
+  return apiRequest<{ user: AdminUser }>(`/api/admin/users/${userId}/track`, {
+    method: 'PATCH',
+    body: { track },
+  });
+}
+
 export function fetchFeedbackMessages() {
   return apiRequest<{ messages: FeedbackMessage[] }>('/api/admin/feedback');
 }

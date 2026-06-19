@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { downloadAnalyticsReport } from '../api/analytics';
 import {
   adjustUserPoints,
+  updateAdminUserTrack,
   fetchAdminUsers,
   fetchAllTaskSubmissions,
   fetchFeedbackMessages,
@@ -78,12 +79,41 @@ export function AdminUsersTab() {
   const [adjustUserId, setAdjustUserId] = useState('');
   const [adjustPoints, setAdjustPoints] = useState('10');
   const [adjustComment, setAdjustComment] = useState('');
+  const [trackDrafts, setTrackDrafts] = useState<Record<number, string>>({});
+  const [trackSaving, setTrackSaving] = useState<number | null>(null);
+  const [trackMessage, setTrackMessage] = useState<string | null>(null);
 
   const load = () => {
-    fetchAdminUsers(trackFilter || undefined).then((r) => setUsers(r.users)).catch(console.error);
+    fetchAdminUsers(trackFilter || undefined)
+      .then((r) => {
+        setUsers(r.users);
+        setTrackDrafts(
+          Object.fromEntries(
+            r.users.map((u) => [u.id, u.track ?? TRACKS[0]]),
+          ),
+        );
+      })
+      .catch(console.error);
   };
 
   useEffect(() => { load(); }, [trackFilter]);
+
+  const handleSaveTrack = async (userId: number) => {
+    const track = trackDrafts[userId];
+    if (!track) return;
+    setTrackSaving(userId);
+    setTrackMessage(null);
+    try {
+      await updateAdminUserTrack(userId, track);
+      setTrackMessage('Направление сохранено');
+      window.setTimeout(() => setTrackMessage(null), 2500);
+      load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Не удалось сохранить направление');
+    } finally {
+      setTrackSaving(null);
+    }
+  };
 
   return (
     <div className="nfo-admin-section">
@@ -109,12 +139,41 @@ export function AdminUsersTab() {
         </button>
       </div>
 
+      {trackMessage && (
+        <div style={{ marginBottom: 8, fontSize: 12, color: '#27ae60' }}>{trackMessage}</div>
+      )}
+
       {users.length === 0 && <div className="nfo-admin-empty">Нет участников</div>}
       {users.map((u) => (
         <AdminListCard
           key={u.id}
           title={`${u.firstName} ${u.lastName ?? ''}`.trim()}
-          meta={`${u.track ?? '—'} · ${u.points} б.`}
+          meta={`ID ${u.id} · ${u.track ?? '—'} · ${u.points} б.`}
+          actions={
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <NativeSelect
+                value={trackDrafts[u.id] ?? u.track ?? TRACKS[0]}
+                disabled={trackSaving === u.id}
+                onChange={(e) =>
+                  setTrackDrafts((prev) => ({ ...prev, [u.id]: e.target.value }))
+                }
+              >
+                {TRACKS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </NativeSelect>
+              <button
+                type="button"
+                className="nfo-admin-btn-secondary"
+                disabled={trackSaving === u.id || (trackDrafts[u.id] ?? u.track) === u.track}
+                onClick={() => void handleSaveTrack(u.id)}
+              >
+                {trackSaving === u.id ? '…' : 'Сохранить направление'}
+              </button>
+            </div>
+          }
         />
       ))}
     </div>

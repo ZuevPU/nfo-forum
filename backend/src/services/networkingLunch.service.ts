@@ -11,7 +11,6 @@ import { sendPush } from './push.service.js';
 import { entityLink } from '../utils/appLinks.js';
 import { isInSlotWindow } from '../utils/slotMatching.js';
 import { moscowDateString } from '../utils/moscowTime.js';
-import { getPushMascotMediaId } from './admin.service.js';
 
 const CONFIG_KEY = 'networking_lunch_config';
 const DEFAULT_SESSION_KEY = 'default';
@@ -601,14 +600,12 @@ export async function sendNetworkingLunchInvitation(): Promise<{ sent: number }>
   if (!config.taskId) throw new Error('Задание не настроено — сохраните настройки');
 
   const now = new Date();
-  const mascotMediaId = await getPushMascotMediaId();
   const hash = entityLink('home');
   const result = await sendPush({
     text: invitationText,
     hash,
     linkHash: hash,
     linkLabel: 'На главную',
-    imageMediaId: mascotMediaId,
     targetType: 'all',
     category: 'tasks',
   });
@@ -622,10 +619,7 @@ export async function sendNetworkingLunchInvitation(): Promise<{ sent: number }>
   return { sent: result.sent };
 }
 
-export async function runNetworkingLunchPublishPush(
-  now: Date,
-  imageMediaId?: string,
-): Promise<number> {
+export async function runNetworkingLunchPublishPush(now: Date): Promise<number> {
   const config = await readConfig();
   if (!config.taskId || !config.invitationText.trim() || !config.publishedAt) return 0;
 
@@ -647,7 +641,6 @@ export async function runNetworkingLunchPublishPush(
     hash,
     linkHash: hash,
     linkLabel: 'На главную',
-    imageMediaId,
     targetType: 'all',
     category: 'tasks',
     skipBroadcastLog: true,
