@@ -37,6 +37,18 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
 export function createApp() {
   const app = express();
 
+  // #region agent log
+  app.use((req, _res, next) => {
+    console.info('[startup-debug 4d6e6b] incoming request', {
+      method: req.method,
+      url: req.url,
+      host: req.headers.host ?? null,
+      ua: req.headers['user-agent'] ?? null,
+    });
+    next();
+  });
+  // #endregion
+
   // Liveness for Timeweb/App Platform — no DB, must return 2xx quickly
   app.get('/', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'nfo-forum-api' });
