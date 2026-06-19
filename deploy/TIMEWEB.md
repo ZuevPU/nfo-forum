@@ -4,13 +4,20 @@ Production backend: **https://zuevpu-nfo-forum-d400.twc1.net**
 
 Railway и VK Hosting в проекте **не используются** для production.
 
+## Health check (важно)
+
+В настройках backend-приложения Timeweb укажите **liveness** путь:
+
+- **Правильно:** `/health` или `/` — ответ 200 без обращения к БД
+- **Не использовать для liveness:** `/api/health` — проверяет PostgreSQL; при неверном `DATABASE_URL` контейнер уходит в цикл перезапусков (`SIGTERM`)
+
 ## Переменные окружения (backend)
 
 Скопируйте [`.env.production.example`](../.env.production.example) в панель Timeweb → переменные окружения приложения backend.
 
 | Переменная | Значение |
 |------------|----------|
-| `DATABASE_URL` | PostgreSQL (Timeweb DB) |
+| `DATABASE_URL` | PostgreSQL (Timeweb DB) — **актуальная строка из панели БД** (пользователь, пароль, имя БД, хост) |
 | `API_PUBLIC_URL` | `https://zuevpu-nfo-forum-d400.twc1.net` |
 | `SKIP_VK_SIGN` | `false` |
 | `FRONTEND_ORIGIN` | `https://vk.com` |
@@ -55,3 +62,33 @@ npm run deploy:frontend:timeweb
 Секреты `API_URL` и `CRON_SECRET` — см. [`set-github-secrets.ps1`](./set-github-secrets.ps1).
 
 Полный обзор: [DEPLOY.md](./DEPLOY.md).
+
+## Если «всё упало»: backend не подключается к БД
+
+Симптомы в логах backend:
+
+- `Health check failed: password authentication failed for user "gen_user"` (код `28P01`)
+- `npm error signal SIGTERM` — Timeweb убивает контейнер после неудачного health check
+- Frontend (статика `*.twc1.net`) отдаёт **200**, но API (`zuevpu-nfo-forum-d400.twc1.net`) не отвечает или `/api/health` → 503
+
+Симптомы в логах PostgreSQL:
+
+- `Role "gen_user" does not exist` — после перезапуска/миграции БД старый пользователь удалён
+- Успешные подключения `adminzuev@nfobd` — актуальная БД другая (`nfobd`, не `default_db`)
+
+**Исправление:**
+
+1. Timeweb → **Базы данных** → откройте текущую PostgreSQL → скопируйте строку подключения (пользователь, пароль, хост, **имя БД**).
+2. Timeweb → **backend-приложение** → переменные → обновите `DATABASE_URL` (тот же формат: `postgresql://user:pass@host:5432/dbname?sslmode=require`).
+3. Обновите `.env.production` локально тем же `DATABASE_URL`.
+4. Примените миграции: `cd backend && npm run db:migrate`.
+5. Health check в панели → `/health`.
+6. **Redeploy** backend.
+7. Проверка: `npm run verify:prod` или откройте `https://zuevpu-nfo-forum-d400.twc1.net/api/health` — должно быть `"database":"connected"`.
+
+В логах после деплоя должны появиться строки:
+
+```
+[db] Pool max=10, target=USER@HOST:5432/DATABASE
+[db] Startup connection OK
+```

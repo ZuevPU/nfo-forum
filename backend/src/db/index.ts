@@ -9,6 +9,20 @@ function stripSslModeParam(url: string): string {
     .replace(/\?$/, '');
 }
 
+function parseConnectionTarget(url: string): { host: string; port: string; user: string; database: string } {
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.hostname,
+      port: parsed.port || '5432',
+      user: decodeURIComponent(parsed.username),
+      database: parsed.pathname.replace(/^\//, '') || '(none)',
+    };
+  } catch {
+    return { host: '?', port: '?', user: '?', database: '?' };
+  }
+}
+
 function buildConnectionString(): string {
   const url = env.DATABASE_URL;
   // Supabase pooler only — pgbouncer params break direct Postgres (e.g. Timeweb).
@@ -46,7 +60,10 @@ pool.on('error', (err) => {
 });
 
 if (env.NODE_ENV === 'production') {
-  console.info(`[db] Pool max=${env.DB_POOL_MAX}`);
+  const target = parseConnectionTarget(env.DATABASE_URL);
+  console.info(
+    `[db] Pool max=${env.DB_POOL_MAX}, target=${target.user}@${target.host}:${target.port}/${target.database}`,
+  );
 }
 
 export const db = drizzle(pool, { schema });

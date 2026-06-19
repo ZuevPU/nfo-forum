@@ -1,6 +1,6 @@
 import { env } from './config/env.js';
 import { createApp } from './app.js';
-import { closeDatabase } from './db/index.js';
+import { closeDatabase, pool } from './db/index.js';
 import { stopScheduler, startScheduler } from './services/scheduler.service.js';
 
 const app = createApp();
@@ -9,6 +9,13 @@ const host = '0.0.0.0';
 const server = app.listen(env.PORT, host, () => {
   console.log(`Backend running on http://${host}:${env.PORT}`);
   startScheduler();
+  void pool
+    .query('SELECT 1')
+    .then(() => console.info('[db] Startup connection OK'))
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[db] Startup connection FAILED:', message);
+    });
 });
 
 async function shutdown(signal: string) {
