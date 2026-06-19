@@ -50,7 +50,7 @@ export const env = {
   PORT: Number(process.env.PORT || process.env.APP_PORT || 8080),
   VITE_API_URL: process.env.VITE_API_URL ?? 'http://localhost:3001',
   API_PUBLIC_URL: process.env.API_PUBLIC_URL ?? process.env.VITE_API_URL ?? `http://localhost:${Number(process.env.PORT ?? 3001)}`,
-  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
+  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN ?? 'https://vk.com',
   VK_APP_SECRET: process.env.VK_APP_SECRET ?? '',
   VK_GROUP_TOKEN: process.env.VK_GROUP_TOKEN ?? '',
   VK_GROUP_ID: process.env.VK_GROUP_ID ?? '',
