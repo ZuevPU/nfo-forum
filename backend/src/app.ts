@@ -19,12 +19,10 @@ import { uploadsRouter } from './routes/uploads.js';
 import { mediaRouter } from './routes/media.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { networkingLunchRouter } from './routes/networkingLunch.js';
-import { sendAgentDebug } from './utils/agentDebug.js';
 
 const VK_HOSTING_ORIGIN = /^https:\/\/[\w-]+\.vk-apps\.com$/;
 const VERCEL_ORIGIN = /^https:\/\/.*\.vercel\.app$/;
 const TIMEWEB_ORIGIN = /^https:\/\/.*\.twc1\.net$/;
-const DEBUG_RUN_ID = 'timeweb-health-hang-2026-06-19';
 
 function isAllowedCorsOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
@@ -39,51 +37,11 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
 export function createApp() {
   const app = express();
 
-  // #region agent log
-  app.use((req, _res, next) => {
-    console.info('[startup-debug 4d6e6b] incoming request', {
-      method: req.method,
-      url: req.url,
-      host: req.headers.host ?? null,
-      ua: req.headers['user-agent'] ?? null,
-    });
-    if (req.url === '/' || req.url === '/health') {
-      // #region agent log
-      sendAgentDebug({
-        runId: DEBUG_RUN_ID,
-        hypothesisId: 'H2',
-        location: 'backend/src/app.ts:50',
-        message: 'Incoming liveness request',
-        data: {
-          method: req.method,
-          url: req.url,
-          host: req.headers.host ?? null,
-          userAgent: req.headers['user-agent'] ?? null,
-        },
-      });
-      // #endregion
-    }
-    next();
-  });
-  // #endregion
-
   // Liveness for Timeweb/App Platform — no DB, must return 2xx quickly
-  app.get('/', (req, res) => {
-    console.info('[startup-debug 4d6e6b] Health check hit on /');
-    res.status(200).send('ok');
-  });
-  app.head('/', (req, res) => {
-    console.info('[startup-debug 4d6e6b] Health check HEAD hit on /');
-    res.sendStatus(200);
-  });
-  app.get('/health', (req, res) => {
-    console.info('[startup-debug 4d6e6b] Health check hit on /health');
-    res.status(200).send('ok');
-  });
-  app.head('/health', (req, res) => {
-    console.info('[startup-debug 4d6e6b] Health check HEAD hit on /health');
-    res.sendStatus(200);
-  });
+  app.get('/', (_req, res) => { res.status(200).send('ok'); });
+  app.head('/', (_req, res) => { res.sendStatus(200); });
+  app.get('/health', (_req, res) => { res.status(200).send('ok'); });
+  app.head('/health', (_req, res) => { res.sendStatus(200); });
 
   app.use(
     cors({
