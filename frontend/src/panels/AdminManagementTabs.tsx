@@ -1153,11 +1153,7 @@ export function AdminNetworkingLunchTab() {
           <button
             type="button"
             className="nfo-admin-btn-secondary"
-            disabled={
-              actionLoading != null ||
-              !config.publishedAt ||
-              !!config.assignmentsSentAt
-            }
+            disabled={actionLoading != null || !config.publishedAt}
             onClick={() =>
               void runAction('unpublish-reg', async () => {
                 if (
@@ -1167,6 +1163,9 @@ export function AdminNetworkingLunchTab() {
                 ) {
                   return;
                 }
+                // #region agent log
+                fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'AdminManagementTabs:unpublish',message:'unpublish click confirmed',data:{publishedAt:config.publishedAt,assignmentsSentAt:config.assignmentsSentAt},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+                // #endregion
                 const res = await unpublishNetworkingLunchRegistration();
                 setConfig(res.config);
                 setMessage('Регистрация снята с публикации — участники больше не видят нетворкинг-обед');

@@ -585,6 +585,9 @@ adminRouter.post('/networking-lunch/unpublish-registration', async (_req, res) =
     res.json({ config });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unpublish failed';
+    // #region agent log
+    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'admin.ts:unpublish-registration',message:'unpublish failed',data:{error:message},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     res.status(400).json({ error: message });
   }
 });

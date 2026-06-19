@@ -201,10 +201,10 @@ export async function publishNetworkingLunchRegistration(): Promise<NetworkingLu
 
 export async function unpublishNetworkingLunchRegistration(): Promise<NetworkingLunchConfig> {
   const config = await readConfig();
+  // #region agent log
+  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'networkingLunch.service.ts:unpublish',message:'unpublish called',data:{publishedAt:config.publishedAt,assignmentsSentAt:config.assignmentsSentAt,taskId:config.taskId},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
   if (!config.publishedAt) throw new Error('Registration is not published');
-  if (config.assignmentsSentAt) {
-    throw new Error('Нельзя снять с публикации после рассылки столов');
-  }
   if (!config.taskId) throw new Error('Задание не настроено');
 
   await db
@@ -220,6 +220,9 @@ export async function unpublishNetworkingLunchRegistration(): Promise<Networking
     publishedAt: null,
   });
   await writeConfig(saved);
+  // #region agent log
+  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'networkingLunch.service.ts:unpublish',message:'unpublish saved',data:{publishedAt:saved.publishedAt},timestamp:Date.now(),hypothesisId:'H1',runId:'post-fix'})}).catch(()=>{});
+  // #endregion
   return saved;
 }
 
