@@ -1,6 +1,6 @@
 # Production frontend build for Timeweb static hosting
 param(
-  [string]$ApiUrl = "https://zuevpu-nfo-forum-d400.twc1.net"
+  [string]$ApiUrl = "https://zuevpu-nfo-forum-9945.twc1.net"
 )
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
