@@ -17,9 +17,4 @@ ENV NODE_ENV=production
 ENV PORT=8080
 EXPOSE 8080
 
-# Docker HEALTHCHECK lets Timeweb wait for the app to be ready
-# instead of relying on its external probe timing out
-HEALTHCHECK --interval=5s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:'+process.env.PORT+'/health',function(r){process.exit(r.statusCode===200?0:1)}).on('error',function(){process.exit(1)})"
-
 CMD ["node", "backend/dist/index.js"]
