@@ -45,9 +45,6 @@ function resolveDatabaseUrl(): string {
   );
 }
 
-  // #region agent log
-  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4d6e6b'},body:JSON.stringify({sessionId:'4d6e6b',location:'env.ts:49',message:'Env config loaded',data:{PORT: process.env.PORT, DATABASE_URL: Boolean(process.env.DATABASE_URL), DB_HOST: Boolean(process.env.DB_HOST)},hypothesisId:'2',timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 export const env = {
   DATABASE_URL: resolveDatabaseUrl(),
   PORT: Number(process.env.PORT ?? 3001),
