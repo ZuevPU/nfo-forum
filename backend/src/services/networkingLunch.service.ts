@@ -132,17 +132,25 @@ async function syncLinkedTask(config: NetworkingLunchConfig): Promise<number> {
   const publishTime = isPublished ? new Date(config.publishedAt!) : slotTime;
 
   if (config.taskId) {
-    await db
-      .update(tasks)
-      .set({
-        title,
-        description,
-        publishTime,
-        status,
-        sendNotification: false,
-      })
-      .where(eq(tasks.id, config.taskId));
-    return config.taskId;
+    const [existing] = await db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(eq(tasks.id, config.taskId))
+      .limit(1);
+
+    if (existing) {
+      await db
+        .update(tasks)
+        .set({
+          title,
+          description,
+          publishTime,
+          status,
+          sendNotification: false,
+        })
+        .where(eq(tasks.id, config.taskId));
+      return config.taskId;
+    }
   }
 
   const [row] = await db
@@ -169,8 +177,8 @@ export async function publishNetworkingLunchRegistration(): Promise<NetworkingLu
   if (!config.taskDescription.trim()) throw new Error('Укажите описание задания');
   if (config.publishedAt) throw new Error('Registration already published');
 
-  const taskId = config.taskId ?? (await syncLinkedTask(config));
   const now = new Date();
+  const taskId = await syncLinkedTask(normalizeConfig({ ...config, publishedAt: now.toISOString() }));
 
   await db
     .update(tasks)
@@ -334,22 +342,37 @@ function resolveParticipantPhase(
 export async function getNetworkingLunchParticipantView(
   userId: number,
 ): Promise<NetworkingLunchParticipantView | null> {
-  const config = await readConfig();
-  if (!config.taskId) return null;
+  let config = await readConfig();
+  if (!config.taskId && !config.taskTitle.trim()) return null;
 
-  const [task] = await db.select().from(tasks).where(eq(tasks.id, config.taskId)).limit(1);
+  let [task] = config.taskId
+    ? await db.select().from(tasks).where(eq(tasks.id, config.taskId)).limit(1)
+    : [undefined];
+
+  if (!task && config.taskTitle.trim() && config.taskDescription.trim()) {
+    const taskId = await syncLinkedTask(config);
+    config = normalizeConfig({ ...config, taskId });
+    await writeConfig(config);
+    [task] = await db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
+  }
+
   if (!task) return null;
 
   const status = await getUserLunchStatus(userId);
   const phase = resolveParticipantPhase(config, status);
 
-  if (!config.publishedAt || !phase) return null;
+  if (!config.publishedAt || !phase) {
+    // #region agent log
+    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'networkingLunch.service.ts:getNetworkingLunchParticipantView',message:'lunch hidden',data:{userId,publishedAt:config.publishedAt,phase,taskId:config.taskId},timestamp:Date.now(),hypothesisId:'NL1'})}).catch(()=>{});
+    // #endregion
+    return null;
+  }
 
   const registrationOpen = !!config.publishedAt && !config.assignmentsSentAt;
   const canApply = registrationOpen && !status.applied;
 
-  return {
-    taskId: config.taskId,
+  const view = {
+    taskId: config.taskId!,
     title: config.taskTitle || task.title,
     description: config.taskDescription || task.description,
     points: task.points,
@@ -361,6 +384,12 @@ export async function getNetworkingLunchParticipantView(
     publishedAt: config.publishedAt,
     canApply,
   };
+
+  // #region agent log
+  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'networkingLunch.service.ts:getNetworkingLunchParticipantView',message:'lunch visible',data:{userId,phase:view.phase,taskId:view.taskId,title:view.title},timestamp:Date.now(),hypothesisId:'NL1',runId:'post-fix'})}).catch(()=>{});
+  // #endregion
+
+  return view;
 }
 
 export async function applyNetworkingLunch(userId: number): Promise<{ applied: boolean }> {
@@ -545,13 +574,14 @@ export async function publishNetworkingLunchAssignments(): Promise<{ sent: numbe
   if (assignments.length === 0) throw new Error('No assignments to publish');
 
   let sent = 0;
-  const hash = config.taskId ? entityLink('tasks', config.taskId) : entityLink('tasks');
+  const hash = entityLink('home');
 
   for (const row of assignments) {
     const result = await sendPush({
       text: `Ваш стол на нетворкинг-обед: № ${row.tableNumber}. Приятного аппетита!`,
       hash,
       linkHash: hash,
+      linkLabel: 'На главную',
       targetType: 'user',
       targetUserId: row.userId,
       category: 'tasks',
@@ -572,11 +602,12 @@ export async function sendNetworkingLunchInvitation(): Promise<{ sent: number }>
 
   const now = new Date();
   const mascotMediaId = await getPushMascotMediaId();
-  const hash = entityLink('tasks', config.taskId);
+  const hash = entityLink('home');
   const result = await sendPush({
     text: invitationText,
     hash,
     linkHash: hash,
+    linkLabel: 'На главную',
     imageMediaId: mascotMediaId,
     targetType: 'all',
     category: 'tasks',
@@ -610,11 +641,12 @@ export async function runNetworkingLunchPublishPush(
   const dedup = (dedupRow?.value as Record<string, string>) ?? {};
   if (dedup[dedupKey]) return 0;
 
-  const hash = entityLink('tasks', config.taskId);
+  const hash = entityLink('home');
   const result = await sendPush({
     text: config.invitationText.trim(),
     hash,
     linkHash: hash,
+    linkLabel: 'На главную',
     imageMediaId,
     targetType: 'all',
     category: 'tasks',
