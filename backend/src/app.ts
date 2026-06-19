@@ -70,35 +70,19 @@ export function createApp() {
   // Liveness for Timeweb/App Platform — no DB, must return 2xx quickly
   app.get('/', (req, res) => {
     console.info('[startup-debug 4d6e6b] Health check hit on /');
-    // #region agent log
-    sendAgentDebug({
-      runId: DEBUG_RUN_ID,
-      hypothesisId: 'H2',
-      location: 'backend/src/app.ts:68',
-      message: 'Liveness handler "/" responded',
-      data: {
-        method: req.method,
-        hasPortEnv: Boolean(process.env.PORT),
-      },
-    });
-    // #endregion
-    res.status(200).json({ status: 'ok', service: 'nfo-forum-api' });
+    res.status(200).send('ok');
+  });
+  app.head('/', (req, res) => {
+    console.info('[startup-debug 4d6e6b] Health check HEAD hit on /');
+    res.sendStatus(200);
   });
   app.get('/health', (req, res) => {
     console.info('[startup-debug 4d6e6b] Health check hit on /health');
-    // #region agent log
-    sendAgentDebug({
-      runId: DEBUG_RUN_ID,
-      hypothesisId: 'H2',
-      location: 'backend/src/app.ts:81',
-      message: 'Liveness handler "/health" responded',
-      data: {
-        method: req.method,
-        hasPortEnv: Boolean(process.env.PORT),
-      },
-    });
-    // #endregion
-    res.status(200).json({ status: 'ok' });
+    res.status(200).send('ok');
+  });
+  app.head('/health', (req, res) => {
+    console.info('[startup-debug 4d6e6b] Health check HEAD hit on /health');
+    res.sendStatus(200);
   });
 
   app.use(
