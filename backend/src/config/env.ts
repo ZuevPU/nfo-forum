@@ -47,7 +47,7 @@ function resolveDatabaseUrl(): string {
 
 export const env = {
   DATABASE_URL: resolveDatabaseUrl(),
-  PORT: Number(process.env.PORT ?? 3001),
+  PORT: Number(process.env.PORT || process.env.APP_PORT || 8080),
   VITE_API_URL: process.env.VITE_API_URL ?? 'http://localhost:3001',
   API_PUBLIC_URL: process.env.API_PUBLIC_URL ?? process.env.VITE_API_URL ?? `http://localhost:${Number(process.env.PORT ?? 3001)}`,
   FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
