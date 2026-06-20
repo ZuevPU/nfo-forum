@@ -64,6 +64,7 @@ import {
   type DiagnosticProfileFeedbackRow,
 } from '../api/admin';
 import { AdminFeedbackTab, AdminSettingsTab, AdminUsersTab, AdminReflectionAnswersTab, AdminNfoStatsTab, AdminActivityTab, AdminTaskSubmissionsTab, AdminNetworkingLunchTab } from './AdminManagementTabs';
+import { AdminDilemmasTab } from './AdminDilemmasTab';
 import { TRACKS } from '../constants/tracks';
 import { useAuthContext } from '../contexts/AuthContext';
 import { pickImage } from '../lib/vk-bridge';
@@ -1173,6 +1174,8 @@ export function AdminPanel() {
         <AdminNfoStatsTab />
       ) : tab === 'activity' ? (
         <AdminActivityTab />
+      ) : tab === 'dilemmas' ? (
+        <AdminDilemmasTab />
       ) : tab === 'settings' ? (
         <AdminSettingsTab />
       ) : null}

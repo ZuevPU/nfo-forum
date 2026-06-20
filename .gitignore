@@ -9,3 +9,4 @@ frontend-dist.zip
 frontend/dist.zip
 uploads/
 backend/uploads/
+deploy/timeweb-backend-vars.env

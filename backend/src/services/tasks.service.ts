@@ -144,9 +144,6 @@ export async function submitTask(
   }
 
   const photoMode = task.photoMode ?? (task.requiresPhoto ? 'required' : 'none');
-  // #region agent log
-  fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'tasks.service.ts:submitTask',message:'task submit photo check',data:{taskId,photoMode,requiresPhoto:task.requiresPhoto,rawPhotoMode:task.photoMode,photosCount:photos?.length ?? 0,hasAnswer:!!answerText?.trim()},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-  // #endregion
   if (photoMode === 'required' && (!photos || photos.length === 0)) {
     throw new Error('Photo is required for this task');
   }

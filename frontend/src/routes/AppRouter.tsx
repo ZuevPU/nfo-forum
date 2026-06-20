@@ -25,8 +25,10 @@ import { NotificationsPanel } from '../panels/NotificationsPanel';
 import { StateCheckinPanel } from '../panels/StateCheckinPanel';
 import { TasksPanel } from '../panels/TasksPanel';
 import { WelcomePanel } from '../panels/WelcomePanel';
+import { DilemmasPanel } from '../panels/DilemmasPanel';
+import { DilemmaVotePanel } from '../panels/DilemmaVotePanel';
 
-const MAIN_ROUTE_PREFIXES = ['/home', '/schedule', '/questions', '/exchange', '/tasks', '/rating', '/checkin', '/diagnostics', '/nfo-day', '/settings', '/notifications'];
+const MAIN_ROUTE_PREFIXES = ['/home', '/schedule', '/questions', '/exchange', '/tasks', '/rating', '/checkin', '/diagnostics', '/nfo-day', '/settings', '/notifications', '/dilemmas'];
 
 function isMainRoute(pathname: string) {
   return MAIN_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -94,6 +96,8 @@ export function AppRouter() {
           <Route path="/exchange/incoming/:assignmentId" element={<ExchangeIncomingPanel />} />
           <Route path="/exchange/:id" element={<ExchangeDetailPanel />} />
           <Route path="/tasks/:taskId?" element={<TasksPanel />} />
+          <Route path="/dilemmas/:id" element={<DilemmaVotePanel />} />
+          <Route path="/dilemmas" element={<DilemmasPanel />} />
           <Route path="/rating" element={<RatingPanel />} />
           <Route path="/checkin" element={<StateCheckinPanel />} />
           <Route path="/diagnostics" element={<DiagnosticsPanel />} />

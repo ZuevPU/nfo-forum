@@ -19,6 +19,7 @@ import { uploadsRouter } from './routes/uploads.js';
 import { mediaRouter } from './routes/media.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { networkingLunchRouter } from './routes/networkingLunch.js';
+import { dilemmasRouter } from './routes/dilemmas.js';
 
 const VK_HOSTING_ORIGIN = /^https:\/\/[\w-]+\.vk-apps\.com$/;
 const VERCEL_ORIGIN = /^https:\/\/.*\.vercel\.app$/;
@@ -86,6 +87,7 @@ export function createApp() {
   app.use('/api/uploads', uploadsRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/networking-lunch', networkingLunchRouter);
+  app.use('/api/dilemmas', dilemmasRouter);
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error:', err);

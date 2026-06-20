@@ -509,5 +509,41 @@ export const exchangeAnswersRelations = relations(exchangeAnswers, ({ one, many 
   reactions: many(exchangeReactions),
 }));
 
+export const dilemmas = pgTable('dilemmas', {
+  id: serial('id').primaryKey(),
+  text: text('text').notNull(),
+  optionA: text('option_a').notNull(),
+  optionB: text('option_b').notNull(),
+  publishedAt: timestamp('published_at').notNull(),
+  isPublished: boolean('is_published').notNull().default(false),
+  pointsPerVote: integer('points_per_vote').notNull().default(3),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const dilemmaVotes = pgTable(
+  'dilemma_votes',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    dilemmaId: integer('dilemma_id').notNull().references(() => dilemmas.id, { onDelete: 'cascade' }),
+    chosenOption: text('chosen_option').notNull(),
+    comment: text('comment'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('dilemma_votes_user_dilemma_unique').on(table.userId, table.dilemmaId),
+    index('idx_dilemma_votes_dilemma').on(table.dilemmaId),
+  ],
+);
+
+export const dilemmasRelations = relations(dilemmas, ({ many }) => ({
+  votes: many(dilemmaVotes),
+}));
+
+export const dilemmaVotesRelations = relations(dilemmaVotes, ({ one }) => ({
+  dilemma: one(dilemmas, { fields: [dilemmaVotes.dilemmaId], references: [dilemmas.id] }),
+  user: one(users, { fields: [dilemmaVotes.userId], references: [users.id] }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

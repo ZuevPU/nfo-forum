@@ -25,6 +25,7 @@ import {
   type DailyFocus,
   type TaskItem,
 } from '../api/tasks';
+import { fetchDilemmasSummary, type DilemmasSummary } from '../api/dilemmas';
 
 const MODAL_CLOSE_SUPPRESS_MS = 400;
 
@@ -52,6 +53,7 @@ export function TasksPanel() {
   const suppressCloseUntilRef = useRef(0);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [focus, setFocus] = useState<DailyFocus | null>(null);
+  const [dilemmasSummary, setDilemmasSummary] = useState<DilemmasSummary | null>(null);
   const [modalTask, setModalTask] = useState<TaskItem | null>(null);
   const [answer, setAnswer] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
@@ -81,10 +83,11 @@ export function TasksPanel() {
     if (silent) setRefreshing(true);
     else setLoading(true);
 
-    Promise.all([fetchTasks(), fetchDailyFocus()])
-      .then(([t, f]) => {
+    Promise.all([fetchTasks(), fetchDailyFocus(), fetchDilemmasSummary().catch(() => null)])
+      .then(([t, f, d]) => {
         setTasks(t.tasks);
         setFocus(f.focus);
+        setDilemmasSummary(d);
       })
       .catch(console.error)
       .finally(() => {
@@ -205,9 +208,6 @@ export function TasksPanel() {
   const handleSubmit = async () => {
     if (!modalTask) return;
     const photoMode = modalTask.photoMode ?? (modalTask.requiresPhoto ? 'required' : 'none');
-    // #region agent log
-    fetch('http://127.0.0.1:7843/ingest/d4c0971e-9897-4e1e-9faa-d063b5056602',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d5534'},body:JSON.stringify({sessionId:'9d5534',location:'TasksPanel.tsx:handleSubmit',message:'submit attempt',data:{taskId:modalTask.id,photoMode,requiresPhoto:modalTask.requiresPhoto,rawPhotoMode:modalTask.photoMode,photosCount:photos.length,answerLen:answer.trim().length,blocked:photoMode==='required'&&photos.length===0},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
     if (photoMode === 'required' && photos.length === 0) {
       alert('Для этого задания необходимо прикрепить фото');
       return;
@@ -254,14 +254,52 @@ export function TasksPanel() {
     </div>
   );
 
+  const renderDilemmasCard = () => {
+    if (!dilemmasSummary || dilemmasSummary.totalCount === 0) return null;
+    const completed = dilemmasSummary.status === 'completed';
+    return (
+      <div className="nfo-card" style={{ margin: 0, opacity: completed ? 0.6 : 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>
+            Море или горы в НФО
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nfo-primary)' }}>
+            {dilemmasSummary.maxPoints} б.
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)', marginTop: 4 }}>
+          Серия дилемм о неформальном образовании
+        </div>
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 12, color: 'var(--vkui--color_text_secondary)' }}>
+            {dilemmasSummary.answeredCount} из {dilemmasSummary.totalCount} отвечено
+          </div>
+          {completed ? (
+            <div style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, background: '#27ae60', color: '#fff', fontSize: 10, fontWeight: 600 }}>
+              Завершено
+            </div>
+          ) : (
+            <div style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, background: 'var(--nfo-primary)', color: '#fff', fontSize: 10, fontWeight: 600 }}>
+              Активно
+            </div>
+          )}
+          <Button size="s" mode="primary" onClick={() => navigate('/dilemmas')}>
+            Перейти
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   const renderTaskList = () => {
-    if (tasks.length === 0) {
+    if (tasks.length === 0 && !dilemmasSummary?.totalCount) {
       return <EmptyState message="Задания скоро появятся — следи за уведомлениями" />;
     }
 
     return (
       <Group>
         <Div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
+          {renderDilemmasCard()}
           {tasks.map((t) => {
             const canOpen = t.status !== 'approved';
             const needsNetworking = t.isRandomDistribution && !t.networkingStatus;

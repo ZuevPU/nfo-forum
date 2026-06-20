@@ -1,6 +1,7 @@
 export type AdminTab =
   | 'events'
   | 'tasks'
+  | 'dilemmas'
   | 'exchange'
   | 'submissions'
   | 'reflection'
@@ -30,6 +31,7 @@ export const ADMIN_TAB_GROUPS: AdminTabGroup[] = [
     tabs: [
       { id: 'events', label: 'События' },
       { id: 'tasks', label: 'Задания' },
+      { id: 'dilemmas', label: 'Дилеммы' },
       { id: 'reflection', label: 'Вопросы' },
       { id: 'networking-lunch', label: 'Нетворкинг-обед' },
     ],
