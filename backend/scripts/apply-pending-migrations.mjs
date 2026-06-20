@@ -70,6 +70,8 @@ const checks = {
   networking_lunch_applications: await tableExists('networking_lunch_applications'),
   networking_lunch_assignments: await tableExists('networking_lunch_assignments'),
   feedback_replies: await tableExists('feedback_replies'),
+  dilemmas: await tableExists('dilemmas'),
+  dilemma_votes: await tableExists('dilemma_votes'),
 };
 
 console.log('Current state:');
@@ -246,6 +248,34 @@ if (!checks.feedback_replies) {
 )`);
   statements.push(
     'CREATE INDEX IF NOT EXISTS idx_feedback_replies_message_id ON feedback_replies (message_id)',
+  );
+}
+
+if (!checks.dilemmas) {
+  statements.push(`CREATE TABLE IF NOT EXISTS dilemmas (
+  id serial PRIMARY KEY,
+  text text NOT NULL,
+  option_a text NOT NULL,
+  option_b text NOT NULL,
+  published_at timestamp NOT NULL,
+  is_published boolean NOT NULL DEFAULT false,
+  points_per_vote integer NOT NULL DEFAULT 3,
+  created_at timestamp NOT NULL DEFAULT now()
+)`);
+}
+
+if (!checks.dilemma_votes) {
+  statements.push(`CREATE TABLE IF NOT EXISTS dilemma_votes (
+  id serial PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  dilemma_id integer NOT NULL REFERENCES dilemmas(id) ON DELETE CASCADE,
+  chosen_option text NOT NULL,
+  comment text,
+  created_at timestamp NOT NULL DEFAULT now(),
+  CONSTRAINT dilemma_votes_user_dilemma_unique UNIQUE (user_id, dilemma_id)
+)`);
+  statements.push(
+    'CREATE INDEX IF NOT EXISTS idx_dilemma_votes_dilemma ON dilemma_votes (dilemma_id)',
   );
 }
 

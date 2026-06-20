@@ -136,11 +136,19 @@ export async function voteDilemma(
     .where(and(eq(dilemmaVotes.userId, user.id), eq(dilemmaVotes.dilemmaId, dilemmaId)))
     .limit(1);
   if (existing) throw new Error('Вы уже голосовали по этой дилемме');
+  
+  const userVotes = await db
+    .select({ id: dilemmaVotes.id })
+    .from(dilemmaVotes)
+    .where(eq(dilemmaVotes.userId, user.id));
+  
+  const pointsToAward = userVotes.length >= DILEMMAS_MAX_COUNT ? 0 : dilemma.pointsPerVote;
+
   const [vote] = await db
     .insert(dilemmaVotes)
     .values({ userId: user.id, dilemmaId, chosenOption, comment: comment ?? null })
     .returning();
-  await awardPoints(user.id, dilemma.pointsPerVote, 'dilemma_vote', vote.id, undefined, 0, dilemma.pointsPerVote);
+  await awardPoints(user.id, pointsToAward, 'dilemma_vote', vote.id, undefined, 0, pointsToAward);
   return vote;
 }
 
@@ -199,7 +207,14 @@ export async function adminCreateDilemma(data: {
       pointsPerVote: data.pointsPerVote ?? DILEMMAS_POINTS_PER_VOTE,
     })
     .returning();
-  return { ...created, publishedAt: created.publishedAt.toISOString(), createdAt: created.createdAt.toISOString() };
+  return { 
+    ...created, 
+    publishedAt: created.publishedAt.toISOString(), 
+    createdAt: created.createdAt.toISOString(),
+    votesTotal: 0,
+    percentA: 0,
+    percentB: 0,
+  };
 }
 
 export async function adminUpdateDilemma(
@@ -213,7 +228,15 @@ export async function adminUpdateDilemma(
   if (data.pointsPerVote !== undefined) updates.pointsPerVote = data.pointsPerVote;
   if (data.publishedAt !== undefined) updates.publishedAt = new Date(data.publishedAt);
   const [updated] = await db.update(dilemmas).set(updates).where(eq(dilemmas.id, id)).returning();
-  return { ...updated, publishedAt: updated.publishedAt.toISOString(), createdAt: updated.createdAt.toISOString() };
+  const results = await adminGetDilemmaResults(id);
+  return { 
+    ...updated, 
+    publishedAt: updated.publishedAt.toISOString(), 
+    createdAt: updated.createdAt.toISOString(),
+    votesTotal: results?.total ?? 0,
+    percentA: results?.percentA ?? 0,
+    percentB: results?.percentB ?? 0,
+  };
 }
 
 export async function adminDeleteDilemma(id: number) {
@@ -227,12 +250,29 @@ export async function adminPublishDilemma(id: number) {
     .set({ isPublished: true, publishedAt: now })
     .where(and(eq(dilemmas.id, id), eq(dilemmas.isPublished, false)))
     .returning();
+  
+  const results = await adminGetDilemmaResults(id);
+  
   if (!updated) {
     const [existing] = await db.select().from(dilemmas).where(eq(dilemmas.id, id)).limit(1);
     if (!existing) throw new Error('Дилемма не найдена');
-    return { ...existing, publishedAt: existing.publishedAt.toISOString(), createdAt: existing.createdAt.toISOString() };
+    return { 
+      ...existing, 
+      publishedAt: existing.publishedAt.toISOString(), 
+      createdAt: existing.createdAt.toISOString(),
+      votesTotal: results?.total ?? 0,
+      percentA: results?.percentA ?? 0,
+      percentB: results?.percentB ?? 0,
+    };
   }
-  return { ...updated, publishedAt: updated.publishedAt.toISOString(), createdAt: updated.createdAt.toISOString() };
+  return { 
+    ...updated, 
+    publishedAt: updated.publishedAt.toISOString(), 
+    createdAt: updated.createdAt.toISOString(),
+    votesTotal: results?.total ?? 0,
+    percentA: results?.percentA ?? 0,
+    percentB: results?.percentB ?? 0,
+  };
 }
 
 export async function adminUnpublishDilemma(id: number) {
@@ -242,7 +282,16 @@ export async function adminUnpublishDilemma(id: number) {
     .where(eq(dilemmas.id, id))
     .returning();
   if (!updated) throw new Error('Дилемма не найдена');
-  return { ...updated, publishedAt: updated.publishedAt.toISOString(), createdAt: updated.createdAt.toISOString() };
+  
+  const results = await adminGetDilemmaResults(id);
+  return { 
+    ...updated, 
+    publishedAt: updated.publishedAt.toISOString(), 
+    createdAt: updated.createdAt.toISOString(),
+    votesTotal: results?.total ?? 0,
+    percentA: results?.percentA ?? 0,
+    percentB: results?.percentB ?? 0,
+  };
 }
 
 export async function adminSendDilemmaNotification(id: number) {
