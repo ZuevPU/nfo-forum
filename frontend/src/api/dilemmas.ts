@@ -92,3 +92,15 @@ export function updateAdminDilemma(
 export function deleteAdminDilemma(id: number) {
   return apiRequest<{ ok: boolean }>(`/api/dilemmas/admin/${id}`, { method: 'DELETE' });
 }
+
+export function publishAdminDilemma(id: number) {
+  return apiRequest<{ dilemma: AdminDilemma }>(`/api/dilemmas/admin/${id}/publish`, { method: 'POST', body: {} });
+}
+
+export function unpublishAdminDilemma(id: number) {
+  return apiRequest<{ dilemma: AdminDilemma }>(`/api/dilemmas/admin/${id}/unpublish`, { method: 'POST', body: {} });
+}
+
+export function notifyAdminDilemma(id: number) {
+  return apiRequest<{ sent: number }>(`/api/dilemmas/admin/${id}/notify`, { method: 'POST', body: {} });
+}

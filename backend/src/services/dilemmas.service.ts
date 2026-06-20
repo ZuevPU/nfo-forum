@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { dilemmas, dilemmaVotes } from '../db/schema.js';
 import type { UserDto } from '../types/api.js';
 import { awardPoints } from './points.service.js';
+import { sendPush } from './push.service.js';
 
 export const DILEMMAS_POINTS_PER_VOTE = 3;
 export const DILEMMAS_MAX_COUNT = 5;
@@ -187,16 +188,14 @@ export async function adminCreateDilemma(data: {
   publishedAt: string;
   pointsPerVote?: number;
 }) {
-  const publishedAt = new Date(data.publishedAt);
-  const isPublished = publishedAt <= new Date();
   const [created] = await db
     .insert(dilemmas)
     .values({
       text: data.text,
       optionA: data.optionA,
       optionB: data.optionB,
-      publishedAt,
-      isPublished,
+      publishedAt: new Date(data.publishedAt),
+      isPublished: false,
       pointsPerVote: data.pointsPerVote ?? DILEMMAS_POINTS_PER_VOTE,
     })
     .returning();
@@ -212,15 +211,51 @@ export async function adminUpdateDilemma(
   if (data.optionA !== undefined) updates.optionA = data.optionA;
   if (data.optionB !== undefined) updates.optionB = data.optionB;
   if (data.pointsPerVote !== undefined) updates.pointsPerVote = data.pointsPerVote;
-  if (data.publishedAt !== undefined) {
-    const publishedAt = new Date(data.publishedAt);
-    updates.publishedAt = publishedAt;
-    updates.isPublished = publishedAt <= new Date();
-  }
+  if (data.publishedAt !== undefined) updates.publishedAt = new Date(data.publishedAt);
   const [updated] = await db.update(dilemmas).set(updates).where(eq(dilemmas.id, id)).returning();
   return { ...updated, publishedAt: updated.publishedAt.toISOString(), createdAt: updated.createdAt.toISOString() };
 }
 
 export async function adminDeleteDilemma(id: number) {
   await db.delete(dilemmas).where(eq(dilemmas.id, id));
+}
+
+export async function adminPublishDilemma(id: number) {
+  const now = new Date();
+  const [updated] = await db
+    .update(dilemmas)
+    .set({ isPublished: true, publishedAt: now })
+    .where(and(eq(dilemmas.id, id), eq(dilemmas.isPublished, false)))
+    .returning();
+  if (!updated) {
+    const [existing] = await db.select().from(dilemmas).where(eq(dilemmas.id, id)).limit(1);
+    if (!existing) throw new Error('Дилемма не найдена');
+    return { ...existing, publishedAt: existing.publishedAt.toISOString(), createdAt: existing.createdAt.toISOString() };
+  }
+  return { ...updated, publishedAt: updated.publishedAt.toISOString(), createdAt: updated.createdAt.toISOString() };
+}
+
+export async function adminUnpublishDilemma(id: number) {
+  const [updated] = await db
+    .update(dilemmas)
+    .set({ isPublished: false })
+    .where(eq(dilemmas.id, id))
+    .returning();
+  if (!updated) throw new Error('Дилемма не найдена');
+  return { ...updated, publishedAt: updated.publishedAt.toISOString(), createdAt: updated.createdAt.toISOString() };
+}
+
+export async function adminSendDilemmaNotification(id: number) {
+  const [dilemma] = await db.select().from(dilemmas).where(eq(dilemmas.id, id)).limit(1);
+  if (!dilemma) throw new Error('Дилемма не найдена');
+  if (!dilemma.isPublished) throw new Error('Сначала опубликуйте дилемму');
+  const shortText = dilemma.text.length > 90 ? `${dilemma.text.slice(0, 90)}…` : dilemma.text;
+  return sendPush({
+    text: `Новая дилемма: ${shortText}`,
+    hash: 'dilemmas',
+    linkHash: 'dilemmas',
+    linkLabel: 'Ответить',
+    targetType: 'all',
+    category: 'tasks',
+  });
 }

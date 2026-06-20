@@ -8,6 +8,9 @@ import {
   createAdminDilemma,
   updateAdminDilemma,
   deleteAdminDilemma,
+  publishAdminDilemma,
+  unpublishAdminDilemma,
+  notifyAdminDilemma,
   type AdminDilemma,
 } from '../api/dilemmas';
 
@@ -15,6 +18,7 @@ export function AdminDilemmasTab() {
   const [dilemmas, setDilemmas] = useState<AdminDilemma[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const [newText, setNewText] = useState('');
   const [newOptionA, setNewOptionA] = useState('');
@@ -82,6 +86,44 @@ export function AdminDilemmasTab() {
       .catch((e) => alert(e instanceof Error ? e.message : 'Ошибка удаления'));
   };
 
+  const handlePublish = async (id: number) => {
+    setBusyId(id);
+    try {
+      await publishAdminDilemma(id);
+      load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка публикации');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleUnpublish = async (id: number) => {
+    if (!window.confirm('Снять с публикации? Участники больше не увидят дилемму.')) return;
+    setBusyId(id);
+    try {
+      await unpublishAdminDilemma(id);
+      load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleNotify = async (id: number) => {
+    if (!window.confirm('Отправить push-уведомление всем участникам?')) return;
+    setBusyId(id);
+    try {
+      const result = await notifyAdminDilemma(id);
+      alert(`Уведомление отправлено: ${result.sent} получателей`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка отправки');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div className="nfo-admin-section">
       <div className="nfo-sec-title">Новая дилемма</div>
@@ -100,7 +142,7 @@ export function AdminDilemmasTab() {
         <FormItem top="Вариант Б">
           <Input value={newOptionB} onChange={(e) => setNewOptionB(e.target.value)} placeholder="Второй тезис" />
         </FormItem>
-        <DatetimeLocalMskInput top="Дата публикации (МСК)" value={newPublishedAt} onChange={setNewPublishedAt} />
+        <DatetimeLocalMskInput top="Дата автопубликации (МСК)" value={newPublishedAt} onChange={setNewPublishedAt} />
         <FormItem top="Баллы за голос">
           <Input type="number" value={newPoints} onChange={(e) => setNewPoints(e.target.value)} />
         </FormItem>
@@ -110,8 +152,11 @@ export function AdminDilemmasTab() {
           onClick={() => void handleCreate()}
           disabled={!newText.trim() || !newOptionA.trim() || !newOptionB.trim() || !newPublishedAt}
         >
-          Добавить дилемму
+          Сохранить дилемму
         </button>
+        <div style={{ fontSize: 11, color: 'var(--vkui--color_text_secondary)', marginTop: 6 }}>
+          Дилемма сохраняется без публикации. Используй кнопку «Опубликовать» чтобы показать участникам.
+        </div>
       </div>
 
       <div className="nfo-sec-title" style={{ marginTop: 8 }}>
@@ -125,12 +170,42 @@ export function AdminDilemmasTab() {
           title={editingId === d.id ? 'Редактирование' : d.text}
           meta={
             editingId !== d.id
-              ? `${d.isPublished ? 'Опубликовано' : 'Запланировано'} · ${new Date(d.publishedAt).toLocaleString('ru-RU')} · ${d.votesTotal} голосов (${d.percentA}% / ${d.percentB}%)`
+              ? `${d.isPublished ? '✓ Опубликовано' : '⏱ Не опубликовано'} · Авто: ${new Date(d.publishedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${d.votesTotal} голосов${d.votesTotal > 0 ? ` (А: ${d.percentA}% / Б: ${d.percentB}%)` : ''}`
               : undefined
           }
           actions={
             editingId !== d.id ? (
               <>
+                {!d.isPublished && (
+                  <button
+                    type="button"
+                    className="nfo-admin-btn-primary"
+                    disabled={busyId === d.id}
+                    onClick={() => void handlePublish(d.id)}
+                  >
+                    Опубликовать
+                  </button>
+                )}
+                {d.isPublished && (
+                  <>
+                    <button
+                      type="button"
+                      className="nfo-admin-btn-outline"
+                      disabled={busyId === d.id}
+                      onClick={() => void handleNotify(d.id)}
+                    >
+                      Послать уведомление
+                    </button>
+                    <button
+                      type="button"
+                      className="nfo-admin-btn-secondary"
+                      disabled={busyId === d.id}
+                      onClick={() => void handleUnpublish(d.id)}
+                    >
+                      Снять с публикации
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="nfo-admin-btn-outline"
@@ -163,7 +238,7 @@ export function AdminDilemmasTab() {
               <FormItem top="Вариант Б">
                 <Input value={editOptionB} onChange={(e) => setEditOptionB(e.target.value)} />
               </FormItem>
-              <DatetimeLocalMskInput top="Дата публикации (МСК)" value={editPublishedAt} onChange={setEditPublishedAt} />
+              <DatetimeLocalMskInput top="Дата автопубликации (МСК)" value={editPublishedAt} onChange={setEditPublishedAt} />
               <FormItem top="Баллы за голос">
                 <Input type="number" value={editPoints} onChange={(e) => setEditPoints(e.target.value)} />
               </FormItem>

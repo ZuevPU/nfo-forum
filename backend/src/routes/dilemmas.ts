@@ -13,6 +13,9 @@ import {
   adminUpdateDilemma,
   adminDeleteDilemma,
   adminGetDilemmaResults,
+  adminPublishDilemma,
+  adminUnpublishDilemma,
+  adminSendDilemmaNotification,
 } from '../services/dilemmas.service.js';
 
 export const dilemmasRouter = Router();
@@ -73,6 +76,33 @@ dilemmasRouter.get('/admin/:id/results', requireUser, requireAdmin, async (req, 
     return;
   }
   res.json(results);
+});
+
+dilemmasRouter.post('/admin/:id/publish', requireUser, requireAdmin, async (req, res) => {
+  try {
+    const updated = await adminPublishDilemma(Number(req.params.id));
+    res.json({ dilemma: updated });
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : 'Error' });
+  }
+});
+
+dilemmasRouter.post('/admin/:id/unpublish', requireUser, requireAdmin, async (req, res) => {
+  try {
+    const updated = await adminUnpublishDilemma(Number(req.params.id));
+    res.json({ dilemma: updated });
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : 'Error' });
+  }
+});
+
+dilemmasRouter.post('/admin/:id/notify', requireUser, requireAdmin, async (req, res) => {
+  try {
+    const result = await adminSendDilemmaNotification(Number(req.params.id));
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : 'Error' });
+  }
 });
 
 dilemmasRouter.get('/', requireUser, async (req: AuthenticatedRequest, res) => {
