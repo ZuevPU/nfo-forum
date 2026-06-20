@@ -1,6 +1,7 @@
 import { env } from './config/env.js';
 import { createApp } from './app.js';
 import { closeDatabase, pool } from './db/index.js';
+import { runMigrations } from './db/migrate.js';
 import { stopScheduler, startScheduler } from './services/scheduler.service.js';
 
 const app = createApp();
@@ -12,6 +13,7 @@ const server = app.listen(env.PORT, host, () => {
   void pool
     .query('SELECT 1')
     .then(() => console.info('[db] Startup connection OK'))
+    .then(() => runMigrations())
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[db] Startup connection FAILED:', message);
