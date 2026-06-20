@@ -17,7 +17,7 @@ ENV NODE_ENV=production
 ENV PORT=8080
 EXPOSE 8080
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=3s --timeout=2s --start-period=3s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["node", "backend/dist/index.js"]

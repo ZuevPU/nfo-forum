@@ -43,7 +43,10 @@ export function AdminDilemmasTab() {
   useEffect(() => { load(); }, []);
 
   const handleCreate = async () => {
-    if (!newText.trim() || !newOptionA.trim() || !newOptionB.trim() || !newPublishedAt) return;
+    if (!newText.trim() || !newOptionA.trim() || !newOptionB.trim() || !newPublishedAt) {
+      alert('Заполните все поля: текст дилеммы, вариант А, вариант Б и дату');
+      return;
+    }
     try {
       await createAdminDilemma({
         text: newText.trim(),
@@ -150,7 +153,6 @@ export function AdminDilemmasTab() {
           type="button"
           className="nfo-admin-btn-primary"
           onClick={() => void handleCreate()}
-          disabled={!newText.trim() || !newOptionA.trim() || !newOptionB.trim() || !newPublishedAt}
         >
           Сохранить дилемму
         </button>
